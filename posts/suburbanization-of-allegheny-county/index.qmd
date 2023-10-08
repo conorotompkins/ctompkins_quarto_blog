@@ -32,6 +32,7 @@ library(sf)
 library(units)
 library(hrbrthemes)
 library(gganimate)
+library(tweenr)
 library(scales)
 library(leaflet)
 library(leaflet.extras)
@@ -179,16 +180,18 @@ The North Side and the Hill were targets of ["urban renewal"](https://www.bloomb
 These graphs shows that the areas with the most housing in 1940 lost thousands of units, while outlying areas gained thousands of units.
 
 ```{r}
-#| dev: gif
-
 slope_graph_anim <- hu_diff |> 
+  as_tibble() |> 
+  select(-geometry) |>
+  arrange(desc(units_1940)) |> 
   pivot_longer(cols = c(units_1940, units_2019), names_to = "year", values_to = "housing_units") |> 
   mutate(year = str_remove(year, "^units_")) |> 
+  mutate(order = row_number()) |> 
   ggplot(aes(year, housing_units)) +
-  geom_line(aes(group = GEOID10), alpha = .1) +
+  geom_line(aes(group = GEOID10), alpha = 1, size = .5) +
   geom_point(aes(group = str_c(year, GEOID10)), alpha = .05) +
   scale_y_comma() +
-  transition_reveal(diff) +
+  transition_reveal(order) +
   labs(title = "Housing unit change from 1940-2019",
        subtitle = "From areas with the most units in 1940 to the least",
        x = "Year",
