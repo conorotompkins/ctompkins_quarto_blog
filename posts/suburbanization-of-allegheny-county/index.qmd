@@ -188,22 +188,21 @@ slope_graph_anim <- hu_diff |>
   mutate(year = str_remove(year, "^units_")) |> 
   mutate(order = row_number()) |> 
   ggplot(aes(year, housing_units)) +
-  geom_line(aes(group = GEOID10), alpha = 1, size = .5) +
+  geom_line(aes(group = GEOID10), alpha = .1) +
   geom_point(aes(group = str_c(year, GEOID10)), alpha = .05) +
   scale_y_comma() +
   transition_reveal(order) +
   labs(title = "Housing unit change from 1940-2019",
        subtitle = "From areas with the most units in 1940 to the least",
        x = "Year",
-       y = "Housing units",
-       alpha = "Difference") +
+       y = "Housing units") +
   theme(panel.grid.minor.y = element_blank(),
         panel.grid.major.y = element_blank(),
         panel.grid.major.x = element_blank(),
         panel.border = element_blank(),
         axis.title.x = element_blank())
 
-slope_graph_anim <- animate(slope_graph_anim, duration = 10, fps = 20, end_pause = 60)
+slope_graph_anim <- animate(slope_graph_anim, duration = 10, fps = 40, end_pause = 60)
 
 slope_graph_anim
 ```
