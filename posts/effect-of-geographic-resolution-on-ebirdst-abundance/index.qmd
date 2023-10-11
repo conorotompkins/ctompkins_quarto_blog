@@ -29,7 +29,7 @@ I had seen some weird results when trying to manually calculate `abundance` as `
 
 The underlying problem is that `abundance` and `count` are the results of models, and are subject to model error. I also believe that the data outputted from `load_raster` lacks the necessary significant digits to accurately recreate `abundance`. Lowering the resolution or aggregating the data will exacerbate this issue.
 
-This code loads my [convenience function](https://github.com/conorotompkins/ebird_shiny_app/blob/main/scripts/functions/pull_species_metric.R) to retrieve a metric for a species at a given geographic resolution. This gets `occurrence`, `count`, and `abundance` for the Northern Cardinal at high (3 km), medium (9 km), and low resolutions (27 km). The function also crops the underlying raster data to Allegheny County, PA.
+This code loads my [convenience function](https://github.com/conorotompkins/ebird_shiny_app/blob/main/scripts/functions/pull_species_metric.R) to retrieve a metric for a species at a given geographic resolution. This gets `occurrence`, `count`, and `abundance` for the Northern Cardinal at high (3 km), medium (9 km), and low resolutions (27 km). The function also crops the underlying raster data to Pennsylvania.
 
 ```{r}
 library(here)
@@ -50,26 +50,21 @@ species_table
 
 ```{r}
 #| cache: TRUE
+#| output: false
 
 species_metrics <- species_table %>% 
   mutate(data = pmap(list(location, species, metric, resolution), ~get_species_metric(..1, ..2, ..2, ..3, ..4))) %>% 
   mutate(resolution = fct_relevel(resolution, c("hr", "mr", "lr"))) %>% 
   arrange(species, metric, resolution)
+```
 
+```{r}
 species_metrics
 ```
 
 This unnests the data and recalculates abundance (`abundance_test`) and the difference between actual `abundance` and `abundance_test`.
 
 ```{r}
-species_metrics %>%
-  unnest(data) |> 
-  select(data) |> 
-  unnest(data) |> 
-  count(x, y, date, metric_desc) |> 
-  filter(n > 1)
-  
-
 species_table_unnested <- species_metrics %>%
   unnest(data) %>% 
   unnest(data) %>%
@@ -155,6 +150,7 @@ The following code reproduces the graph I attached to the issue:
 
 ```{r}
 #| cache: true
+#| output: false
 
 library(hrbrthemes)
 theme_set(theme_ipsum())
@@ -206,6 +202,7 @@ layout <- "
 AACC
 BBCC
 "
+
 plot_1 + plot_2 + plot_3 + 
   plot_layout(guides = 'collect', design = layout) +
   plot_annotation(title = "Northern Cardinal in Pennsylvania")
