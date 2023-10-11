@@ -1,0 +1,232 @@
+---
+title: Making a Venn diagram in Shiny
+author: 'Conor Tompkins'
+date: '2022-03-12'
+slug: shiny-venn-diagram
+categories: [shiny]
+tags: []
+subtitle: ''
+summary: ''
+lastmod: '2022-03-12T10:34:16-05:00'
+featured: no
+projects: []
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE)
+```
+
+### Introduction
+
+This blog post is about making Venn diagrams work in Shiny, and the issues I ran into with `shiny::nearPoints()`. I show how this impacted my initial approach, and discuss the underlying issue.
+
+TLDR; `shiny::nearPoints()` doesn't work with dataframes containing list-columns the way I expected
+
+### Background
+
+I have been working on a Shiny app that I will use to plan birdwatching trips. It uses the `{ebirdst}` package to pull abundance data for hundreds of species of birds in 27x27km tiles in North America. A major feature of the app will be the ability to compare how similar two areas (tiles) are. This compares the abundance for a species in a given tile in a given month. I wanted to include a Venn diagram that shows which species are exclusive to each tile. The user can click on the Venn diagram to see the species associated with each segment of the Venn diagram.
+
+This involves making a venn diagram in `ggplot2` and extracting the segment that the user clicks on with `nearPoints()`. This was more challenging than I had anticipated.
+
+### Venn diagram data
+
+`nearPoints()` requires:
+
+-   `df`: a data frame with x and y coordinates it can interpret
+-   `coordinfo`: the user click coordinates as captured from the ui
+
+I use the `ggVennDiagram` package to make the venn diagram plot. This package uses `ggplot2`, but does a lot of pre-processing of the data beforehand. This made it difficult to get access to the `df` for `nearPoints()`.
+
+This is an example of a `ggVennDiagram` plot. It takes a `list` object, turns that into a dataframe, and then uses `sf` to draw the circles.
+
+```{r}
+library(tidyverse)
+library(ggVennDiagram)
+
+genes <- paste("gene",1:100,sep="")
+set.seed(20210419)
+x <- list(A=sample(genes,30),
+          B=sample(genes,50))
+
+ggVennDiagram(x)
+```
+
+Looking under the hood of `ggVennDiagram()` shows the pre-processing steps:
+
+```{r, eval=F}
+venn <- Venn(x)
+data <- process_data(venn)
+```
+
+`Venn()` creates an object with slots representing the two sets A and B
+
+```{r}
+Venn(x)
+```
+
+`process_data()` turns those slots into dataframes with `sf` columns representing the segment polygons.
+
+```{r}
+venn <- Venn(x)
+process_data(venn)
+```
+
+The `region` slot is most important for my purposes. It contains the `sf` polygons for the segments and the distinct counts exclusive to each segment.
+
+```{r}
+process_data(venn) %>% 
+  .@region
+
+process_data(venn) %>% 
+  .@region %>% 
+  ggplot(aes(fill = name)) +
+  geom_sf()
+```
+
+I thought using `nearPoints()` would be pretty easy once I intercepted the `region` object from the preprocessing steps. I was wrong.
+
+### Shiny app error
+
+This basic Shiny app will reproduce the error that `nearPoints()` generates:
+
+```{r eval = F}
+library(shiny)
+library(tidyverse)
+library(ggVennDiagram)
+library(sf)
+
+#ui
+ui <- fluidPage(
+  
+  titlePanel("Shiny Venn Diagram"),
+  
+  mainPanel(
+    plotOutput("venn_diagram", click = "plot_click"),
+    tableOutput("venn_table")
+  )
+)
+
+genes <- paste("gene",1:1000,sep="")
+set.seed(20210419)
+x <- list(A=sample(genes,300),
+          B=sample(genes,525))
+
+venn <- Venn(x)
+venn_data <- process_data(venn)@region %>% 
+  mutate(centroid = st_point_on_surface(geometry),
+         x = map_dbl(centroid, 1),
+         y = map_dbl(centroid, 2)) %>% 
+  select(x, y, name, geometry)
+
+#server
+server <- function(input, output){
+  
+  output$venn_diagram <- renderPlot({
+    
+    venn_data %>% 
+      ggplot(aes(x, y, fill = name, label = name)) +
+      geom_sf() +
+      geom_label()
+    
+  })
+  
+  output$venn_table <- renderTable({
+    
+    req(input$plot_click)
+    
+    nearPoints(venn_data, #this is the issue
+               input$plot_click,
+               threshold = 100)
+    
+  })
+  
+}
+```
+
+This is the error:
+
+> ```         
+> Warning: Error in <-: number of items to replace is not a multiple of replacement length
+> 104: print.xtable
+> 98: transform
+> 97: func
+> 95: f
+> 94: Reduce
+> 85: do
+> 84: hybrid_chain
+> 83: renderFunc
+> 82: output$venn_table
+> 1: shiny::runApp
+> ```
+
+### The fix
+
+Wrapping the `venn_data` object in `st_drop_geometry()` drops the `sf` list-column and turns it back into a regular dataframe.
+
+```{r}
+#| eval: FALSE
+
+library(shiny)
+library(tidyverse)
+library(ggVennDiagram)
+library(sf)
+
+#ui
+ui <- fluidPage(
+  
+  titlePanel("Shiny Venn Diagram"),
+  
+  mainPanel(
+    plotOutput("venn_diagram", click = "plot_click"),
+    tableOutput("venn_table")
+  )
+)
+
+genes <- paste("gene",1:1000,sep="")
+set.seed(20210419)
+x <- list(A=sample(genes,300),
+          B=sample(genes,525))
+
+venn <- Venn(x)
+venn_data <- process_data(venn)@region %>% 
+  mutate(centroid = st_point_on_surface(geometry),
+         x = map_dbl(centroid, 1),
+         y = map_dbl(centroid, 2)) %>% 
+  select(x, y, name, geometry)
+
+#server
+server <- function(input, output){
+  
+  output$venn_diagram <- renderPlot({
+    
+    venn_data %>% 
+      ggplot(aes(x, y, fill = name, label = name)) +
+      geom_sf() +
+      geom_label()
+    
+  })
+  
+  output$venn_table <- renderTable({
+    
+    req(input$plot_click)
+    
+    nearPoints(st_drop_geometry(venn_data), #the fix
+               input$plot_click,
+               threshold = 100)
+    
+  })
+  
+}
+```
+
+### Working Shiny App
+
+This is a working example of a Venn diagram in Shiny. `input$plot_click` captures the coordinates of the click and `nearPoints()` returns a dataframe of the information about the segment the user clicked on. The ID of the segment is in the `name` column.
+
+<iframe src="https://conorotompkins.shinyapps.io/nearpoints_listcols/?_ga=2.224776090.1006061501.1647011895-2001510754.1647011895" height="550" width="720" style="border: 1px solid #464646;" data-external="1">
+
+</iframe>
