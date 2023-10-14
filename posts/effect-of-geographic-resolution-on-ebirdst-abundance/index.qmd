@@ -13,10 +13,6 @@ featured: false
 draft: false
 projects: []
 freeze: true
-execute:
-  echo: true
-  message: false
-  warning: false
 ---
 
 While exploring some of the citizen science bird observation data available through [`ebirdst`](https://cornelllabofornithology.github.io/ebirdst/), I was confused by how to understand the calculation of `ebirdst`'s `abundance` metric.
@@ -32,6 +28,8 @@ The underlying problem is that `abundance` and `count` are the results of models
 This code loads my [convenience function](https://github.com/conorotompkins/ebird_shiny_app/blob/main/scripts/functions/pull_species_metric.R) to retrieve a metric for a species at a given geographic resolution. This gets `occurrence`, `count`, and `abundance` for the Northern Cardinal at high (3 km), medium (9 km), and low resolutions (27 km). The function also crops the underlying raster data to Pennsylvania.
 
 ```{r}
+#| output: false
+
 library(here)
 library(hrbrthemes)
 library(patchwork)
@@ -44,18 +42,40 @@ species_table <- crossing(location = "Pennsylvania",
                           species = c("Northern Cardinal"),
                           metric = c("occurrence", "count", "abundance"),
                           resolution = c("hr", "mr", "lr"))
-
-species_table
 ```
 
 ```{r}
-#| cache: TRUE
+species_table
+```
+
+
+```{r}
+#| cache: true
 #| output: false
+#| eval: false
 
 species_metrics <- species_table %>% 
   mutate(data = pmap(list(location, species, metric, resolution), ~get_species_metric(..1, ..2, ..2, ..3, ..4))) %>% 
   mutate(resolution = fct_relevel(resolution, c("hr", "mr", "lr"))) %>% 
-  arrange(species, metric, resolution)
+  arrange(species, metric, resolution) |> 
+  unnest(data) %>% 
+  unnest(data) 
+```
+
+```{r}
+#| echo: false
+#| eval: false
+#| output: false
+
+species_metrics |> 
+  write_csv("post_data/species_metrics_archive_data.csv")
+```
+
+```{r}
+#| echo: false
+#| output: false
+
+species_metrics <- read_csv("post_data/species_metrics_archive_data.csv")
 ```
 
 ```{r}
@@ -66,8 +86,6 @@ This unnests the data and recalculates abundance (`abundance_test`) and the diff
 
 ```{r}
 species_table_unnested <- species_metrics %>%
-  unnest(data) %>% 
-  unnest(data) %>%
   select(species, resolution, date, month, x, y, metric_desc, value) %>% 
   pivot_wider(id_cols = c(species, resolution, date, month, x, y),
               names_from = metric_desc,
@@ -81,8 +99,6 @@ Grouping by month to get to the county level changes the grain of the data so mu
 
 ```{r}
 species_metrics %>%
-  unnest(data) %>% 
-  unnest(data) %>%
   select(species, resolution, date, month, x, y, metric_desc, value) %>% 
   pivot_wider(id_cols = c(species, resolution, date, month, x, y),
               names_from = metric_desc,
@@ -149,7 +165,6 @@ I made an issue on the [ebirdst](https://github.com/CornellLabofOrnithology/ebir
 The following code reproduces the graph I attached to the issue:
 
 ```{r}
-#| cache: true
 #| output: false
 
 library(hrbrthemes)
@@ -157,19 +172,40 @@ theme_set(theme_ipsum())
 
 norcar_table <- crossing(location = "Pennsylvania",
                          species = c("Northern Cardinal"),
-                          metric = c("occurrence", "count", "abundance"),
-                          resolution = c("hr"))
+                         metric = c("occurrence", "count", "abundance"),
+                         resolution = c("hr"))
+```
+
+```{r}
+#| eval: false
+#| cache: true
+#| output: false
 
 norcar_metrics <- norcar_table %>% 
-mutate(data = pmap(list(location, species, metric, resolution), ~get_species_metric(..1, ..2, ..2, ..3, ..4))) %>% 
+  mutate(data = pmap(list(location, species, metric, resolution), ~get_species_metric(..1, ..2, ..2, ..3, ..4))) %>% 
   mutate(resolution = fct_relevel(resolution, c("hr", "mr", "lr"))) %>% 
-  arrange(species, metric, resolution)
-
-norcar_metrics_unnested <- norcar_metrics %>%
+  arrange(species, metric, resolution) %>%
   unnest(data) |> 
   unnest(data)
+```
 
-norcar_metrics_wide <- norcar_metrics_unnested %>% 
+```{r}
+#| eval: false
+#| echo: false
+
+norcar_metrics |> 
+  write_csv("post_data/norcar_metrics.csv")
+```
+
+```{r}
+#| echo: false
+#| output: false
+#| 
+norcar_metrics <- read_csv("post_data/norcar_metrics.csv")
+```
+
+```{r}
+norcar_metrics_wide <- norcar_metrics %>% 
   select(species, date, x, y, metric_desc, value) %>% 
   pivot_wider(names_from = metric_desc,
               values_from = value)
