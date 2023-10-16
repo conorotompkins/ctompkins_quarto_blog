@@ -12,6 +12,10 @@ lastmod: 2021-04-05
 featured: false
 draft: false
 projects: []
+execute:
+  echo: true
+  warning: false
+  message: false
 ---
 
 I have been a season-ticket holder with the Pittsburgh Riverhounds for a couple seasons now. The stadium has a great fan experience, and the team has gotten a lot better over the past few years. A major part of that is the head coach, Bob Lilley. I will use some data from [American Soccer Analysis](https://www.americansocceranalysis.com/) to show how the Riverhounds have improved. Their website has an [explainer](https://www.americansocceranalysis.com/explanation/) on expected goals and other metrics they calculate.
