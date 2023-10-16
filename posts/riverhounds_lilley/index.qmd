@@ -1,0 +1,219 @@
+---
+# Documentation: https://sourcethemes.com/academic/docs/managing-content/
+
+title: "Pittsburgh Riverhounds under Coach Lilley"
+subtitle: ""
+summary: ""
+authors: [Conor Tompkins]
+tags: []
+categories: []
+date: 2021-04-05
+lastmod: 2021-04-05
+featured: false
+draft: false
+projects: []
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+I have been a season-ticket holder with the Pittsburgh Riverhounds for a couple seasons now. The stadium has a great fan experience, and the team has gotten a lot better over the past few years. A major part of that is the head coach, Bob Lilley. I will use some data from [American Soccer Analysis](https://www.americansocceranalysis.com/) to show how the Riverhounds have improved. Their website has an [explainer](https://www.americansocceranalysis.com/explanation/) on expected goals and other metrics they calculate.
+
+Load libraries and configure settings:
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(hrbrthemes)
+library(ggrepel)
+
+theme_set(theme_ipsum(base_size = 18))
+
+#source https://app.americansocceranalysis.com/#!/
+```
+
+I pulled a CSV of team-level goal metrics for the last 4 USL seasons from the [ASA website](https://app.americansocceranalysis.com/#!/uslc/xgoals/teams). This shows the available data:
+
+```{r}
+usl <- read_csv("post_data/american_soccer_analysis_uslc_xgoals_teams_2023-10-15.csv") %>% 
+  clean_names() %>% 
+  select(-x1) %>% 
+  mutate(coach = case_when(team == "PIT" & season >= 2018 ~ "Lilley",
+                           team == "PIT" & season < 2018 ~ "Brandt",
+                           TRUE ~ NA_character_)) |> 
+  filter(season < 2021)
+
+glimpse(usl)
+```
+
+The Riverhound's statistics show clear improvement in 2018 when Lilley took over from Brandt. The team immediately began scoring more than they allowed. The team's expected goals for and against also improved, which shows that the improvement wasn't a matter of luck.
+
+```{r}
+goal_data <- usl %>% 
+  filter(team == "PIT") %>% 
+  select(team, season, gf, x_gf, ga, x_ga) %>% 
+  pivot_longer(cols = c(gf, x_gf, ga, x_ga), names_to = "g_type", values_to = "g_value") %>%
+  mutate(goal_type = case_when(str_detect(g_type, "gf$") ~ "For",
+                               TRUE ~ "Against")) %>% 
+  mutate(metric_type = case_when(str_detect(g_type, "^x_") ~ "Expected",
+                                 TRUE ~ "Actual"))
+
+goal_data %>% 
+  ggplot(aes(season, g_value, color = goal_type, lty = metric_type)) +
+  geom_line(size = 1.5) +
+  geom_point(data = filter(goal_data, metric_type == "Actual"), size = 2) +
+  labs(title = "Pittsburgh Riverhounds",
+       subtitle = "Expected and Actual Goals per game",
+       x = "Season",
+       y = "Goals",
+       color = "Goal Type",
+       lty = "Metric Type")
+```
+
+This shows that in terms of expected goal difference, the Riverhounds became one of the top teams in the USL once Lilley took over.
+
+```{r}
+usl %>% 
+  ggplot(aes(season, x_gd, group = team)) +
+  geom_hline(yintercept = 0, size = 1, lty = 2) +
+  geom_line(color = "black", alpha = .2) +
+  geom_line(data = filter(usl, team == "PIT"), 
+            color = "gold", size = 2) +
+  geom_point(data = filter(usl, team == "PIT"),
+             aes(fill = coach),
+             shape = 21, size = 4) +
+  scale_fill_manual(values = c("grey", "gold")) +
+  #coord_fixed(ratio = .5) +
+  labs(title = "xG difference per game",
+       x = "Season",
+       y = "xG Difference",
+       fill = "Riverhounds Coach",
+       caption = "Grey lines show other USL teams")
+```
+
+Lilley's Riverhounds are consistently better than league average in terms of expected goals.
+
+```{r}
+usl %>% 
+  ggplot(aes(x_gd)) +
+  #geom_histogram(binwidth = .2) +
+  geom_vline(data = filter(usl, team == "PIT"), aes(xintercept = x_gd), size = 3) +
+  geom_vline(data = filter(usl, team == "PIT"), aes(xintercept = x_gd, color = coach),
+             size = 2.5, key_glyph = "rect") +
+  geom_density(aes(y = ..count.. * .2), fill = "white", alpha = 1) +
+  geom_vline(xintercept = 0, lty = 2) +
+  geom_hline(yintercept = 0) +
+  scale_color_manual(values = c("grey", "gold")) +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  coord_cartesian(ylim = c(0, 25)) +
+  #coord_fixed(ratio = .1) +
+  labs(title = "xG Difference Per Game",
+       subtitle = "Distribution of all USL teams 2017-2020",
+       x = "xG",
+       y = "Number of teams",
+       color = "Riverhounds Coach") +
+  theme(legend.key = element_rect(color = "black"))
+```
+
+```{r}
+#| eval: false
+#| include: false
+
+usl %>% 
+  ggplot(aes(x_gd)) +
+  geom_vline(xintercept = 0, lty = 2) +
+  geom_histogram(binwidth = .2, fill = "grey", color = "black", alpha = .75) +
+  geom_vline(data = filter(usl, team == "PIT", coach == "Lilley"), 
+             aes(xintercept = x_gd),
+             color = "black", size = 3) +
+  geom_vline(data = filter(usl, team == "PIT", coach == "Lilley"), 
+             aes(xintercept = x_gd),
+             color = "gold", size = 2) +
+  geom_vline(data = filter(usl, team == "PIT", coach == "Pre-Lilley"), 
+             aes(xintercept = x_gd),
+             color = "gold", size = 2) +
+  annotate(geom = "text", x = -.5, y = 12, label = "Pre-Lilley") +
+  annotate(geom = "text", x = .4, y = 12, label = "Lilley") +
+  scale_y_continuous(breaks = seq(from = 0, to = 25, by = 10)) +
+  coord_cartesian(ylim = c(0, 25)) +
+  labs(title = "xG Difference",
+       subtitle = "Per game",
+       x = "xG",
+       y = "Number of teams")
+```
+
+While the 2020 Riverhounds were a very good team, they were not quite as good as their plain goals for/against would show. This graph shows that they were fortunate to do as well as they did (which, again, was very well).
+
+```{r}
+usl %>% 
+  mutate(logo = case_when(team == "PIT" ~ "post_data/pit_logo.png",
+                          TRUE ~ NA_character_)) %>% 
+  ggplot(aes(x_gd, gd)) +
+  geom_abline(lty = 2) +
+  geom_point(alpha = .3) +
+  ggimage::geom_image(aes(image = logo)) +
+  geom_label_repel(data = filter(usl, team == "PIT"),
+                   aes(label = season, fill = coach),
+                   force = 5,
+                   key_glyph = "rect") +
+  annotate("text", label = "Under-performing",
+           x = .75, y = -1.5) +
+  annotate("text", label = "Over-performing",
+           x = -1, y = 1.5) +
+  tune::coord_obs_pred() +
+  scale_fill_manual(values = c("grey", "gold")) +
+  labs(title = "Goal and xG difference per game",
+       x = "xG Difference",
+       y = "Goal Difference",
+       fill = "Riverhounds Coach") +
+  theme(legend.key = element_rect(color = "black"))
+```
+
+This shows that the 2020 Riverhounds were probably one of the most fortunate teams in the league, in addition to being very good.
+
+```{r}
+usl %>% 
+  ggplot(aes(season, gd_x_gd, group = team)) +
+  geom_hline(yintercept = 0, lty = 2) +
+  geom_line(color = "black", alpha = .2) +
+  geom_line(data = filter(usl, team == "PIT"),
+            color = "gold", size = 2) +
+  geom_point(data = filter(usl, team == "PIT"),
+             aes(fill = coach, group = team),
+             shape = 21, size = 4, color = "black") +
+  scale_fill_manual(values = c("grey", "gold")) +
+  coord_cartesian(ylim = c(-1.5, 1.5)) +
+  #coord_fixed(ratio = .5) +
+  labs(title = "Goal difference - xG difference",
+       subtitle = "Per game",
+       x = "Season",
+       y = substitute(paste("" %<-% "", "Under-performing", "  |  ", "Over-performing", "" %->% "")),
+       fill = "Riverhounds Coach",
+       caption = "Grey lines show other USL teams")
+```
+
+In FiveThirtyEights' [Global Soccer Power Index](https://projects.fivethirtyeight.com/global-club-soccer-rankings/), the Riverhounds will begin the 2021 season ranked around #460 out of 639 teams.
+
+```{r}
+#| eval: false
+#| include: false
+
+fte_rankings <- read_csv("data/spi_global_rankings.csv")
+
+fte_rankings %>%
+  ggplot(aes(spi)) +
+  geom_vline(data = filter(fte_rankings, name == "Pittsburgh Riverhounds"),
+             aes(xintercept = spi), size = 2, color = "gold") +
+  geom_density(aes(y = ..count.. * 5), fill = "white") +
+  #geom_histogram(binwidth = 5) +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  coord_cartesian(ylim = c(0, 85)) +
+  annotate("text", x = 40, y = 80, label = "Riverhounds #460") +
+  labs(title = "FiveThirtyEight Global Club Soccer Rankings",
+       x = "Soccer Power Index",
+       y = "Number of teams")
+```
