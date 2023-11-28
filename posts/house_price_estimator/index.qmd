@@ -11,6 +11,7 @@ featured: true
 draft: false
 editor_options: 
   chunk_output_type: console
+image: featured.jpg
 ---
 
 ```{r}
@@ -86,7 +87,6 @@ test_metrics %>%
 #| include: FALSE
 
 model_results <- read_csv("post_data/bag_full_model_results.csv") %>%
-#model_results <- read_csv("posts/house_price_estimator/data/bag_full_model_results.csv") |>
   mutate(sale_price_adj = 10^sale_price_adj,
          .pred_dollar = 10^.pred,
          .resid = sale_price_adj - .pred_dollar)
@@ -127,9 +127,6 @@ model_results %>%
 ```{r}
 geo_ids <- st_read("post_data/unified_geo_ids/unified_geo_ids.shp",
                    quiet = T)
-
-# geo_ids <- st_read("posts/house_price_estimator/data/unified_geo_ids/unified_geo_ids.shp",
-#                    quiet = T)
 
 geo_id_median_resid <- model_results %>% 
   group_by(geo_id) %>% 
