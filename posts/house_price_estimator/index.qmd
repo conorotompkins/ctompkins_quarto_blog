@@ -45,7 +45,7 @@ I chose the Bagged Tree model because it performed about as well as the Random F
 ```{r}
 #| include: false
 
-total_records <- read_csv("data/bag_full_model_results.csv") %>% 
+total_records <- read_csv("post_data/bag_full_model_results.csv") %>% 
   nrow()
 ```
 
@@ -55,7 +55,7 @@ Total observations: `r comma(total_records)`
 ```{r}
 #| include: false
 
-train_metrics <- read_csv("data/train_metrics.csv")
+train_metrics <- read_csv("post_data/train_metrics.csv")
 ```
 
 I used 10-fold cross-validation to assess model performance against the training set:
@@ -74,7 +74,7 @@ train_metrics %>%
 ```{r}
 #| include: false
 
-test_metrics <- read_csv("data/test_metrics.csv")
+test_metrics <- read_csv("post_data/test_metrics.csv")
 ```
 
 ```{r}
@@ -85,7 +85,7 @@ test_metrics %>%
 ```{r}
 #| include: FALSE
 
-model_results <- read_csv("data/bag_full_model_results.csv") %>%
+model_results <- read_csv("post_data/bag_full_model_results.csv") %>%
 #model_results <- read_csv("posts/house_price_estimator/data/bag_full_model_results.csv") |>
   mutate(sale_price_adj = 10^sale_price_adj,
          .pred_dollar = 10^.pred,
@@ -125,7 +125,7 @@ model_results %>%
 ```
 
 ```{r}
-geo_ids <- st_read("data/unified_geo_ids/unified_geo_ids.shp",
+geo_ids <- st_read("post_data/unified_geo_ids/unified_geo_ids.shp",
                    quiet = T)
 
 # geo_ids <- st_read("posts/house_price_estimator/data/unified_geo_ids/unified_geo_ids.shp",
