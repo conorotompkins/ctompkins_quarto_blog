@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.433">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="dcterms.date" content="2020-12-04">
+
+<title>ctompkins_quarto_blog - Bike rental access in Pittsburgh</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="../../site_libs/htmlwidgets-1.6.3/htmlwidgets.js"></script>
+<script src="../../site_libs/pymjs-1.3.2/pym.v1.js"></script>
+<script src="../../site_libs/widgetframe-binding-0.3.1/widgetframe.js"></script>
+<script src="../../site_libs/mapdeck-binding-0.3.4/mapdeck.js"></script>
+<script src="../../site_libs/mpadeck_functions-0.0.1/mapdeck_functions.js"></script>
+<script src="../../site_libs/deckgl-8.1.6/deckgl.min.js"></script>
+<script src="../../site_libs/legend-0.0.1/legend.js"></script>
+<script src="../../site_libs/title-0.0.1/title.js"></script>
+<script src="../../site_libs/mapdeck_location-0.0.1/mapdeck_location.js"></script>
+<script src="../../site_libs/mapdeck_colours-0.0.1/mapdeck_colours.js"></script>
+<script src="../../site_libs/mapdeck_coordinates-0.0.1/mapdeck_coordinates.js"></script>
+<link href="../../site_libs/mapboxgl-1.10.0/mapbox-gl.css" rel="stylesheet">
+<script src="../../site_libs/mapboxgl-1.10.0/mapbox-gl.js"></script>
+<link href="../../site_libs/mapdeck-0.0.1/mapdeck.css" rel="stylesheet">
+<script src="../../site_libs/mpadeck-binding-0.3.4/mapdeck.js"></script>
+<script src="../../site_libs/polygon-1.0.0/polygon.js"></script>
+<script src="../../site_libs/scatterplot-1.0.0/scatterplot.js"></script>
+
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed fullcontent">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">ctompkins_quarto_blog</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html" rel="" target="">
+ <span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/conorotompkins" rel="" target=""><i class="bi bi-github" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="../../www.linkedin.com/in/conor-tompkins-04b06a3b" rel="" target=""><i class="bi bi-linkedin" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+</ul>
+            <div class="quarto-navbar-tools">
+</div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Bike rental access in Pittsburgh</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">R</div>
+                <div class="quarto-category">Pittsburgh</div>
+                <div class="quarto-category">Healthy Ride</div>
+                <div class="quarto-category">WPRDC</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">Author</div>
+      <div class="quarto-title-meta-contents">
+               <p>Conor Tompkins </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">December 4, 2020</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+<p>This is an interactive Leaflet map of Healthy Ride access in Pittsburgh. It counts how many Healthy Ride stations are within a 10 minute bike ride of a given location. This gives an estimation of how accessible the Healthy Ride service is in a given neighborhood (lighter green = more accessible). As you zoom in, individual bike stations will appear. Click the “full screen” button on the left to maximize your view.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div id="htmlwidget-2e4e749af8548fb059f9" style="width:100%;height:480px;" class="widgetframe html-widget"></div>
+<script type="application/json" data-for="htmlwidget-2e4e749af8548fb059f9">{"x":{"url":"index_files/figure-html//widgets/widget_unnamed-chunk-1.html","options":{"xdomain":"*","allowfullscreen":true,"lazyload":false}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p>There are some obvious cases (like the Wabash Tunnel) where the API doesn’t know that a bicyclist shouldn’t go in there, but overall it is accurate.</p>
+<p>This map was built with the Mapbox API and was inspired by the <a href="http://walker-data.com/MUSAmasterclass/tutorial/#4_Analyzing_elections_and_accessibility_with_mapboxapi">Penn MUSA Masterclass 2020 talk</a> that Kyle Walker gave.</p>
+<section id="code" class="level1">
+<h1>Code</h1>
+<p>This loads the required libraries:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(janitor)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(sf)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tigris)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(raster)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(fasterize)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mapboxapi)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mapdeck)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mapview)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(leaflet)</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(leaflet.extras)</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(widgetframe)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">tigris_use_cache =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>        <span class="at">scipen =</span> <span class="dv">999</span>,</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>        <span class="at">digits =</span> <span class="dv">4</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>This finds the coordinates for the “middle” of the city and makes a base map that I will use later:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>pgh_coords <span class="ot">&lt;-</span> <span class="fu">mb_geocode</span>(<span class="st">"Upper Hill, Pittsburgh, PA"</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>mapbox_map <span class="ot">&lt;-</span> <span class="fu">leaflet</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">addMapboxTiles</span>(<span class="at">style_id =</span> <span class="st">"streets-v11"</span>,</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>                 <span class="at">username =</span> <span class="st">"mapbox"</span>) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>This reads in the dataframe with the <a href="https://data.wprdc.org/dataset/healthyride-stations">station locations</a> and the shapefile of the <a href="https://data.wprdc.org/dataset/pittsburgh-city-boundary">city boundaries</a>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>stations <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"post_data/stations/healthy-ride-station-locations-2020-q2.csv"</span>,</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>                     <span class="at">col_types =</span> <span class="fu">cols</span>(</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>                       <span class="st">`</span><span class="at">Station #</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">col_character</span>(),</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>                       <span class="st">`</span><span class="at">Station Name</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">col_character</span>(),</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>                       <span class="st">`</span><span class="at"># of Racks</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">col_double</span>(),</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>                       <span class="at">Latitude =</span> <span class="fu">col_double</span>(),</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>                       <span class="at">Longitude =</span> <span class="fu">col_double</span>()</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>                     )) <span class="sc">%&gt;%</span> </span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">clean_names</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">latitude =</span> <span class="fu">case_when</span>(latitude <span class="sc">&lt;</span> <span class="dv">0</span> <span class="sc">~</span> latitude <span class="sc">*</span> <span class="sc">-</span><span class="dv">1</span>,</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>                              <span class="cn">TRUE</span> <span class="sc">~</span> latitude))</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>city_boundary <span class="ot">&lt;-</span> <span class="fu">st_read</span>(<span class="st">"post_data/Pittsburgh_City_Boundary-shp/City_Boundary.shp"</span>,</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>                         <span class="at">quiet =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">st_transform</span>(<span class="st">"+proj=longlat +datum=WGS84"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(FID <span class="sc">!=</span> <span class="dv">7</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">st_boundary</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ms_simplify</span>(<span class="at">keep =</span> .<span class="dv">02</span>)</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>station_map <span class="ot">&lt;-</span> mapbox_map <span class="sc">%&gt;%</span> </span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mapdeck</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_polygon</span>(<span class="at">data =</span> city_boundary,</span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>              <span class="at">fill_opacity =</span> <span class="dv">0</span>,</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>              <span class="at">stroke_width =</span> <span class="dv">100</span>,</span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>              <span class="at">stroke_colour =</span> <span class="st">"#000000"</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_scatterplot</span>(<span class="at">data =</span> stations,</span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>                  <span class="at">radius =</span> <span class="dv">100</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mapdeck_view</span>(<span class="at">location =</span> <span class="fu">c</span>(pgh_coords[<span class="dv">1</span>], pgh_coords[<span class="dv">2</span>]), <span class="at">zoom =</span> <span class="dv">11</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Registered S3 method overwritten by 'jsonify':
+  method     from    
+  print.json jsonlite</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>station_map</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="mapdeck html-widget html-fill-item" id="htmlwidget-f03733869a41a7a44c6f" style="width:100%;height:464px;"></div>
+<script type="application/json" data-for="htmlwidget-f03733869a41a7a44c6f">{"x":{"access_token":"pk.eyJ1IjoiY29ub3JvdG9tcGtpbnMiLCJhIjoiY2p2b2MxeTNqMTg3ZjRhbnQwMTk0ZGt0ZyJ9.tfEDs2o7n8kKtHvcTneG_g","style":"mapbox://styles/mapbox/streets-v9","pitch":0,"zoom":0,"location":[0,0],"bearing":0,"max_zoom":20,"min_zoom":0,"max_pitch":60,"min_pitch":0,"show_view_state":false,"repeat_view":false,"calls":[{"functions":"add_polygon_geo","args":["mapdeck",[{"type":"Feature","properties":{"elevation":0,"fill_colour":"#44015400","stroke_colour":"#000000","stroke_width":100.0},"geometry":{"geometry":{"type":"Polygon","coordinates":[[[-79.884089,40.482466],[-79.90697,40.485212],[-79.926839,40.490141],[-79.937871,40.489972],[-79.962041,40.479518],[-79.976792,40.46057],[-79.995631,40.446995],[-80.012924,40.442205],[-79.997308,40.434244],[-79.977809,40.435358],[-79.963232,40.431449],[-79.95346,40.423273],[-79.950152,40.405431],[-79.941226,40.398379],[-79.93242,40.399341],[-79.912633,40.416001],[-79.899305,40.417046],[-79.892373,40.450343],[-79.885889,40.446953],[-79.867121,40.449451],[-79.86577,40.455772],[-79.889997,40.461869],[-79.884089,40.482466]],[[-80.051451,40.483458],[-80.035472,40.460576],[-80.03376,40.453325],[-80.014405,40.444669],[-79.998298,40.448333],[-79.983941,40.458268],[-79.988099,40.476812],[-80.00167,40.480079],[-80.004066,40.497774],[-80.017062,40.499796],[-80.027892,40.491075],[-80.040776,40.491414],[-80.051451,40.483458]],[[-79.935432,40.396418],[-79.943817,40.394219],[-79.95898,40.40963],[-79.970072,40.404773],[-79.949532,40.39072],[-79.936124,40.388801],[-79.939432,40.373937],[-79.924896,40.375095],[-79.920548,40.365453],[-79.907063,40.361602],[-79.903342,40.37196],[-79.916002,40.382202],[-79.918151,40.399351],[-79.929572,40.389777],[-79.935432,40.396418]],[[-80.003741,40.374399],[-79.986062,40.377916],[-79.973023,40.388727],[-79.979843,40.399762],[-79.975253,40.404532],[-79.962768,40.409689],[-79.954569,40.410614],[-79.958268,40.42458],[-79.975008,40.432583],[-79.998825,40.431877],[-80.029954,40.446126],[-80.050685,40.462588],[-80.094628,40.459709],[-80.094694,40.451469],[-80.082917,40.440368],[-80.076595,40.447958],[-80.058287,40.444416],[-80.059803,40.428179],[-80.068647,40.431335],[-80.078732,40.41653],[-80.066122,40.417485],[-80.063831,40.42639],[-80.03488,40.428334],[-80.051208,40.401933],[-80.036409,40.404266],[-80.02781,40.391562],[-80.003741,40.374399]]]}}}],"polygon-defaultLayerId",[],false,"#AAFFFFFF",{"stroke_colour":[false]},[[-80.0946939360744,40.361602464241489],[-79.86576956418495,40.499795615564149]],true,false,null,false,1,null]},{"functions":"add_scatterplot_geo_columnar","args":["mapdeck",{"fill_colour":[68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0],"stroke_colour":[68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0,68.0,1.0,84.0,255.0],"stroke_width":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"radius":[100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0],"lat":[40.441326,40.440877,40.43903,40.4372,40.435887,40.438882,40.440193,40.437643,40.440368,40.445844,40.444665,40.444777,40.445834,40.447166,40.450595,40.455266,40.449631,40.451742,40.47815,40.470212,40.465893,40.462769,40.459812,40.456505,40.458714,40.464443,40.461603,40.458972,40.455821,40.457415,40.45628,40.453382,40.45177,40.448419,40.446744,40.442398,40.441032,40.434338,40.437987,40.445128,40.442325,40.445236,40.45351,40.435986,40.4279,40.42802,40.428576,40.429338,40.428661,40.437766,40.45803,40.43866,40.44197,40.456328,40.458148,40.462026,40.464736,40.464605,40.460891,40.453046,40.438053,40.435319,40.43251,40.43269,40.431289,40.427088,40.429685,40.438749,40.441362,40.443244,40.44302,40.445649,40.444244,40.437753,40.437916,40.446739,40.451862,40.456238,40.456687,40.463617,40.467715,40.471223,40.461507,40.464907,40.47604,40.462184,40.460111,40.454001,40.447208,40.444751,40.441705,40.443534,40.441934,40.440015,40.437663,40.438296,40.453797,40.457773,40.447412,40.465299],"lon":[-80.004679,-80.00308,-80.00186,-80.000375,-79.997102,-79.997592,-79.995084,-79.986695,-79.988636,-79.99238,-79.995798,-80.000831,-80.008882,-80.003566,-80.013204,-80.007076,-79.985893,-79.983217,-79.9557,-79.960663,-79.954417,-79.950867,-79.945548,-79.939362,-79.933483,-79.933188,-79.925624,-79.922023,-79.915248,-79.92492,-79.930962,-79.92731,-79.932324,-79.947401,-79.950881,-79.951479,-79.948042,-79.951877,-79.95367,-79.957102,-79.957604,-79.976911,-79.94747,-79.956942,-79.966112,-79.969799,-79.974559,-79.980684,-79.986358,-79.990653,-79.9112,-79.9997,-79.9997,-79.980211,-79.973838,-79.968115,-79.942827,-79.93876,-79.915838,-79.898479,-79.922947,-79.922887,-79.92734,-80.003021,-79.995269,-79.962798,-79.95414,-79.957032,-79.955556,-79.959843,-79.953314,-79.953277,-79.948953,-79.933637,-79.927812,-79.94893,-79.951737,-79.905056,-79.898136,-79.917469,-79.92787,-79.925602,-79.935102,-79.960084,-79.957638,-79.96162,-79.97276,-79.981713,-79.989725,-79.993912,-79.995103,-79.998397,-80.002071,-80.00448,-79.996294,-79.981177,-79.99094,-80.009458,-80.012065,-79.965277],"geometry":[-80.004679,40.441326,-80.00308,40.440877,-80.00186,40.43903,-80.000375,40.4372,-79.997102,40.435887,-79.997592,40.438882,-79.995084,40.440193,-79.986695,40.437643,-79.988636,40.440368,-79.99238,40.445844,-79.995798,40.444665,-80.000831,40.444777,-80.008882,40.445834,-80.003566,40.447166,-80.013204,40.450595,-80.007076,40.455266,-79.985893,40.449631,-79.983217,40.451742,-79.9557,40.47815,-79.960663,40.470212,-79.954417,40.465893,-79.950867,40.462769,-79.945548,40.459812,-79.939362,40.456505,-79.933483,40.458714,-79.933188,40.464443,-79.925624,40.461603,-79.922023,40.458972,-79.915248,40.455821,-79.92492,40.457415,-79.930962,40.45628,-79.92731,40.453382,-79.932324,40.45177,-79.947401,40.448419,-79.950881,40.446744,-79.951479,40.442398,-79.948042,40.441032,-79.951877,40.434338,-79.95367,40.437987,-79.957102,40.445128,-79.957604,40.442325,-79.976911,40.445236,-79.94747,40.45351,-79.956942,40.435986,-79.966112,40.4279,-79.969799,40.42802,-79.974559,40.428576,-79.980684,40.429338,-79.986358,40.428661,-79.990653,40.437766,-79.9112,40.45803,-79.9997,40.43866,-79.9997,40.44197,-79.980211,40.456328,-79.973838,40.458148,-79.968115,40.462026,-79.942827,40.464736,-79.93876,40.464605,-79.915838,40.460891,-79.898479,40.453046,-79.922947,40.438053,-79.922887,40.435319,-79.92734,40.43251,-80.003021,40.43269,-79.995269,40.431289,-79.962798,40.427088,-79.95414,40.429685,-79.957032,40.438749,-79.955556,40.441362,-79.959843,40.443244,-79.953314,40.44302,-79.953277,40.445649,-79.948953,40.444244,-79.933637,40.437753,-79.927812,40.437916,-79.94893,40.446739,-79.951737,40.451862,-79.905056,40.456238,-79.898136,40.456687,-79.917469,40.463617,-79.92787,40.467715,-79.925602,40.471223,-79.935102,40.461507,-79.960084,40.464907,-79.957638,40.47604,-79.96162,40.462184,-79.97276,40.460111,-79.981713,40.454001,-79.989725,40.447208,-79.993912,40.444751,-79.995103,40.441705,-79.998397,40.443534,-80.002071,40.441934,-80.00448,40.440015,-79.996294,40.437663,-79.981177,40.438296,-79.99094,40.453797,-80.009458,40.457773,-80.012065,40.447412,-79.965277,40.465299]},100,"scatterplot-defaultLayerId",false,"#AAFFFFFF",[],"rgb",[[-80.013204,40.42708753],[-79.89813566,40.47815]],true,false,null,1,null,null]},{"functions":"md_change_location","args":["mapdeck",[-79.959823,40.453068],11,null,null,null,"linear"]}]},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<section id="build-one-isochrone" class="level2">
+<h2 class="anchored" data-anchor-id="build-one-isochrone">Build one isochrone</h2>
+<p>This takes the first station in the dataframe and uses the Mapbox API to make a test <a href="https://en.wikipedia.org/wiki/Isochrone_map">isochrone</a> that shows how far a bicyclist can go in a given period of time (5, 10, 15 minutes).</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>test_isochrone_data <span class="ot">&lt;-</span> stations <span class="sc">%&gt;%</span> </span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">st_as_sf</span>(<span class="at">coords =</span> <span class="fu">c</span>(<span class="st">"longitude"</span>, <span class="st">"latitude"</span>), <span class="at">crs =</span> <span class="dv">4326</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mb_isochrone</span>(<span class="at">profile =</span> <span class="st">"cycling"</span>, <span class="at">time =</span> <span class="fu">c</span>(<span class="dv">5</span>, <span class="dv">10</span>, <span class="dv">15</span>))</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>test_isochrone_map <span class="ot">&lt;-</span> mapbox_map <span class="sc">%&gt;%</span> </span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mapdeck</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_polygon</span>(<span class="at">data =</span> test_isochrone_data,</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>              <span class="at">fill_colour =</span> <span class="st">"time"</span>,</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>              <span class="at">fill_opacity =</span> <span class="fl">0.5</span>,</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>              <span class="at">legend =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_scatterplot</span>(<span class="at">data =</span> stations <span class="sc">%&gt;%</span> </span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>                          <span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>                          <span class="fu">st_as_sf</span>(<span class="at">coords =</span> <span class="fu">c</span>(<span class="st">"longitude"</span>, <span class="st">"latitude"</span>), <span class="at">crs =</span> <span class="dv">4326</span>),</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>                  <span class="at">radius =</span> <span class="dv">100</span>,</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>                  <span class="at">fill_colour =</span> <span class="st">"#ffffff"</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mapdeck_view</span>(<span class="at">location =</span> <span class="fu">c</span>(pgh_coords[<span class="dv">1</span>], pgh_coords[<span class="dv">2</span>]), <span class="at">zoom =</span> <span class="dv">11</span>)</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>test_isochrone_map</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="mapdeck html-widget html-fill-item" id="htmlwidget-56c37eefc2967cef3633" style="width:100%;height:464px;"></div>
+<script type="application/json" data-for="htmlwidget-56c37eefc2967cef3633">{"x":{"access_token":"pk.eyJ1IjoiY29ub3JvdG9tcGtpbnMiLCJhIjoiY2p2b2MxeTNqMTg3ZjRhbnQwMTk0ZGt0ZyJ9.tfEDs2o7n8kKtHvcTneG_g","style":"mapbox://styles/mapbox/streets-v9","pitch":0,"zoom":0,"location":[0,0],"bearing":0,"max_zoom":20,"min_zoom":0,"max_pitch":60,"min_pitch":0,"show_view_state":false,"repeat_view":false,"calls":[{"functions":"add_polygon_geo","args":["mapdeck",[{"type":"Feature","properties":{"elevation":0,"fill_colour":"#FDE7257F","stroke_colour":"#440154FF"},"geometry":{"geometry":{"type":"Polygon","coordinates":[[[-80.000679,40.468364],[-80.001702,40.468326],[-80.000224,40.466326],[-80.002072,40.464326],[-80.001501,40.462326],[-80.002435,40.461082],[-80.004416,40.460063],[-80.007781,40.460224],[-80.006542,40.462326],[-80.006793,40.463212],[-80.007791,40.463214],[-80.008679,40.464401],[-80.009121,40.462326],[-80.010679,40.460863],[-80.013057,40.460948],[-80.013679,40.461911],[-80.014679,40.460678],[-80.016679,40.460766],[-80.017354,40.461326],[-80.017528,40.462477],[-80.018679,40.463011],[-80.019397,40.462326],[-80.019239,40.460886],[-80.021949,40.459596],[-80.022679,40.458421],[-80.023006,40.458999],[-80.025679,40.459228],[-80.026679,40.458859],[-80.027679,40.457653],[-80.02787,40.456517],[-80.028679,40.456219],[-80.029252,40.455326],[-80.029284,40.453326],[-80.028314,40.452326],[-80.028679,40.449991],[-80.030865,40.45214],[-80.03137,40.453326],[-80.030503,40.455502],[-80.034036,40.455969],[-80.034679,40.457956],[-80.034846,40.457493],[-80.035041,40.453964],[-80.030236,40.448769],[-80.028679,40.448535],[-80.028299,40.447706],[-80.027499,40.447326],[-80.028451,40.446098],[-80.029679,40.445997],[-80.033679,40.449324],[-80.034027,40.448326],[-80.032261,40.446326],[-80.031061,40.445944],[-80.03007,40.444326],[-80.030927,40.443574],[-80.032762,40.443409],[-80.033076,40.442723],[-80.034702,40.442326],[-80.033714,40.441326],[-80.031821,40.441184],[-80.029679,40.442572],[-80.028679,40.442227],[-80.025679,40.442833],[-80.022967,40.441038],[-80.021223,40.440782],[-80.017539,40.438466],[-80.016604,40.438401],[-80.015679,40.437497],[-80.014612,40.437393],[-80.011449,40.435556],[-80.01145,40.433097],[-80.013231,40.431878],[-80.014445,40.430092],[-80.018679,40.427078],[-80.020679,40.427047],[-80.021488,40.427517],[-80.02335,40.427655],[-80.023108,40.429326],[-80.023679,40.43073],[-80.024679,40.430801],[-80.025154,40.430326],[-80.025084,40.426921],[-80.021038,40.425967],[-80.020679,40.425003],[-80.019489,40.424516],[-80.01689,40.422115],[-80.015679,40.419628],[-80.015225,40.422326],[-80.017943,40.425326],[-80.016679,40.42555],[-80.01602,40.426667],[-80.011136,40.430783],[-80.009888,40.432535],[-80.008679,40.43298],[-80.007957,40.432048],[-80.006679,40.431939],[-80.003852,40.429153],[-80.002679,40.429019],[-80.001679,40.429758],[-80.000679,40.428862],[-79.998679,40.428817],[-79.997679,40.427617],[-79.99653,40.427475],[-79.996279,40.426726],[-79.994849,40.426156],[-79.994133,40.425326],[-79.990218,40.424787],[-79.989916,40.423563],[-79.990679,40.423287],[-79.990007,40.422998],[-79.986679,40.423166],[-79.986154,40.423801],[-79.982386,40.424619],[-79.980543,40.424462],[-79.977679,40.422939],[-79.977586,40.423233],[-79.976383,40.423326],[-79.976321,40.424326],[-79.975679,40.424812],[-79.974679,40.423967],[-79.973119,40.424326],[-79.972679,40.425422],[-79.966679,40.427226],[-79.968639,40.430366],[-79.969679,40.430314],[-79.971327,40.431678],[-79.972679,40.431848],[-79.972693,40.43434],[-79.971679,40.434534],[-79.970679,40.433574],[-79.969679,40.433579],[-79.968356,40.434003],[-79.967679,40.434804],[-79.966679,40.434037],[-79.963937,40.434068],[-79.963481,40.433326],[-79.963551,40.435198],[-79.962693,40.436326],[-79.962529,40.437476],[-79.963679,40.437644],[-79.964392,40.437039],[-79.966256,40.436903],[-79.969369,40.437326],[-79.970455,40.438326],[-79.972231,40.441774],[-79.97396,40.442326],[-79.972408,40.443597],[-79.969679,40.442217],[-79.9684,40.443326],[-79.968382,40.445029],[-79.967599,40.445246],[-79.966144,40.447791],[-79.964916,40.448326],[-79.965321,40.448684],[-79.967366,40.448639],[-79.968462,40.449543],[-79.969679,40.449854],[-79.970679,40.448901],[-79.971679,40.450117],[-79.972679,40.449808],[-79.975306,40.450326],[-79.974903,40.45055],[-79.974945,40.451592],[-79.973241,40.451888],[-79.972907,40.452554],[-79.971295,40.452942],[-79.970315,40.453962],[-79.968679,40.454168],[-79.968539,40.455186],[-79.967477,40.455326],[-79.96819,40.456326],[-79.970288,40.457326],[-79.967679,40.459756],[-79.966217,40.460326],[-79.966679,40.461551],[-79.968679,40.461743],[-79.969451,40.461098],[-79.970547,40.461194],[-79.970679,40.460862],[-79.970629,40.462376],[-79.971261,40.462744],[-79.972055,40.462702],[-79.97251,40.462157],[-79.974454,40.462551],[-79.975999,40.461646],[-79.977447,40.460094],[-79.979028,40.459977],[-79.978931,40.460578],[-79.9765,40.463147],[-79.976454,40.464101],[-79.975895,40.464326],[-79.976679,40.465245],[-79.977679,40.464678],[-79.978125,40.465326],[-79.9773,40.465947],[-79.976679,40.46759],[-79.977723,40.46737],[-79.97795,40.466597],[-79.979095,40.466326],[-79.980572,40.464219],[-79.983567,40.462214],[-79.985679,40.461761],[-79.985679,40.464529],[-79.986679,40.464216],[-79.986851,40.463498],[-79.987955,40.463326],[-79.989679,40.462241],[-79.990679,40.462894],[-79.991679,40.462922],[-79.992375,40.462022],[-79.993679,40.461784],[-79.994361,40.461008],[-79.995898,40.460545],[-79.997001,40.459326],[-79.997679,40.459151],[-79.99745,40.461326],[-79.996561,40.462444],[-79.998129,40.463876],[-79.998643,40.46529],[-79.998199,40.467326],[-80.000679,40.468364]]]}}},{"type":"Feature","properties":{"elevation":0,"fill_colour":"#21908C7F","stroke_colour":"#440154FF"},"geometry":{"geometry":{"type":"Polygon","coordinates":[[[-80.007679,40.458571],[-80.011626,40.455326],[-80.012302,40.454326],[-80.011132,40.453873],[-80.010247,40.452758],[-80.010347,40.451994],[-80.011108,40.451897],[-80.011679,40.452711],[-80.013679,40.452744],[-80.01423,40.452326],[-80.013406,40.451326],[-80.01373,40.450326],[-80.011679,40.450136],[-80.011486,40.449133],[-80.016802,40.449203],[-80.017604,40.450326],[-80.018679,40.450679],[-80.019614,40.449326],[-80.021784,40.448326],[-80.022303,40.44695],[-80.023115,40.44689],[-80.023978,40.447625],[-80.025429,40.447326],[-80.024181,40.446824],[-80.023679,40.44596],[-80.020679,40.445733],[-80.019679,40.44468],[-80.016679,40.444588],[-80.015679,40.443569],[-80.013679,40.443544],[-80.012679,40.444515],[-80.010578,40.444427],[-80.010679,40.443199],[-80.014367,40.443014],[-80.014372,40.440633],[-80.012589,40.440416],[-80.012679,40.439178],[-80.015679,40.441023],[-80.016826,40.441179],[-80.017679,40.442077],[-80.020863,40.441326],[-80.019763,40.441242],[-80.019627,40.440326],[-80.018679,40.439555],[-80.017463,40.439542],[-80.017217,40.438788],[-80.015657,40.438348],[-80.015392,40.437613],[-80.012895,40.43711],[-80.012343,40.436326],[-80.011089,40.435916],[-80.010253,40.434752],[-80.01001,40.434326],[-80.010824,40.433471],[-80.010952,40.432599],[-80.011768,40.432415],[-80.01189,40.431537],[-80.012744,40.431391],[-80.01279,40.430437],[-80.013702,40.430349],[-80.013679,40.42967],[-80.013619,40.430266],[-80.012649,40.430296],[-80.012485,40.431132],[-80.011607,40.431254],[-80.010347,40.432994],[-80.008679,40.433837],[-80.007679,40.43282],[-80.00643,40.432575],[-80.003679,40.430119],[-80.001679,40.430096],[-80.000679,40.429272],[-79.997975,40.42903],[-79.997679,40.428204],[-79.995817,40.428188],[-79.995543,40.427462],[-79.991679,40.427695],[-79.989109,40.426896],[-79.988689,40.426316],[-79.987679,40.426376],[-79.984207,40.428326],[-79.982865,40.430326],[-79.984679,40.430582],[-79.985679,40.431772],[-79.987679,40.431837],[-79.987855,40.433502],[-79.983679,40.433793],[-79.982679,40.434861],[-79.979934,40.435326],[-79.975154,40.437326],[-79.975679,40.437946],[-79.976679,40.437904],[-79.979611,40.439394],[-79.980657,40.440326],[-79.979749,40.444256],[-79.982679,40.44375],[-79.985679,40.444705],[-79.986679,40.444325],[-79.987765,40.44524],[-79.986097,40.445744],[-79.985084,40.447731],[-79.983679,40.448047],[-79.983251,40.448898],[-79.981673,40.44932],[-79.980227,40.452778],[-79.98138,40.453326],[-79.981678,40.454327],[-79.982693,40.454326],[-79.982679,40.455974],[-79.982842,40.455489],[-79.984915,40.455562],[-79.988464,40.452111],[-79.989679,40.45205],[-79.989949,40.453596],[-79.989017,40.454664],[-79.987448,40.455095],[-79.986679,40.456734],[-79.987757,40.456404],[-79.987933,40.45558],[-79.991708,40.455297],[-79.992679,40.455987],[-79.993679,40.45563],[-79.995679,40.456368],[-79.997679,40.457657],[-79.999679,40.457993],[-80.000679,40.457188],[-80.001679,40.4583],[-80.003679,40.456961],[-80.007679,40.458571]]]}}},{"type":"Feature","properties":{"elevation":0,"fill_colour":"#4401547F","stroke_colour":"#440154FF"},"geometry":{"geometry":{"type":"Polygon","coordinates":[[[-80.000679,40.449471],[-80.002679,40.449965],[-80.004271,40.448326],[-80.003679,40.446814],[-80.002679,40.446987],[-80.002367,40.446638],[-80.0025,40.445147],[-80.007679,40.444068],[-80.009038,40.445326],[-80.009324,40.446681],[-80.009679,40.44686],[-80.01073,40.446326],[-80.010445,40.443092],[-80.013971,40.442326],[-80.013905,40.4411],[-80.012402,40.440603],[-80.012337,40.438984],[-80.013679,40.438446],[-80.014611,40.438394],[-80.014679,40.438703],[-80.014679,40.438214],[-80.011679,40.438093],[-80.010679,40.438727],[-80.008991,40.438638],[-80.007337,40.437668],[-80.00463,40.437375],[-80.002925,40.436326],[-80.002201,40.435326],[-80.002897,40.434544],[-80.002955,40.433602],[-80.003679,40.433134],[-80.002679,40.433127],[-80.001483,40.43413],[-80.000679,40.435716],[-79.999679,40.435824],[-79.998679,40.434999],[-79.997679,40.43516],[-79.996679,40.434729],[-79.994817,40.435464],[-79.994959,40.437606],[-79.993462,40.437109],[-79.992679,40.437942],[-79.991679,40.437627],[-79.990903,40.438326],[-79.993347,40.439326],[-79.991423,40.44007],[-79.991273,40.442326],[-79.992028,40.442977],[-79.990294,40.445941],[-79.989611,40.446394],[-79.990679,40.446722],[-79.991629,40.446275],[-79.992742,40.446326],[-79.994679,40.447639],[-79.995679,40.44762],[-79.996679,40.446793],[-79.998679,40.446816],[-79.999395,40.448326],[-80.000679,40.449471]]]}}}],"polygon-defaultLayerId",[],false,"#AAFFFFFF",{"fill_colour":{"colour":["#440154FF","#21908CFF","#FDE725FF"],"variable":["5.00","10.00","15.00"],"colourType":["fill_colour"],"type":["gradient"],"title":["time"],"css":[""]}},[[-80.035041,40.419628],[-79.962529,40.468364]],true,false,null,false,1,null]},{"functions":"add_scatterplot_geo_columnar","args":["mapdeck",{"fill_colour":[255.0,255.0,255.0,255.0],"stroke_colour":[68.0,1.0,84.0,255.0],"stroke_width":[0.0],"radius":[100.0],"lon":[-80.004679],"lat":[40.441326],"geometry":[-80.004679,40.441326]},1,"scatterplot-defaultLayerId",false,"#AAFFFFFF",{"fill_colour":[false]},"rgb",[[-80.004679,40.441326],[-80.004679,40.441326]],true,false,null,1,null,null]},{"functions":"md_change_location","args":["mapdeck",[-79.959823,40.453068],11,null,null,null,"linear"]}]},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p>The same graph can be made in <code>ggplot2</code>:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>test_isochrone_data <span class="sc">%&gt;%</span> </span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="fu">aes</span>(<span class="at">fill =</span> time)) <span class="sc">+</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_viridis_c</span>() <span class="sc">+</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_void</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>This calculates the isochrones for all the stations and transforms them into a projected coordinate system:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>station_isochrone <span class="ot">&lt;-</span> stations <span class="sc">%&gt;%</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">st_as_sf</span>(<span class="at">coords =</span> <span class="fu">c</span>(<span class="st">"longitude"</span>, <span class="st">"latitude"</span>), <span class="at">crs =</span> <span class="dv">4326</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mb_isochrone</span>(<span class="at">profile =</span> <span class="st">"cycling"</span>, <span class="at">time =</span> <span class="fu">c</span>(<span class="dv">10</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">st_transform</span>(<span class="dv">3857</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>This shows the overlap between all the isochrones. Interesting to look at, but not very informative.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>station_isochrone <span class="sc">%&gt;%</span> </span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">fill =</span> <span class="st">"black"</span>, <span class="at">lwd =</span> <span class="dv">0</span>, <span class="at">alpha =</span> .<span class="dv">05</span>) <span class="sc">+</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_void</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+<section id="build-raster" class="level2">
+<h2 class="anchored" data-anchor-id="build-raster">Build Raster</h2>
+<p>This builds a raster object that calculates how many isochrones overlap on a given area:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">#raster</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>polygons_proj <span class="ot">&lt;-</span> station_isochrone <span class="sc">%&gt;%</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">test_id =</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(time <span class="sc">==</span> <span class="dv">10</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">st_transform</span>(<span class="dv">3857</span>)</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>template <span class="ot">&lt;-</span> <span class="fu">raster</span>(polygons_proj, <span class="at">resolution =</span> <span class="dv">25</span>)</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>raster_surface <span class="ot">&lt;-</span> <span class="fu">fasterize</span>(polygons_proj, template, <span class="at">field =</span> <span class="st">"test_id"</span>, <span class="at">fun =</span> <span class="st">"sum"</span>)</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>raster_values <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">values =</span> <span class="fu">values</span>(raster_surface)) <span class="sc">%&gt;%</span> </span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(values)) <span class="sc">%&gt;%</span> </span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">distinct</span>(values) <span class="sc">%&gt;%</span> </span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pull</span>(values)</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(raster_surface)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+<section id="build-interactive-map" class="level2">
+<h2 class="anchored" data-anchor-id="build-interactive-map">Build interactive Map</h2>
+<p>This builds out the interactive map using <code>leaflet</code> and Mapbox libraries:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>custom_pal <span class="ot">&lt;-</span> <span class="fu">colorNumeric</span>(<span class="st">"viridis"</span>, </span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>                           <span class="co">#0:max_bike_stations, </span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>                           raster_values,</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>                           <span class="at">na.color =</span> <span class="st">"transparent"</span>)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>popup_labels <span class="ot">&lt;-</span> <span class="fu">sprintf</span>(<span class="st">"%s </span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="st">                        &lt;br&gt;Number of bike racks: %s"</span>,</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>                        stations<span class="sc">$</span>station_name, stations<span class="sc">$</span>number_of_racks) <span class="sc">%&gt;%</span> </span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">map</span>(htmltools<span class="sc">::</span>HTML)</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>health_ride_icon <span class="ot">&lt;-</span> <span class="fu">makeIcon</span>(</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">iconUrl =</span> <span class="st">"https://healthyridepgh.com/wp-content/uploads/sites/3/2019/05/NEXTBIKE-LOGO-01.png"</span>,</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>  <span class="co">#iconUrl = "https://healthyridepgh.com/wp-content/uploads/sites/3/2016/09/Healthy-Ride-Logo.Stacked-01.png",</span></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">iconWidth =</span> <span class="dv">50</span>, <span class="at">iconHeight =</span> <span class="dv">50</span>,</span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">iconAnchorX =</span> <span class="dv">0</span>, <span class="at">iconAnchorY =</span> <span class="dv">0</span></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>station_heatmap <span class="ot">&lt;-</span> mapbox_map <span class="sc">%&gt;%</span></span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">addPolygons</span>(<span class="at">data =</span> city_boundary,</span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>              <span class="at">opacity =</span> <span class="dv">1</span>,</span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>              <span class="at">color =</span> <span class="st">"black"</span>,</span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>              <span class="at">fillColor =</span> <span class="st">"#ffffff"</span>,</span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>              <span class="at">group =</span> <span class="st">"City boundary"</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">addRasterImage</span>(raster_surface, <span class="at">colors =</span> custom_pal, <span class="at">opacity =</span> .<span class="dv">75</span>,</span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>                 <span class="at">group =</span> <span class="st">"Raster"</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">addLegend</span>(<span class="at">pal =</span> custom_pal, </span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>            <span class="at">values =</span> raster_values,</span>
+<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a>            <span class="at">title =</span> <span class="st">"Number of stations&lt;br&gt;within 10-minute bike ride"</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">addMarkers</span>(<span class="at">data =</span> stations, <span class="at">lng =</span> <span class="sc">~</span>longitude, <span class="at">lat =</span> <span class="sc">~</span>latitude,</span>
+<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a>             <span class="at">popup =</span> popup_labels,</span>
+<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a>             <span class="at">icon =</span> health_ride_icon,</span>
+<span id="cb11-32"><a href="#cb11-32" aria-hidden="true" tabindex="-1"></a>             <span class="at">clusterOptions =</span> <span class="fu">markerClusterOptions</span>(),</span>
+<span id="cb11-33"><a href="#cb11-33" aria-hidden="true" tabindex="-1"></a>             <span class="at">group =</span> <span class="st">"Stations"</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb11-34"><a href="#cb11-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">addLayersControl</span>(<span class="at">overlayGroups =</span> <span class="fu">c</span>(<span class="st">"City boundary"</span>, <span class="st">"Raster"</span>, <span class="st">"Stations"</span>),</span>
+<span id="cb11-35"><a href="#cb11-35" aria-hidden="true" tabindex="-1"></a>                   <span class="at">options =</span> <span class="fu">layersControlOptions</span>(<span class="at">collapsed =</span> <span class="cn">FALSE</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb11-36"><a href="#cb11-36" aria-hidden="true" tabindex="-1"></a>  <span class="fu">addFullscreenControl</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb11-37"><a href="#cb11-37" aria-hidden="true" tabindex="-1"></a>  <span class="fu">setView</span>(<span class="at">lng =</span> pgh_coords[<span class="dv">1</span>], <span class="at">lat =</span> pgh_coords[<span class="dv">2</span>], <span class="at">zoom =</span> <span class="dv">12</span>)</span>
+<span id="cb11-38"><a href="#cb11-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-39"><a href="#cb11-39" aria-hidden="true" tabindex="-1"></a><span class="fu">frameWidget</span>(station_heatmap, <span class="at">options=</span><span class="fu">frameOptions</span>(<span class="at">allowfullscreen =</span> <span class="cn">TRUE</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>
