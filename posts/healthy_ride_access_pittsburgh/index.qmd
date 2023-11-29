@@ -17,7 +17,11 @@ editor_options:
 
 This is an interactive Leaflet map of Healthy Ride access in Pittsburgh. It counts how many Healthy Ride stations are within a 10 minute bike ride of a given location. This gives an estimation of how accessible the Healthy Ride service is in a given neighborhood (lighter green = more accessible). As you zoom in, individual bike stations will appear. Click the "full screen" button on the left to maximize your view.
 
-```{r echo=FALSE}
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
 library(tidyverse)
 library(janitor)
 library(sf)
@@ -42,7 +46,7 @@ mapbox_map <- leaflet() %>%
   addMapboxTiles(style_id = "streets-v11",
                  username = "mapbox") 
 
-stations <- read_csv("posts/healthy_ride_access_pittsburgh/post_data/stations/healthy-ride-station-locations-2020-q2.csv",
+stations <- read_csv("post_data/stations/healthy-ride-station-locations-2020-q2.csv",
                      col_types = cols(
                        `Station #` = col_character(),
                        `Station Name` = col_character(),
@@ -51,17 +55,27 @@ stations <- read_csv("posts/healthy_ride_access_pittsburgh/post_data/stations/he
                        Longitude = col_double()
                      )) %>% 
   clean_names() %>% 
-  mutate(latitude = case_when(station_number == "49391" ~ latitude * -1,
+  mutate(latitude = case_when(latitude < 0 ~ latitude * -1,
                               TRUE ~ latitude))
 
-city_boundary <- st_read("posts/healthy_ride_access_pittsburgh/post_data/Pittsburgh_City_Boundary-shp/City_Boundary.shp",
+city_boundary <- st_read("post_data/Pittsburgh_City_Boundary-shp/City_Boundary.shp",
                          quiet = TRUE) %>% 
+  st_transform("+proj=longlat +datum=WGS84") |> 
   filter(FID != 7) %>% 
   summarize() %>% 
   st_boundary() %>% 
   ms_simplify(keep = .02)
 
-station_isochrone <- st_read("posts/healthy_ride_access_pittsburgh/post_data/stations/station_isochrone/station_isochrone.shp",
+#run interactively to create isochrone
+# station_isochrone <- stations %>%
+#   st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>%
+#   mb_isochrone(profile = "cycling", time = c(10)) %>%
+#   st_transform(3857)
+# 
+# station_isochrone |> 
+#   write_sf("posts/healthy_ride_access_pittsburgh/post_data/station_isochrone/station_isochrone.shp")
+
+station_isochrone <- st_read("post_data/station_isochrone/station_isochrone.shp",
                              quiet = TRUE)
 
 polygons_proj <- station_isochrone %>%
@@ -108,7 +122,7 @@ station_heatmap <- mapbox_map %>%
             title = "Number of stations<br>within 10-minute bike ride") %>% 
   addMarkers(data = stations, lng = ~longitude, lat = ~latitude,
              popup = popup_labels,
-             icon = health_ride_icon,
+             #icon = health_ride_icon,
              clusterOptions = markerClusterOptions(),
              group = "Stations") %>% 
   addLayersControl(overlayGroups = c("City boundary", "Raster", "Stations"),
@@ -159,7 +173,7 @@ mapbox_map <- leaflet() %>%
 This reads in the dataframe with the [station locations](https://data.wprdc.org/dataset/healthyride-stations) and the shapefile of the [city boundaries](https://data.wprdc.org/dataset/pittsburgh-city-boundary).
 
 ```{r}
-stations <- read_csv("posts/healthy_ride_access_pittsburgh/post_data/stations/healthy-ride-station-locations-2020-q2.csv",
+stations <- read_csv("post_data/stations/healthy-ride-station-locations-2020-q2.csv",
                      col_types = cols(
                        `Station #` = col_character(),
                        `Station Name` = col_character(),
@@ -168,15 +182,16 @@ stations <- read_csv("posts/healthy_ride_access_pittsburgh/post_data/stations/he
                        Longitude = col_double()
                      )) %>% 
   clean_names() %>% 
-  mutate(latitude = case_when(station_number == "49391" ~ latitude * -1,
+  mutate(latitude = case_when(latitude < 0 ~ latitude * -1,
                               TRUE ~ latitude))
 
-city_boundary <- st_read("posts/healthy_ride_access_pittsburgh/post_data/Pittsburgh_City_Boundary-shp/City_Boundary.shp",
+city_boundary <- st_read("post_data/Pittsburgh_City_Boundary-shp/City_Boundary.shp",
                          quiet = TRUE) %>% 
+  st_transform("+proj=longlat +datum=WGS84") |> 
   filter(FID != 7) %>% 
   summarize() %>% 
   st_boundary() %>% 
-  rmapshaper::ms_simplify(keep = .02)
+  ms_simplify(keep = .02)
 
 station_map <- mapbox_map %>% 
   mapdeck() %>% 
@@ -191,7 +206,7 @@ station_map <- mapbox_map %>%
 station_map
 ```
 
-## Build one isochone
+## Build one isochrone
 
 This takes the first station in the dataframe and uses the Mapbox API to make a test [isochrone](https://en.wikipedia.org/wiki/Isochrone_map) that shows how far a bicyclist can go in a given period of time (5, 10, 15 minutes).
 
@@ -229,16 +244,13 @@ test_isochrone_data %>%
 
 This calculates the isochrones for all the stations and transforms them into a projected coordinate system:
 
-```{r eval = FALSE}
+```{r}
+#| eval: false
+
 station_isochrone <- stations %>%
   st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>%
   mb_isochrone(profile = "cycling", time = c(10)) %>%
   st_transform(3857)
-```
-
-```{r include = FALSE}
-station_isochrone <- st_read("post_data/stations/station_isochrone/station_isochrone.shp",
-                             quiet = TRUE)
 ```
 
 This shows the overlap between all the isochrones. Interesting to look at, but not very informative.
@@ -246,7 +258,7 @@ This shows the overlap between all the isochrones. Interesting to look at, but n
 ```{r}
 station_isochrone %>% 
   ggplot() +
-  geom_sf(fill = "black", size = NA, alpha = .05) +
+  geom_sf(fill = "black", lwd = 0, alpha = .05) +
   theme_void()
 ```
 
@@ -277,7 +289,9 @@ plot(raster_surface)
 
 This builds out the interactive map using `leaflet` and Mapbox libraries:
 
-```{r eval = FALSE}
+```{r}
+#| eval: false
+
 custom_pal <- colorNumeric("viridis", 
                            #0:max_bike_stations, 
                            raster_values,
@@ -318,4 +332,3 @@ station_heatmap <- mapbox_map %>%
 
 frameWidget(station_heatmap, options=frameOptions(allowfullscreen = TRUE))
 ```
-
