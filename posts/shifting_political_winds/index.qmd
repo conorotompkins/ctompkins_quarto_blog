@@ -13,16 +13,11 @@ featured: false
 draft: false
 image: featured.png
 ---
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, 
-                      warning = FALSE, 
-                      message = FALSE)
-```
-
 The purpose of this post is to recreate the "Shift from 2016" arrow map that the New York Times used to show which counties became more Democratic or Republican-leaning from 2016 to 2020. This is a screenshot of the [NYTimes figure](https://www.nytimes.com/interactive/2020/11/03/us/elections/results-president.html?name=styln-transition&region=TOP_BANNER&block=storyline_menu_recirc&action=click&pgtype=LegacyCollection&impression_id=fe1cabd0-2862-11eb-a601-c3124439c207&variant=show):
 
-```{r echo=FALSE}
+```{r}
+#| echo: false
+
 knitr::include_graphics("nytimes_figure.png")
 ```
 
@@ -32,7 +27,9 @@ I will use county-level Presidential election data from the [MIT Election Data +
 
 My approach is to use `{ggplot2}` and `{sf}` to map the data and draw arrows at angles to display shifts in the Democratic margin.
 
-```{r include=FALSE}
+```{r}
+#| include: false
+
 library(tidyverse)
 library(lubridate)
 library(janitor)
@@ -88,7 +85,10 @@ This is the dataframe I use to make the final map. It contains the year, state, 
 glimpse(shift_map)
 ```
 
-```{r fig.height=15, fig.width=15}
+```{r}
+#| fig-height: 15
+#| fig-width: 15
+
 shift_map_filtered <- shift_map %>% 
   filter(state != "ALASKA") %>%
   filter(year == 2016) %>% 
@@ -132,7 +132,10 @@ I lower the opacity of the lines in counties where the vote totals did not shift
 
 This animation shows the shift in Presidential election margin from 2004-2016.
 
-```{r fig.height=15, fig.width=15}
+```{r}
+#| fig-height: 15
+#| fig-width: 15
+
 political_winds_anim <- shift_map %>% 
   filter(state != "ALASKA") %>% 
   mutate(id = str_c(state, county_name, county_fips)) %>% 
@@ -360,9 +363,15 @@ presidential_votes_shift <- presidential_votes_shift %>%
                                       sign(shift_pct) == -1 ~ "Republican"),
          shift_pct_binary = as.factor(shift_pct_binary)) %>% 
   mutate(shift_votes_binned = abs(shift_votes) <= 3000)
+```
 
-presidential_votes_shift |>
-  write_csv("presidential_votes_shift.csv")
+```{r}
+#| eval: false
+#| include: false
+
+#for saving to local disk and archiving
+# presidential_votes_shift |>
+#   write_csv("presidential_votes_shift.csv")
 ```
 
 ```{r}
@@ -376,7 +385,9 @@ shift_map <- presidential_votes_shift %>%
          lat1 = lat0 + (shift_votes_scaled * sin(NISTdegTOradian(shift_pct_scaled))))
 ```
 
-```{r eval = FALSE}
+```{r}
+#| eval: false
+
 shift_map_filtered <- shift_map %>% 
   filter(state != "ALASKA") %>%
   filter(year == 2016) %>% 
@@ -411,7 +422,9 @@ ggplot() +
         legend.position = "bottom")
 ```
 
-```{r eval = FALSE}
+```{r}
+#| eval: false
+
 political_winds_anim <- shift_map %>% 
   filter(state != "Alaska") %>% 
   mutate(id = str_c(state, county_name, county_fips)) %>% 
