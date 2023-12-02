@@ -104,7 +104,7 @@ ggplot() +
   geom_point(data = filter(shift_map_filtered, abs(shift_votes) <= 1500),
              aes(x = lng0, y = lat0,
                  color = shift_pct_binary),
-             linewidth = .75,
+             size = .75,
              alpha = .3) +
   geom_segment(data = filter(shift_map_filtered, abs(shift_votes) > 1500),
                aes(x = lng0, xend = lng1,
@@ -135,6 +135,8 @@ This animation shows the shift in Presidential election margin from 2004-2016.
 ```{r}
 #| fig-height: 15
 #| fig-width: 15
+#| message: false
+#| warning: false
 
 political_winds_anim <- shift_map %>% 
   filter(state != "ALASKA") %>% 
