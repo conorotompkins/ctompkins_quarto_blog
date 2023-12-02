@@ -51,7 +51,7 @@ options(tigris_use_cache = TRUE,
 
 theme_set(theme_ipsum())
 
-presidential_votes_shift <- read_csv("posts/shifting_political_winds/post_data/presidential_votes_shift.csv") %>% 
+presidential_votes_shift <- read_csv("post_data/presidential_votes_shift.csv") %>% 
   mutate(shift_pct_scaled = rescale(shift_pct, to = c(0, 180)), #republican 0, democrat 180
          shift_votes_scaled = rescale(abs(shift_votes), to = c(10^4, 10^6)))
 
@@ -90,7 +90,7 @@ glimpse(shift_map)
 
 ```{r fig.height=15, fig.width=15}
 shift_map_filtered <- shift_map %>% 
-  filter(state != "Alaska") %>%
+  filter(state != "ALASKA") %>%
   filter(year == 2016) %>% 
   mutate(shift_pct_binary = case_when(sign(shift_pct) == 1 ~ "Democratic",
                                       sign(shift_pct) == -1 ~ "Republican"),
@@ -98,7 +98,7 @@ shift_map_filtered <- shift_map %>%
   mutate(shift_votes_binned = abs(shift_votes) <= 3000)
 
 ggplot() +
-  geom_sf(data = filter(state_geo, !str_detect(NAME, "Alaska")),
+  geom_sf(data = filter(state_geo, !str_detect(NAME, "ALASKA")),
           linewidth = .2,
           fill = NA) +
   geom_point(data = filter(shift_map_filtered, abs(shift_votes) <= 1500),
@@ -134,7 +134,7 @@ This animation shows the shift in Presidential election margin from 2004-2016.
 
 ```{r fig.height=15, fig.width=15}
 political_winds_anim <- shift_map %>% 
-  filter(state != "Alaska") %>% 
+  filter(state != "ALASKA") %>% 
   mutate(id = str_c(state, county_name, county_fips)) %>% 
   mutate(year = as.integer(year)) %>% 
   mutate(shift_pct_binary = case_when(sign(shift_pct) == 1 ~ "Democratic",
@@ -142,7 +142,7 @@ political_winds_anim <- shift_map %>%
          shift_pct_binary = as.factor(shift_pct_binary)) %>% 
   mutate(shift_votes_binned = abs(shift_votes) <= 3000) %>% 
   ggplot() +
-  geom_sf(data = filter(state_geo, NAME != "Alaska"),
+  geom_sf(data = filter(state_geo, NAME != "ALASKA"),
           linewidth = .2,
           fill = NA) +
   geom_segment(aes(x = lng0, xend = lng1,
@@ -185,7 +185,7 @@ In the animation there is less overplotting, so I do not replace lines with dots
 #changes https://www.census.gov/programs-surveys/geography/technical-documentation/county-changes.2010.html
 
 #read in data
-data <- read_csv("posts/shifting_political_winds/post_data/countypres_2000-2020.csv",
+data <- read_csv("post_data/countypres_2000-2020.csv",
                  col_types = cols(
                    year = col_double(),
                    state = col_character(),
@@ -200,9 +200,9 @@ data <- read_csv("posts/shifting_political_winds/post_data/countypres_2000-2020.
                    version = col_double()
                  )) %>% 
   clean_names() |>
-  filter(year <= 2016) |> 
-  mutate(party = str_to_lower(party),
-         office = str_to_lower(office))
+  filter(year <= 2016,
+         mode == "TOTAL") |> 
+  select(-mode)
 
 glimpse(data)
 ```
@@ -215,19 +215,21 @@ This code filters out state-wide vote tabulations and then filters only on the t
 data <- data %>% 
   rename(fips_raw = county_fips) %>% 
   #filter out state-wide ballot collection
-  filter(!(state == "Connecticut" & county_name == "Statewide writein")) %>% 
-  filter(!(state == "Maine" & county_name == "Maine UOCAVA")) %>% 
-  filter(!(state == "Rhode Island" & county_name == "Federal Precinct"))
+  filter(!(state == "CONNECTICUT" & county_name == "STATEWIDE WRITEIN")) %>% 
+  filter(!(state == "MAINE" & county_name == "MAINE UOCAVA")) %>% 
+  filter(!(state == "RHODE ISLAND" & county_name == "FEDERAL PRECINCT"))
 
 #filter for only 2-party vote in presidential elections
 data <- data %>% 
-  filter(office == "us president",
-         party == "democrat" | party == "republican") %>% 
+  filter(office == "US PRESIDENT",
+         party == "DEMOCRAT" | party == "REPUBLICAN") %>% 
   arrange(state, county_name, fips_raw, year) %>% 
   replace_na(list(candidatevotes = 0))
 ```
 
 Many of the FIPS codes from the source data dropped leading zeroes, which makes them unuseable for joining with Census data. This code adds the leading zeroes back.
+
+**These problems were fixed in a later update by MIT, so this code is not strictly necessary anymore**
 
 ```{r}
 #clean fips data
@@ -247,6 +249,8 @@ data <- data %>%
 
 I had to make a variety of decisions about how to clean up the data with regards to county geometries. The MIT data does not reflect cases where counties changed names or FIPS codes, or where counties merged. This code manually makes the changes necessary to join the data with Census geometry data. Note that I do not attempt to fix the data for Alaska, which was extremely different than the Census data. I was not confident that I could make accurate adjustments in this case, so I excluded Alaska entirely. These changes are not optimal, but I think it is close enough.
 
+**These problems were fixed in a later update by MIT, so this code is not strictly necessary anymore**
+
 ```{r}
 #decisions to make with wonky geometry
 #merge records for Shannnon and Oglala Lakota counties in SD
@@ -256,15 +260,15 @@ I had to make a variety of decisions about how to clean up the data with regards
 data <- data %>% 
   #update Oglala Lakota SD fips
   #changed in 2015 https://www.census.gov/programs-surveys/geography/technical-documentation/county-changes.2010.html
-  mutate(county_fips = case_when(state == "South Dakota" & county_name == "Oglala Lakota" ~ "46102",
+  mutate(county_fips = case_when(state == "SOUTH DAKOTA" & county_name == "OGLALA LAKOTA" ~ "46102",
                           TRUE ~ county_fips)) %>% 
   #merge Kansas City Missouri with Jackson County Missouri
-  mutate(county_name = case_when(state == "Missouri" & county_name == "Kansas City" ~ "Jackson",
+  mutate(county_name = case_when(state == "MISSOURI" & county_name == "KANSAS CITY" ~ "JACKSON",
                             TRUE ~ county_name),
-         county_fips = case_when(state == "Missouri" & county_name == "Jackson" ~ "29095",
+         county_fips = case_when(state == "MISSOURI" & county_name == "JACKSON" ~ "29095",
                           TRUE ~ county_fips)) %>% 
   #merge Bedford (city) fips 51515 with Bedford county 51019
-  mutate(county_fips = case_when(state == "Virginia" & county_name == "Bedford" & county_fips == "51515" ~ "51019",
+  mutate(county_fips = case_when(state == "VIRGINIA" & county_name == "BEDFORD" & county_fips == "51515" ~ "51019",
                           TRUE ~ county_fips))
 ```
 
@@ -285,9 +289,9 @@ counties <- get_acs(variables = "B19013_001",
 #
 data %>% 
   select(year, state, county_name, county_fips) %>% 
-  filter(state != "Alaksa") %>% 
+  filter(state != "ALASKA") %>% 
   anti_join(counties, by = c("county_fips" = "GEOID")) %>% 
-  count(state)
+  count(state, county_name)
 ```
 
 The process of merging some counties meant that I had to summarize the election results to the level of my new "adjusted" counties. This code performs that process.
@@ -334,6 +338,7 @@ presidential_votes <- data %>%
 
 ```{r}
 presidential_votes_shift <- presidential_votes %>% 
+  mutate(party = str_to_lower(party)) %>%
   pivot_wider(names_from = party, values_from = c(candidatevotes_sum, pct_vote)) %>%
   mutate(dem_margin_pct = pct_vote_democrat - pct_vote_republican,
          dem_margin_votes = candidatevotes_sum_democrat - candidatevotes_sum_republican) %>% 
@@ -356,7 +361,7 @@ presidential_votes_shift <- presidential_votes_shift %>%
          shift_pct_binary = as.factor(shift_pct_binary)) %>% 
   mutate(shift_votes_binned = abs(shift_votes) <= 3000)
 
-presidential_votes_shift |> 
+presidential_votes_shift |>
   write_csv("presidential_votes_shift.csv")
 ```
 
@@ -373,14 +378,14 @@ shift_map <- presidential_votes_shift %>%
 
 ```{r eval = FALSE}
 shift_map_filtered <- shift_map %>% 
-  filter(state != "Alaska") %>%
+  filter(state != "ALASKA") %>%
   filter(year == 2016) %>% 
   mutate(shift_pct_binary = case_when(sign(shift_pct) == 1 ~ "Democratic",
                                       sign(shift_pct) == -1 ~ "Republican"),
          shift_pct_binary = as.factor(shift_pct_binary))
 
 ggplot() +
-  geom_sf(data = filter(state_geo, !str_detect(NAME, "Alaska")),
+  geom_sf(data = filter(state_geo, !str_detect(NAME, "ALASKA")),
           linewidth = .2,
           fill = NA) +
   geom_point(data = filter(shift_map_filtered, abs(shift_votes) <= 1500),
