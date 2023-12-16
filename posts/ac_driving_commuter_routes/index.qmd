@@ -72,7 +72,7 @@ Then I download the ["Origin-Destination" LODES](https://lehd.ces.census.gov/dat
 lodes_od_ac_main <- grab_lodes(state = "pa", year = 2017, 
                                lodes_type = "od", job_type = "JT00", 
                                segment = "S000", state_part = "main", 
-                               agg_geo = "tract") %>%
+                               agg_geo = "tract", use_cache = TRUE) %>%
   select(state, w_tract, h_tract, S000, year) %>% 
   rename(commuters = S000) %>% 
   mutate(intra_tract_commute = h_tract == w_tract) %>% 
@@ -94,7 +94,7 @@ lodes_od_ac_main %>%
 
 This is the code that identifies the center of each tract, geocodes those centroids to get an address, and gets the turn-by-turn directions and route data for each pair of home and work addresses. I will focus on the top 20% of these routes (in terms of cumulative percent of commuters) because the Mapbox API is not designed for the size of query I would need to get directions for all combinations of census tracts.
 
-Note that I manually replaced the geocoded address for the Wexford area because the geocoder was returning a result outside of the county, probably because the center of the tract is directly on I-76 (Pennsylvania Turnpike).
+Note that I manually replaced the geocoded address for the Wexford and Swissvale areas because the geocoder returned results outside of the county, probably because the center of those tracts intersect with highways.
 
 ```{r eval = FALSE}
 #filter out rows where commuter doesn't change tracts
@@ -120,6 +120,12 @@ combined_tract_sf_small <- combined_tract_sf_small %>%
   rename(w_tract_geo = geometry) %>% 
   select(h_tract, h_tract_geo, w_tract, w_tract_geo, commuters)
 
+combined_tract_sf_small |> 
+  st_sf() |> 
+  ggplot() +
+  geom_sf(data = allegheny_county_tracts) +
+  geom_sf()
+
 #get addresses for tract centroids
 tract_od_directions <- combined_tract_sf_small %>%
   mutate(home_address = map_chr(h_tract_geo, mb_reverse_geocode),
@@ -127,12 +133,17 @@ tract_od_directions <- combined_tract_sf_small %>%
 
 #replace bad address with good address
 wexford_good_address <- "3321 Wexford Rd, Gibsonia, PA 15044"
+swissvale_good_address <- "1118 S Braddock Ave, Swissvale, PA 15218"
 
 tract_od_directions <- tract_od_directions %>% 
+  #fix wexford address
   mutate(home_address = case_when(h_tract == "42003409000" ~ wexford_good_address,
                                   h_tract != "42003409000" ~ home_address),
          work_address = case_when(w_tract == "42003409000" ~ wexford_good_address,
-                                  w_tract != "42003409000" ~ work_address))
+                                  w_tract != "42003409000" ~ work_address)) |> 
+  #fix swissvale address
+  mutate(home_address = case_when(h_tract == "42003515401" ~ swissvale_good_address,
+                                  TRUE ~ home_address))
 
 #define error-safe mb_directions function
 mb_directions_possibly <- possibly(mb_directions, otherwise = NA)
@@ -173,10 +184,91 @@ tract_od_directions <- tract_od_directions |>
 ```
 
 ```{r}
+#| eval: false
+#| include: false
+
 tract_od_directions |> 
   distinct(geometry) |> 
   ggplot() +
+  geom_sf(data = allegheny_county_tracts) +
   geom_sf()
+
+#troubleshooting directions
+tract_od_directions |> 
+  distinct(h_tract_geo, w_tract_geo) |> 
+  pivot_longer(cols = everything()) |> 
+  st_sf() |> 
+  ggplot() +
+  geom_sf(data = allegheny_county_tracts) + 
+  geom_sf(aes(color = name, fill = name))
+
+home_address <- tract_od_directions |> 
+  distinct(home_address, h_tract,  h_tract_geo, home_address_location_geocoded) |> 
+  mutate(home_x = map_dbl(home_address_location_geocoded, 1),
+         home_y = map_dbl(home_address_location_geocoded, 2)) |> 
+  select(-home_address_location_geocoded) |> 
+  left_join(allegheny_county_tracts, by = c("h_tract" = "GEOID"))
+
+st_geometry(home_address) <- "h_tract_geo"
+
+home_address |> 
+  filter(home_address == "Penn-Lincoln Parkway East, Swissvale, Pennsylvania 15205, United States") |> 
+  st_sf() |> 
+  st_set_geometry("geometry") |> 
+  ggplot() +
+  geom_sf(data = allegheny_county_tracts) +
+  geom_sf(fill = "red")
+
+{home_address |>  
+  ggplot() +
+  #geom_sf(data = allegheny_county_tracts) +
+  geom_point(aes(home_x, home_y))} |> 
+  plotly::ggplotly()
+
+home_address |> 
+  arrange(desc(home_x))
+
+tract_od_directions |> 
+  filter(home_address == "Penn-Lincoln Parkway East, Swissvale, Pennsylvania 15205, United States") |> 
+  mutate(home_x = map_dbl(home_address_location_geocoded, 1),
+         home_y = map_dbl(home_address_location_geocoded, 2)) |> 
+  mutate(work_x = map_dbl(work_address_location_geocoded, 1),
+         work_y = map_dbl(work_address_location_geocoded, 2)) |> 
+  ggplot() +
+  geom_sf(data = allegheny_county_tracts) +
+  geom_sf(data = allegheny_county_tracts |> filter(GEOID == "42003515401"), fill = "blue") + 
+  geom_sf() +
+  geom_point(aes(home_x, home_y), color = "blue") +
+  geom_point(aes(work_x, work_y), color = "red")
+
+allegheny_county_tracts |> 
+  leaflet::leaflet() |> 
+  leaflet::addPolygons(weight = .1) |> 
+  leaflet::addPolygons(data = allegheny_county_tracts |> filter(GEOID == "42003515401"), fillColor = "red", fillOpacity = 1)
+
+address_work <- tract_od_directions |> 
+  distinct(work_address_location_geocoded)
+
+address_work |> 
+  mutate(x = map_dbl(work_address_location_geocoded, 1),
+         y = map_dbl(work_address_location_geocoded, 2)) |> 
+  ggplot() +
+  geom_sf(data = allegheny_county_tracts) +
+  geom_point(aes(x, y))
+
+tract_od_directions |> 
+  st_drop_geometry() |> 
+  distinct(home_address, h_tract_geo) |> 
+  arrange(desc(h_tract_geo))
+
+tract_od_directions |> 
+  st_drop_geometry() |> 
+  distinct(work_address, w_tract_geo) |> 
+  arrange(w_tract_geo) |> 
+  view()
+
+tract_od_directions |> 
+  distinct(home_address)
 ```
 
 This summarizes the data so there is one row per commuter route and creates summarized route data.
@@ -233,14 +325,14 @@ This map shows the main roads that commuter routes use I-376, I-279, and Route 2
 #map routes
 tract_od_stats %>% 
   ggplot() +
-  geom_sf(data = allegheny_county_tracts, size = .1, fill = "black") +
-  geom_sf(aes(alpha = commuters, size = commuters), color = "#ffcc01", alpha = .2) +
-  guides(size = guide_legend(override.aes= list(alpha = 1))) +
-  scale_size_continuous(range = c(.3, 4)) +
+  geom_sf(data = allegheny_county_tracts, linewidth = .1, fill = "black") +
+  geom_sf(aes(alpha = commuters, linewidth = commuters), color = "#ffcc01", alpha = .1) +
+  guides(linewidth = guide_legend(override.aes= list(alpha = 1))) +
+  scale_linewidth_continuous(range = c(.1, 5)) +
   theme_void() +
   labs(title = "Commuter routes between Allegheny County census tracts",
        subtitle = "Driving routes",
-       size = "Commuters")
+       linewidth = "Commuters")
 ```
 
 A high-resolution image of this map is available [here](https://raw.githubusercontent.com/conorotompkins/lodes/master/output/commute_path_road_map.png). An animation of the routes is [here](https://raw.githubusercontent.com/conorotompkins/lodes/master/output/animated_route_steps.gif).
