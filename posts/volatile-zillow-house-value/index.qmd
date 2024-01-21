@@ -1,0 +1,121 @@
+---
+title: "Graphing volatile home values in U.S. metro areas"
+subtitle: ""
+summary: ""
+authors: [Conor Tompkins]
+tags: [Housing, Zillow]
+categories: [Housing, Zillow]
+date: 2020-10-21
+lastmod: 2020-10-21T08:47:12-04:00
+featured: false
+draft: false
+
+# Featured image
+# To use, add an image named `featured.jpg/png` to your page's folder.
+# Focal points: Smart, Center, TopLeft, Top, TopRight, Left, Right, BottomLeft, Bottom, BottomRight.
+image: featured.png
+focal_point: ""
+preview_only: false
+
+# Projects (optional).
+#   Associate this post with one or more of your projects.
+#   Simply enter your project's folder or file name without extension.
+#   E.g. `projects = ["internal-project"]` references `content/project/deep-learning/index.md`.
+#   Otherwise, set `projects = []`.
+projects: []
+---
+
+Zillow publishes a variety of cool data that I haven't explored much yet. The first dataset that caught my eye was the Zillow Home Value Index (ZHVI). Zillow describes it as the "smoothed, seasonally adjusted measure of the typical home value and market changes across a given region and housing type". In this post I will make a quick `gganimate` plot of the ZHVI of various metro areas in the U.S.
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(janitor)
+library(hrbrthemes)
+library(gganimate)
+
+options(scipen = 999, digits = 4)
+
+theme_set(theme_ipsum())
+```
+
+**The code for this post was re-ran in 2024. The data was filtered to match the date of the original post.**
+
+The first thing I noticed about the data is that it is *aggressively* wide. There is a column for each year-month in the dataset. 293 columns is a lot to work with.
+
+```{r}
+#download housing data from https://www.zillow.com/research/data/
+zillow_house_value <- read_csv("post_data/Metro_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv")
+
+dim(zillow_house_value)
+```
+To make the data more tidy, I use a regex to identify the columns that have a date in the name and pivot those longer. Now each row represents the ZHVI for a given region area on a given year-month.
+```{r}
+zillow_house_value <- zillow_house_value %>% 
+  pivot_longer(cols = matches("\\d{4}-\\d{2}-\\d{2}"),
+               names_to = "date", values_to = "zhvi") %>% 
+  clean_names() %>% 
+  mutate(date = ymd(date),
+         region_name = str_squish(region_name))
+
+glimpse(zillow_house_value)
+
+zillow_house_value |> 
+  filter(is.na(zhvi))
+```
+
+Once the data is tidy, it is easy to plot with `ggplot2`. In this graph, each line represents one metro area.
+```{r}
+zillow_house_value %>% 
+  ggplot(aes(date, zhvi, group = region_name)) +
+  geom_line(alpha = .1, size = .5)
+```
+
+What struck me is that while most metro areas in the dataset start with ZHVI < $300,000, many increase to 3x that, with many wild swings along the way due to housing bubbles, economic crashes, and housing scarcity. I will rank the metro areas by volatility (standard deviation of ZHVI) and use `ggplot2` and `gganimate` to highlight the most volatile metro areas.
+```{r}
+#find most volatile regions
+df_top_regions <- zillow_house_value %>% 
+  group_by(region_name) %>% 
+  summarize(sd = sd(zhvi)) %>% 
+  ungroup() %>% 
+  arrange(desc(sd)) %>% 
+  slice(1:25) %>% 
+  mutate(region_name_rank = str_c("#", row_number(), " ", region_name, sep = ""))
+  
+region_name_highlight_fct <- df_top_regions %>% 
+  pull(region_name)
+
+region_name_rank_fct <- df_top_regions %>% 
+  pull(region_name_rank)
+```
+
+```{r eval = FALSE}
+#create highlight df
+df_highlights <- zillow_house_value %>% 
+  inner_join(df_top_regions) %>% 
+  mutate(region_name_highlight = region_name,
+         region_name_highlight = factor(region_name_highlight, levels = region_name_highlight_fct),
+         region_name_rank = factor(region_name_rank, levels = region_name_rank_fct))
+
+housing_animation <- zillow_house_value %>% 
+  ggplot() +
+  geom_line(aes(date, zhvi, group = region_name), alpha = .1, size = .5) +
+  geom_line(data = df_highlights,
+            aes(date, zhvi),
+            color = "red", size = 1.5) +
+  scale_y_continuous(labels = scales::dollar_format()) +
+  transition_manual(region_name_rank) +
+  labs(title = "Top 25 most volatile housing markets 1996-2020",
+       subtitle = "Region: {current_frame}",
+       x = NULL,
+       y = "Zillow Housing Value Index") +
+  theme(plot.subtitle = element_text(size = 15),
+        axis.title.y = element_text(size = 15))
+
+housing_animation
+
+# anim_save("output/housing_animation.gif", animation = housing_animation,
+#           duration = 40, fps = 20, width = 1000, height = 500)
+```
+
+![](images/housing_animation-01.gif)
