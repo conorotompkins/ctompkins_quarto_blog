@@ -1,15 +1,14 @@
 ---
 title: "Graphing volatile home values in U.S. metro areas"
-subtitle: ""
-summary: ""
-authors: [Conor Tompkins]
+authors: "Conor Tompkins"
 tags: [Housing, Zillow]
 categories: [Housing, Zillow]
 date: 2020-10-21
 lastmod: 2020-10-21T08:47:12-04:00
 featured: false
 draft: false
-
+execute: 
+  warning: false
 # Featured image
 # To use, add an image named `featured.jpg/png` to your page's folder.
 # Focal points: Smart, Center, TopLeft, Top, TopRight, Left, Right, BottomLeft, Bottom, BottomRight.
@@ -28,6 +27,8 @@ projects: []
 Zillow publishes a variety of cool data that I haven't explored much yet. The first dataset that caught my eye was the Zillow Home Value Index (ZHVI). Zillow describes it as the "smoothed, seasonally adjusted measure of the typical home value and market changes across a given region and housing type". In this post I will make a quick `gganimate` plot of the ZHVI of various metro areas in the U.S.
 
 ```{r}
+#| include: false
+
 library(tidyverse)
 library(lubridate)
 library(janitor)
@@ -59,9 +60,6 @@ zillow_house_value <- zillow_house_value %>%
          region_name = str_squish(region_name))
 
 glimpse(zillow_house_value)
-
-zillow_house_value |> 
-  filter(is.na(zhvi))
 ```
 
 Once the data is tidy, it is easy to plot with `ggplot2`. In this graph, each line represents one metro area.
@@ -89,7 +87,9 @@ region_name_rank_fct <- df_top_regions %>%
   pull(region_name_rank)
 ```
 
-```{r eval = FALSE}
+```{r}
+#| warning: false
+
 #create highlight df
 df_highlights <- zillow_house_value %>% 
   inner_join(df_top_regions) %>% 
@@ -112,10 +112,9 @@ housing_animation <- zillow_house_value %>%
   theme(plot.subtitle = element_text(size = 15),
         axis.title.y = element_text(size = 15))
 
-housing_animation
+housing_animation <- animate(housing_animation, duration = 10, fps = 40)
 
-# anim_save("output/housing_animation.gif", animation = housing_animation,
-#           duration = 40, fps = 20, width = 1000, height = 500)
+housing_animation
 ```
 
 ![](images/housing_animation-01.gif)
