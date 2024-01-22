@@ -23,8 +23,9 @@ preview_only: false
 #   Otherwise, set `projects = []`.
 projects: []
 ---
-
 Zillow publishes a variety of cool data that I haven't explored much yet. The first dataset that caught my eye was the Zillow Home Value Index (ZHVI). Zillow describes it as the "smoothed, seasonally adjusted measure of the typical home value and market changes across a given region and housing type". In this post I will make a quick `gganimate` plot of the ZHVI of various metro areas in the U.S.
+
+**The code for this post was re-ran in 2024. The data was filtered to match the date of the original post.**
 
 ```{r}
 #| include: false
@@ -40,10 +41,7 @@ options(scipen = 999, digits = 4)
 theme_set(theme_ipsum())
 ```
 
-**The code for this post was re-ran in 2024. The data was filtered to match the date of the original post.**
-
 The first thing I noticed about the data is that it is *aggressively* wide. There is a column for each year-month in the dataset. 293 columns is a lot to work with.
-
 ```{r}
 #download housing data from https://www.zillow.com/research/data/
 zillow_house_value <- read_csv("post_data/Metro_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv")
