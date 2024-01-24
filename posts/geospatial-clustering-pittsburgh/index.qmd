@@ -1,0 +1,127 @@
+---
+title: "Geospatially clustering Pittsburgh"
+author: "Conor Tompkins"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(tidyverse)
+library(sf)
+library(tidycensus)
+library(rgeoda)
+library(leaflet)
+library(janitor)
+```
+
+```{r}
+options(tigris_use_cache = TRUE,
+        scipen = 999,
+        digits = 4)
+
+set.seed(1234)
+
+census_vars <- load_variables(2020, "pl", cache = TRUE)
+
+#View(census_vars)
+
+racevars <- c(White = "P2_005N", 
+              Black = "P2_006N", 
+              Asian = "P2_008N", 
+              Hispanic = "P2_002N",
+              Total = "P1_001N")
+
+#total population: B01003_001
+pa_tracts <- get_decennial(
+  geography = "tract",
+  variables = racevars,
+  state = "PA",
+  county = "Allegheny",
+  geometry = TRUE,
+  #summary_var = "P2_001N",
+  year = 2020,
+  sumfile = "pl",
+  show_call = TRUE
+) 
+
+pa_tracts |> 
+  distinct(variable)
+```
+
+```{r}
+pa_tracts <- pa_tracts |> 
+  pivot_wider(names_from = variable, values_from = value)
+
+glimpse(pa_tracts)
+```
+
+```{r}
+pa_tracts |> 
+  write_sf("posts/geospatial-clustering-pittsburgh/post_data/pa_tracts/pa_tracts.shp")
+```
+
+```{r}
+pa_tracts_geo <- geoda_open("posts/geospatial-clustering-pittsburgh/post_data/pa_tracts/pa_tracts.shp")
+
+w <- rook_weights(pa_tracts)
+
+w
+```
+
+```{r}
+pa_tracts |> 
+  ggplot(aes(Total)) +
+  geom_histogram()
+
+cluster_df <- pa_tracts |> 
+  select(White:Total) |> 
+  st_drop_geometry()
+
+bound_vals <- pa_tracts['Total']
+
+#minimum group population is 10% of total population
+min_bound <- pa_tracts |> 
+  st_drop_geometry() |> 
+  summarize(Total = sum(Total)) |> 
+  mutate(min_bound = Total * .1) |> 
+  pull(min_bound)
+
+maxp_clusters <- maxp_greedy(w, cluster_df, bound_vals, min_bound)
+maxp_clusters
+```
+
+```{r}
+pa_clusters <- pa_tracts |> 
+  mutate(cluster = as.character(maxp_clusters$Clusters))
+
+pa_clusters |> 
+  st_drop_geometry() |> 
+  count(cluster, sort = TRUE)
+
+pa_clusters |> 
+  ggplot() +
+  geom_sf(aes(fill = cluster)) +
+  guides(fill = "none")
+```
+
+```{r}
+fill_pal <- colorFactor(palette = "Paired", domain = pa_clusters$cluster)
+
+labels <- sprintf(
+  "<strong>Tract %s</strong><br/>Cluster: %s<br/>White: %d<br/>Black: %d<br/>Asian: %d<br/>Hispanic: %d<br/>Total: %d",
+  pa_clusters$GEOID, pa_clusters$cluster, pa_clusters$White, pa_clusters$Black, pa_clusters$Asian, pa_clusters$Hispanic, pa_clusters$Total
+) %>% lapply(htmltools::HTML)
+
+pa_clusters |> 
+  leaflet() |> 
+  addProviderTiles(providers$CartoDB.Positron) |> 
+  addPolygons(fillColor = ~fill_pal(cluster),
+              fillOpacity = .5,
+              weight = .5,
+              #stroke = FALSE,
+              label = labels,
+  labelOptions = labelOptions(
+    style = list("font-weight" = "normal", padding = "3px 8px"),
+    textsize = "15px",
+    direction = "auto"))
+```
