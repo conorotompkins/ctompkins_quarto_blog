@@ -6,6 +6,10 @@ editor_options:
 ---
 
 ```{r}
+#https://walker-data.com/posts/census-regions/
+#https://geodacenter.github.io/rgeoda/articles/rgeoda_tutorial.html#spatial-clustering
+
+
 library(tidyverse)
 library(sf)
 library(tidycensus)
@@ -63,6 +67,7 @@ pa_tracts |>
 ```{r}
 pa_tracts_geo <- geoda_open("posts/geospatial-clustering-pittsburgh/post_data/pa_tracts/pa_tracts.shp")
 
+#this crashes sometimes. investigate cause. could be caused by tracts that have no neighbors?
 w <- rook_weights(pa_tracts)
 
 w
