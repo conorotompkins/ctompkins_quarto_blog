@@ -36,7 +36,7 @@ pa_tracts <- get_decennial(
   geography = "tract",
   variables = racevars,
   state = "PA",
-  county = "Allegheny",
+  county = c("Allegheny", "Washington", "Butler", "Armstrong", "Beaver", "Westmoreland"),
   geometry = TRUE,
   #summary_var = "P2_001N",
   year = 2020,
