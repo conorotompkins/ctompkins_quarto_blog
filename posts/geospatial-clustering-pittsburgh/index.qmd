@@ -14,6 +14,7 @@ library(tidyverse)
 library(sf)
 library(tidycensus)
 library(rgeoda)
+library(rmapshaper)
 library(leaflet)
 library(janitor)
 ```
@@ -40,13 +41,14 @@ pa_tracts <- get_decennial(
   geography = "tract",
   variables = racevars,
   state = "PA",
-  county = c("Allegheny", "Washington", "Butler", "Armstrong", "Beaver", "Westmoreland"),
+  #county = c("Allegheny", "Washington", "Butler", "Armstrong", "Beaver", "Westmoreland", "Erie"),
   geometry = TRUE,
   #summary_var = "P2_001N",
   year = 2020,
   sumfile = "pl",
   show_call = TRUE
-) 
+) |> 
+  ms_simplify()
 
 pa_tracts |> 
   distinct(variable)
@@ -57,6 +59,8 @@ pa_tracts <- pa_tracts |>
   pivot_wider(names_from = variable, values_from = value)
 
 glimpse(pa_tracts)
+
+plot(pa_tracts)
 ```
 
 ```{r}
@@ -88,7 +92,7 @@ bound_vals <- pa_tracts['Total']
 min_bound <- pa_tracts |> 
   st_drop_geometry() |> 
   summarize(Total = sum(Total)) |> 
-  mutate(min_bound = Total * .1) |> 
+  mutate(min_bound = Total * .2) |> 
   pull(min_bound)
 
 maxp_clusters <- maxp_greedy(w, cluster_df, bound_vals, min_bound)
@@ -122,7 +126,7 @@ pa_clusters |>
   addProviderTiles(providers$CartoDB.Positron) |> 
   addPolygons(fillColor = ~fill_pal(cluster),
               fillOpacity = .5,
-              weight = .5,
+              weight = .3,
               #stroke = FALSE,
               label = labels,
   labelOptions = labelOptions(
