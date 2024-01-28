@@ -17,6 +17,7 @@ library(rgeoda)
 library(rmapshaper)
 library(leaflet)
 library(janitor)
+library(tictoc)
 ```
 
 ```{r}
@@ -38,69 +39,77 @@ racevars <- c(White = "P2_005N",
 
 #total population: B01003_001
 pa_tracts <- get_decennial(
-  geography = "tract",
+  geography = "county",
   variables = racevars,
-  state = "PA",
-  #county = c("Allegheny", "Washington", "Butler", "Armstrong", "Beaver", "Westmoreland", "Erie"),
+  state = c("PA", "OH", "WV", "MD", "NY", "NJ", "VA", "KY", "DC"),
   geometry = TRUE,
   #summary_var = "P2_001N",
   year = 2020,
   sumfile = "pl",
-  show_call = TRUE
+  show_call = TRUE,
+  cache_table = TRUE
 ) |> 
-  ms_simplify()
+  ms_simplify(keep = .01)
 
 pa_tracts |> 
-  distinct(variable)
+  filter(variable == "Total") |> 
+  ggplot() +
+  geom_sf(aes(fill = value), lwd = 0) +
+  scale_fill_viridis_c()
+
+pa_tracts |> 
+  filter(variable == "Total") |> 
+  leaflet() |> 
+  addPolygons(weight = 0.1)
 ```
 
 ```{r}
-pa_tracts <- pa_tracts |> 
+pa_tracts_wide <- pa_tracts |> 
   pivot_wider(names_from = variable, values_from = value)
 
-glimpse(pa_tracts)
-
-plot(pa_tracts)
+glimpse(pa_tracts_wide)
 ```
 
 ```{r}
-pa_tracts |> 
+pa_tracts_wide |> 
   write_sf("posts/geospatial-clustering-pittsburgh/post_data/pa_tracts/pa_tracts.shp")
 ```
 
 ```{r}
-pa_tracts_geo <- geoda_open("posts/geospatial-clustering-pittsburgh/post_data/pa_tracts/pa_tracts.shp")
+pa_tracts_wide_geo <- geoda_open("posts/geospatial-clustering-pittsburgh/post_data/pa_tracts/pa_tracts.shp")
 
 #this crashes sometimes. investigate cause. could be caused by tracts that have no neighbors?
-w <- rook_weights(pa_tracts)
+w <- rook_weights(pa_tracts_wide)
 
 w
 ```
 
 ```{r}
-pa_tracts |> 
+pa_tracts_wide |> 
   ggplot(aes(Total)) +
   geom_histogram()
 
-cluster_df <- pa_tracts |> 
+cluster_df <- pa_tracts_wide |> 
   select(White:Total) |> 
   st_drop_geometry()
 
-bound_vals <- pa_tracts['Total']
+bound_vals <- pa_tracts_wide['Total']
 
 #minimum group population is 10% of total population
-min_bound <- pa_tracts |> 
+min_bound <- pa_tracts_wide |> 
   st_drop_geometry() |> 
   summarize(Total = sum(Total)) |> 
-  mutate(min_bound = Total * .2) |> 
+  mutate(min_bound = Total * .1) |> 
   pull(min_bound)
 
+tic()
 maxp_clusters <- maxp_greedy(w, cluster_df, bound_vals, min_bound)
 maxp_clusters
+toc()
 ```
 
 ```{r}
-pa_clusters <- pa_tracts |> 
+pa_clusters <- pa_tracts_wide |> 
   mutate(cluster = as.character(maxp_clusters$Clusters))
 
 pa_clusters |> 
