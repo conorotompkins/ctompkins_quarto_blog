@@ -19,6 +19,8 @@ library(leaflet)
 library(janitor)
 library(tictoc)
 library(patchwork)
+library(mapview)
+library(leafpop)
 ```
 
 ```{r}
@@ -39,18 +41,28 @@ racevars <- c(White = "P2_005N",
               Total = "P1_001N")
 
 #total population: B01003_001
-pa_tracts <- get_decennial(
+census_data <- get_decennial(
   geography = "county",
   variables = racevars,
-  state = c("PA", "OH", "WV", "MD", "NY", "NJ", "VA", "KY", "DC"),
+  state = c("PA", "OH", "WV", "MD", "NY", "NJ", "VA", "KY", "DC", "DE", "CT", "RI", "MA", "VT", "NH", "ME"),
   geometry = TRUE,
   #summary_var = "P2_001N",
   year = 2020,
   sumfile = "pl",
   show_call = TRUE,
   cache_table = TRUE
-) |> 
-  ms_simplify(keep = .01)
+)
+
+pa_tracts <- census_data |> 
+  # mutate(NAME = case_when(NAME == "Newport County, Rhode Island" ~ "Washington + Newport County, Rhode Island",
+  #                         NAME == "Washington County, Rhode Island" ~ "Washington + Newport County, Rhode Island",
+  #                         TRUE ~ NAME)) |> 
+  mutate(NAME = case_when(str_detect(NAME, "Barnstable|Dukes|Nantucket") ~ "Barnstable + Dukes + Nantucket Counties, Massachusetts",
+                           TRUE ~ NAME)) |> 
+  group_by(NAME, variable) |> 
+  summarize(value = sum(value)) |> 
+  ungroup() |> 
+  ms_simplify(keep = .05, keep_shapes = TRUE)
 
 pa_tracts |> 
   filter(variable == "Total") |> 
@@ -62,6 +74,19 @@ pa_tracts |>
   filter(variable == "Total") |> 
   leaflet() |> 
   addPolygons(weight = 0.1)
+```
+
+```{r}
+target_state <- pa_tracts |> 
+  filter(str_detect(NAME, "Mass")) |> 
+  mutate(NAME = case_when(str_detect(NAME, "Barnstable|Dukes|Nantucket") ~ "Barnstable + Dukes + Nantucket Counties, Massachusetts",
+                           TRUE ~ NAME)) |> 
+  group_by(NAME) |> 
+  summarize()
+
+target_state |> 
+  mapview::mapview(popup = popupTable(target_state,
+                                      zcol = c("NAME")))
 ```
 
 ```{r}
@@ -157,8 +182,8 @@ map_rook | map_queen
 fill_pal <- colorFactor(palette = "Paired", domain = pa_clusters$cluster_rook)
 
 labels <- sprintf(
-  "<strong>Tract %s</strong><br/>Cluster: %s<br/>White: %d<br/>Black: %d<br/>Asian: %d<br/>Hispanic: %d<br/>Total: %d",
-  pa_clusters$GEOID, pa_clusters$cluster_rook, pa_clusters$White, pa_clusters$Black, pa_clusters$Asian, pa_clusters$Hispanic, pa_clusters$Total
+  "<strong>%s</strong><br/>Cluster: %s<br/>White: %d<br/>Black: %d<br/>Asian: %d<br/>Hispanic: %d<br/>Total: %d",
+  pa_clusters$NAME, pa_clusters$cluster_rook, pa_clusters$White, pa_clusters$Black, pa_clusters$Asian, pa_clusters$Hispanic, pa_clusters$Total
 ) %>% lapply(htmltools::HTML)
 
 pa_clusters |> 
