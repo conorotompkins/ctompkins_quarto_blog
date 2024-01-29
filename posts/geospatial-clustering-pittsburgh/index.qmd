@@ -18,6 +18,7 @@ library(rmapshaper)
 library(leaflet)
 library(janitor)
 library(tictoc)
+library(patchwork)
 ```
 
 ```{r}
@@ -79,9 +80,19 @@ pa_tracts_wide |>
 pa_tracts_wide_geo <- geoda_open("posts/geospatial-clustering-pittsburgh/post_data/pa_tracts/pa_tracts.shp")
 
 #this crashes sometimes. investigate cause. could be caused by tracts that have no neighbors?
-w <- rook_weights(pa_tracts_wide)
+w_rook <- rook_weights(pa_tracts_wide)
 
-w
+w_rook
+
+w_queen <- queen_weights(pa_tracts_wide)
+
+w_rook
+
+dist_thres <- min_distthreshold(pa_tracts_wide)
+
+w_dist <- distance_weights(pa_tracts_wide, dist_thres, power=1.0,  is_inverse=FALSE, is_arc=FALSE, is_mile=TRUE)
+
+w_dist
 ```
 
 ```{r}
@@ -103,37 +114,57 @@ min_bound <- pa_tracts_wide |>
   pull(min_bound)
 
 tic()
-maxp_clusters <- maxp_greedy(w, cluster_df, bound_vals, min_bound)
-maxp_clusters
+maxp_clusters_rook <- maxp_greedy(w_rook, cluster_df, bound_vals, min_bound)
+maxp_clusters_rook
+toc()
+
+tic()
+maxp_clusters_queen <- maxp_greedy(w_queen, cluster_df, bound_vals, min_bound)
+maxp_clusters_queen
 toc()
 ```
 
 ```{r}
 pa_clusters <- pa_tracts_wide |> 
-  mutate(cluster = as.character(maxp_clusters$Clusters))
+  mutate(cluster_rook = as.character(maxp_clusters_rook$Clusters),
+         cluster_queen = as.character(maxp_clusters_queen$Clusters))
 
 pa_clusters |> 
   st_drop_geometry() |> 
-  count(cluster, sort = TRUE)
+  count(cluster_rook, sort = TRUE)
 
-pa_clusters |> 
+cluster_compare <- pa_clusters |> 
+  pivot_longer(cols = contains("cluster"), names_to = "cluster_type", values_to = "cluster")
+
+map_rook <- cluster_compare |> 
+  filter(cluster_type == "cluster_rook") |> 
   ggplot() +
   geom_sf(aes(fill = cluster)) +
-  guides(fill = "none")
+  guides(fill = "none") +
+  facet_wrap(vars(cluster_type))
+
+map_queen <- cluster_compare |> 
+  filter(cluster_type == "cluster_queen") |> 
+  ggplot() +
+  geom_sf(aes(fill = cluster)) +
+  guides(fill = "none") +
+  facet_wrap(vars(cluster_type))
+
+map_rook | map_queen
 ```
 
 ```{r}
-fill_pal <- colorFactor(palette = "Paired", domain = pa_clusters$cluster)
+fill_pal <- colorFactor(palette = "Paired", domain = pa_clusters$cluster_rook)
 
 labels <- sprintf(
   "<strong>Tract %s</strong><br/>Cluster: %s<br/>White: %d<br/>Black: %d<br/>Asian: %d<br/>Hispanic: %d<br/>Total: %d",
-  pa_clusters$GEOID, pa_clusters$cluster, pa_clusters$White, pa_clusters$Black, pa_clusters$Asian, pa_clusters$Hispanic, pa_clusters$Total
+  pa_clusters$GEOID, pa_clusters$cluster_rook, pa_clusters$White, pa_clusters$Black, pa_clusters$Asian, pa_clusters$Hispanic, pa_clusters$Total
 ) %>% lapply(htmltools::HTML)
 
 pa_clusters |> 
   leaflet() |> 
   addProviderTiles(providers$CartoDB.Positron) |> 
-  addPolygons(fillColor = ~fill_pal(cluster),
+  addPolygons(fillColor = ~fill_pal(cluster_rook),
               fillOpacity = .5,
               weight = .3,
               #stroke = FALSE,
