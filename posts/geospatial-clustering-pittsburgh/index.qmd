@@ -8,6 +8,7 @@ editor_options:
 ```{r}
 #https://walker-data.com/posts/census-regions/
 #https://geodacenter.github.io/rgeoda/articles/rgeoda_tutorial.html#spatial-clustering
+#try adding us highways as overlay https://catalog.data.gov/dataset/tiger-line-shapefile-2019-nation-u-s-primary-roads-national-shapefile
 
 
 library(tidyverse)
@@ -44,7 +45,8 @@ racevars <- c(White = "P2_005N",
 census_data <- get_decennial(
   geography = "county",
   variables = racevars,
-  state = c("PA", "OH", "WV", "MD", "NY", "NJ", "VA", "KY", "DC", "DE", "CT", "RI", "MA", "VT", "NH", "ME"),
+  state = c("PA", "OH", "WV", "MD", "NY", "NJ", "VA", "KY", "DC", "DE", "CT", "RI", "MA", "VT", "NH", "ME", "MI", "IL", "IN", "WI", "MN", "IA", "MO", "TN", "AR", "LA", "MS", "AL", "GA", "NC", "SC", "FL"),
+  #state = c("MI", "WI"),
   geometry = TRUE,
   #summary_var = "P2_001N",
   year = 2020,
@@ -62,7 +64,7 @@ pa_tracts <- census_data |>
   group_by(NAME, variable) |> 
   summarize(value = sum(value)) |> 
   ungroup() |> 
-  ms_simplify(keep = .05, keep_shapes = TRUE)
+  ms_simplify(keep = .01, keep_shapes = TRUE)
 
 pa_tracts |> 
   filter(variable == "Total") |> 
@@ -78,7 +80,7 @@ pa_tracts |>
 
 ```{r}
 target_state <- pa_tracts |> 
-  filter(str_detect(NAME, "Mass")) |> 
+  filter(str_detect(NAME, "Mich|Wis")) |> 
   mutate(NAME = case_when(str_detect(NAME, "Barnstable|Dukes|Nantucket") ~ "Barnstable + Dukes + Nantucket Counties, Massachusetts",
                            TRUE ~ NAME)) |> 
   group_by(NAME) |> 
@@ -135,61 +137,65 @@ bound_vals <- pa_tracts_wide['Total']
 min_bound <- pa_tracts_wide |> 
   st_drop_geometry() |> 
   summarize(Total = sum(Total)) |> 
-  mutate(min_bound = Total * .1) |> 
+  mutate(min_bound = Total * .12) |> 
   pull(min_bound)
 
 tic()
-maxp_clusters_rook <- maxp_greedy(w_rook, cluster_df, bound_vals, min_bound)
-maxp_clusters_rook
+maxp_clusters_greedy <- maxp_greedy(w_rook, cluster_df, bound_vals, min_bound)
+maxp_clusters_greedy
 toc()
 
-tic()
-maxp_clusters_queen <- maxp_greedy(w_queen, cluster_df, bound_vals, min_bound)
-maxp_clusters_queen
-toc()
+# tic()
+# maxp_clusters_tabu <- maxp_tabu(w_rook, cluster_df, bound_vals, min_bound, tabu_length=10, conv_tabu=10)
+# maxp_clusters_tabu
+# toc()
+
+# tic()
+# maxp_clusters_sa <- maxp_sa(w_rook, cluster_df, bound_vals, min_bound, cooling_rate=0.85, sa_maxit=1)
+# toc()
 ```
 
 ```{r}
 pa_clusters <- pa_tracts_wide |> 
-  mutate(cluster_rook = as.character(maxp_clusters_rook$Clusters),
-         cluster_queen = as.character(maxp_clusters_queen$Clusters))
+  mutate(cluster_greedy = as.character(maxp_clusters_greedy$Clusters))#,
+         #cluster_tabu = as.character(maxp_clusters_tabu$Clusters)
 
 pa_clusters |> 
   st_drop_geometry() |> 
-  count(cluster_rook, sort = TRUE)
+  count(cluster_greedy, sort = TRUE)
 
 cluster_compare <- pa_clusters |> 
   pivot_longer(cols = contains("cluster"), names_to = "cluster_type", values_to = "cluster")
 
-map_rook <- cluster_compare |> 
-  filter(cluster_type == "cluster_rook") |> 
+map_greedy <- cluster_compare |> 
+  filter(cluster_type == "cluster_greedy") |> 
   ggplot() +
   geom_sf(aes(fill = cluster)) +
   guides(fill = "none") +
   facet_wrap(vars(cluster_type))
 
-map_queen <- cluster_compare |> 
-  filter(cluster_type == "cluster_queen") |> 
+map_tabu <- cluster_compare |> 
+  filter(cluster_type == "cluster_tabu") |> 
   ggplot() +
   geom_sf(aes(fill = cluster)) +
   guides(fill = "none") +
   facet_wrap(vars(cluster_type))
 
-map_rook | map_queen
+map_greedy | map_tabu
 ```
 
 ```{r}
-fill_pal <- colorFactor(palette = "Paired", domain = pa_clusters$cluster_rook)
+fill_pal <- colorFactor(palette = "Paired", domain = pa_clusters$cluster_greedy)
 
 labels <- sprintf(
   "<strong>%s</strong><br/>Cluster: %s<br/>White: %d<br/>Black: %d<br/>Asian: %d<br/>Hispanic: %d<br/>Total: %d",
-  pa_clusters$NAME, pa_clusters$cluster_rook, pa_clusters$White, pa_clusters$Black, pa_clusters$Asian, pa_clusters$Hispanic, pa_clusters$Total
+  pa_clusters$NAME, pa_clusters$cluster_greedy, pa_clusters$White, pa_clusters$Black, pa_clusters$Asian, pa_clusters$Hispanic, pa_clusters$Total
 ) %>% lapply(htmltools::HTML)
 
 pa_clusters |> 
   leaflet() |> 
   addProviderTiles(providers$CartoDB.Positron) |> 
-  addPolygons(fillColor = ~fill_pal(cluster_rook),
+  addPolygons(fillColor = ~fill_pal(cluster_greedy),
               fillOpacity = .5,
               weight = .3,
               #stroke = FALSE,
@@ -198,4 +204,19 @@ pa_clusters |>
     style = list("font-weight" = "normal", padding = "3px 8px"),
     textsize = "15px",
     direction = "auto"))
+```
+
+```{r}
+pa_clusters |> 
+  #st_drop_geometry() |> 
+  #select(NAME, Asian:cluster_greedy) |> 
+  pivot_longer(cols = Asian:White, names_to = "variable", values_to = "value") |> 
+  group_by(variable) |> 
+  mutate(pct_of_total = value / sum(value)) |> 
+  ungroup() |> 
+  ggplot() +
+  geom_sf(data = pa_clusters, lwd = 0) +
+  geom_sf(aes(fill = pct_of_total), lwd = 0) +
+  facet_wrap(vars(variable)) +
+  scale_fill_viridis_c()
 ```
