@@ -48,12 +48,14 @@ census_data <- get_decennial(
   state = c("PA", "OH", "WV", "MD", "NY", "NJ", "VA", "KY", "DC", "DE", "CT", "RI", "MA", "VT", "NH", "ME", "MI", "IL", "IN", "WI", "MN", "IA", "MO", "TN", "AR", "LA", "MS", "AL", "GA", "NC", "SC", "FL"),
   #state = c("MI", "WI"),
   geometry = TRUE,
-  #summary_var = "P2_001N",
+  #summary_var = "P1_001N",
   year = 2020,
   sumfile = "pl",
   show_call = TRUE,
   cache_table = TRUE
 )
+
+glimpse(census_data)
 
 pa_tracts <- census_data |> 
   # mutate(NAME = case_when(NAME == "Newport County, Rhode Island" ~ "Washington + Newport County, Rhode Island",
@@ -67,7 +69,7 @@ pa_tracts <- census_data |>
   ms_simplify(keep = .01, keep_shapes = TRUE)
 
 pa_tracts |> 
-  filter(variable == "Total") |> 
+  filter(variable == "Black") |> 
   ggplot() +
   geom_sf(aes(fill = value), lwd = 0) +
   scale_fill_viridis_c()
@@ -76,6 +78,14 @@ pa_tracts |>
   filter(variable == "Total") |> 
   leaflet() |> 
   addPolygons(weight = 0.1)
+
+pa_tracts |> 
+  group_by(variable) |> 
+  mutate(value = scale(value) |> as.vector()) |> 
+  ggplot() +
+  geom_sf(aes(fill = value), lwd = 0) +
+  scale_fill_viridis_c() +
+  facet_wrap(vars(variable))
 ```
 
 ```{r}
@@ -137,11 +147,11 @@ bound_vals <- pa_tracts_wide['Total']
 min_bound <- pa_tracts_wide |> 
   st_drop_geometry() |> 
   summarize(Total = sum(Total)) |> 
-  mutate(min_bound = Total * .12) |> 
+  mutate(min_bound = Total * .08) |> 
   pull(min_bound)
 
 tic()
-maxp_clusters_greedy <- maxp_greedy(w_rook, cluster_df, bound_vals, min_bound)
+maxp_clusters_greedy <- maxp_greedy(w_rook, cluster_df, bound_vals, min_bound, scale_method = "standardize")
 maxp_clusters_greedy
 toc()
 
@@ -167,28 +177,33 @@ pa_clusters |>
 cluster_compare <- pa_clusters |> 
   pivot_longer(cols = contains("cluster"), names_to = "cluster_type", values_to = "cluster")
 
+pa_tracts |> 
+  summarize() |> 
+  ggplot() +
+  geom_sf()
+
 map_greedy <- cluster_compare |> 
   filter(cluster_type == "cluster_greedy") |> 
+  group_by(cluster, cluster_type) |> 
+  summarize() |> 
   ggplot() +
+  geom_sf(data = summarize(pa_tracts), fill = NA) +
   geom_sf(aes(fill = cluster)) +
   guides(fill = "none") +
   facet_wrap(vars(cluster_type))
 
-map_tabu <- cluster_compare |> 
-  filter(cluster_type == "cluster_tabu") |> 
-  ggplot() +
-  geom_sf(aes(fill = cluster)) +
-  guides(fill = "none") +
-  facet_wrap(vars(cluster_type))
+map_greedy
 
-map_greedy | map_tabu
+map_greedy +
+  facet_wrap(vars(cluster)) +
+  theme_void()
 ```
 
 ```{r}
 fill_pal <- colorFactor(palette = "Paired", domain = pa_clusters$cluster_greedy)
 
 labels <- sprintf(
-  "<strong>%s</strong><br/>Cluster: %s<br/>White: %d<br/>Black: %d<br/>Asian: %d<br/>Hispanic: %d<br/>Total: %d",
+  "<strong>%s</strong><br/>Cluster: %s<br/>White: %f<br/>Black: %f<br/>Asian: %f<br/>Hispanic: %f<br/>Total: %f",
   pa_clusters$NAME, pa_clusters$cluster_greedy, pa_clusters$White, pa_clusters$Black, pa_clusters$Asian, pa_clusters$Hispanic, pa_clusters$Total
 ) %>% lapply(htmltools::HTML)
 
@@ -197,7 +212,7 @@ pa_clusters |>
   addProviderTiles(providers$CartoDB.Positron) |> 
   addPolygons(fillColor = ~fill_pal(cluster_greedy),
               fillOpacity = .5,
-              weight = .3,
+              weight = .1,
               #stroke = FALSE,
               label = labels,
   labelOptions = labelOptions(
