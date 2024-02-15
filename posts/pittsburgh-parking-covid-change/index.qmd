@@ -1,6 +1,5 @@
 ---
 # Documentation: https://sourcethemes.com/academic/docs/managing-content/
-
 title: "Effect of COVID-19 on Pittsburgh parking transactions"
 subtitle: ""
 summary: ""
@@ -11,21 +10,22 @@ date: 2020-10-05
 lastmod: 2020-10-02T12:58:17-04:00
 featured: false
 draft: false
+editor_options: 
+  chunk_output_type: console
+execute:
+  echo: true
+  warning: false
+  message: false
+image: featured.png
 ---
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, 
-                      warning = FALSE, 
-                      message = FALSE)
-```
 
 The COVID-19 pandemic's affect on commerce and mobility habits is well documented. For example, Apple publishes [Mobility Trends reports](https://covid19.apple.com/mobility) about utilization of various transportation modes.
 
-[![](images/Screen Shot 2020-10-03 at 1.20.20 PM.png "Apple COVID-19 Mobility report, Pittsburgh")](https://covid19.apple.com/mobility)
+![](apple_covid_mobility_trend.png)
 
 Apple's data shows that utilization of driving in Pittsburgh dropped significantly in late March, but has rebounded above pre-COVID-19 levels since then.
 
-The [WPDRC](https://data.wprdc.org/dataset/parking-transactions) publishes parking meter transactions for 60 parking zones in Pittsburgh. In this post I will use the frequency of parking transactions over time as a proxy for commercial activity in the city. This information only represents commerce that people use vehicles to perform, so it does not include mass transit or drivers that use private parking areas or meters that are not captured in this dataset. I will be interested to see if the parking meter data matches Apple's report about driving.
+The [WPDRC](https://data.wprdc.org/dataset/parking-transactions/resource/1ad5394f-d158-46c1-9af7-90a9ef4e0ce1) publishes parking meter transactions for 60 parking zones in Pittsburgh. In this post I will use the frequency of parking transactions over time as a proxy for commercial activity in the city. This information only represents commerce that people use vehicles to perform, so it does not include mass transit or drivers that use private parking areas or meters that are not captured in this dataset. I will be interested to see if the parking meter data matches Apple's report about driving.
 
 ## Top-level analysis
 
@@ -51,7 +51,7 @@ theme_set(theme_ipsum())
 As of September 28th there are \~5 million rows in the dataset. Each row consists of a 10-minute period in a given zone with the aggregated number of transactions and the amount paid.
 
 ```{r}
-data <- vroom("data/1ad5394f-d158-46c1-9af7-90a9ef4e0ce1.csv")
+data <- vroom("post_data/1ad5394f-d158-46c1-9af7-90a9ef4e0ce1.csv")
 
 glimpse(data)
 ```
@@ -66,11 +66,14 @@ data %>%
 
 This code chunk performs most of the aggregation and manipulation. It separates the `start` column into `start_date` and `start_time`, calculates the number of transactions per day, and creates some date columns that I use later.
 
-```{r eval = FALSE}
+```{r}
+#| eval: false
+
 df_ts <- data %>%
   select(start, meter_transactions, mobile_transactions) %>%
   separate(start, into = c("start_date", "start_time"), remove = TRUE, sep = " ") %>%
   mutate(start_date = ymd(start_date)) %>%
+  filter(start_date <= "2020-10-05") |> 
   group_by(start_date) %>%
   summarize(meter_transactions = sum(meter_transactions),
             mobile_transactions = sum(mobile_transactions)) %>%
@@ -88,8 +91,18 @@ df_ts <- data %>%
   select(start_date, year, week_of_year, day_of_year, weekday, everything())
 ```
 
-```{r echo = FALSE}
-df_ts <- read_csv("data/summarized_parking_data.csv") %>% 
+```{r}
+#| eval: false
+#| echo: false
+
+df_ts |> 
+  write_csv("post_data/summarized_parking_data.csv")
+```
+
+```{r}
+#| echo: false
+
+df_ts <- read_csv("post_data/summarized_parking_data.csv") %>% 
   group_by(year, week_of_year) %>%
   mutate(first_date_of_week = min(start_date)) %>% 
   ungroup() %>% 
@@ -163,9 +176,7 @@ data_historical <- df_ts %>%
 ```{r}
 data_2020 <- df_ts %>% 
   select(start_date, first_date_of_week, week_of_year, total_parking_transactions) %>% 
-  filter(start_date >= "2020-01-01",
-         #remove current week of data
-         week_of_year < week(Sys.Date())) %>% 
+  filter(start_date >= "2020-01-01") %>% 
   group_by(first_date_of_week, week_of_year) %>% 
   summarize(total_parking_transactions = sum(total_parking_transactions)) %>% 
   ungroup()
@@ -241,7 +252,7 @@ weekday_weekend_df %>%
 Next I perform the same analysis at the neighborhood level to see if any areas in the city were particularly affected. I manually aggregated the parking zones up to the neighborhood level. This code reads in that data.
 
 ```{r}
-geocoded_parking_locations <- read_csv("data/geocoded_parking_locations.csv")
+geocoded_parking_locations <- read_csv("post_data/geocoded_parking_locations.csv")
 
 geocoded_parking_locations %>%
   arrange(zone_region, zone)
@@ -249,7 +260,9 @@ geocoded_parking_locations %>%
 
 This code does the same aggregation as before, but adds neighborhood in the `group_by` function.
 
-```{r eval = FALSE}
+```{r}
+#| eval: false
+
 df_ts_neighborhood <- data %>%
   left_join(geocoded_parking_locations) %>%
   select(zone_region, start, meter_transactions, mobile_transactions) %>%
@@ -272,8 +285,15 @@ df_ts_neighborhood <- data %>%
   select(zone_region, start_date, day_of_year, week_of_year, weekday, everything())
 ```
 
-```{r echo = FALSE}
-df_ts_neighborhood <- read_csv("data/summarized_parking_data_neighborhood.csv") %>% 
+```{r}
+#| eval: false
+#| echo: false
+write_csv(df_ts_neighborhood, "post_data/summarized_parking_data_neighborhood.csv")
+```
+
+```{r}
+#| echo: false
+df_ts_neighborhood <- read_csv("post_data/summarized_parking_data_neighborhood.csv") %>% 
   group_by(year, week_of_year) %>% 
   mutate(first_date_of_week = min(start_date)) %>% 
   ungroup() %>% 
@@ -327,7 +347,7 @@ df_historical <- df_historical %>%
   ungroup()
 
 df_2020 <- df_ts_neighborhood %>% 
-  filter(start_date >= "2020-01-01") %>% 
+  filter(start_date >= "2020-01-01", start_date <= "2020-10-05") %>% 
   complete(zone_region, week_of_year, fill = list(total_parking_events = 0)) %>% 
   group_by(zone_region, week_of_year, first_date_of_week) %>% 
   summarize(total_parking_events = sum(total_parking_events)) %>% 
