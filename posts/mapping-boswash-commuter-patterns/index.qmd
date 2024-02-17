@@ -9,16 +9,18 @@ date: 2020-09-25
 lastmod: 2020-09-25T12:58:17-04:00
 featured: false
 draft: false
+image: flowmapblue_sheet_screen.png
 editor_options: 
   chunk_output_type: console
 execute:
   echo: true
   warning: false
   message: false
-image: featured.png
 ---
 
-This map shows the commuter patterns in the [Northeast Megalopolis/Acela Corridor/BosWash metro area](https://en.wikipedia.org/wiki/Northeast_megalopolis). I pulled the data from the [Census Longitudinal Employer-Household Dynamics (LODES)](https://lehd.ces.census.gov/data/) system via the `{lehdr}` package. The map was created through the [Flowmap.blue](https://flowmap.blue/) tool, which makes interactive maps of movement between areas. Flowmap.blue also exposes a bunch of cool features, like animating and clustering connections, among others. You can view a full version of the map [here](https://flowmap.blue/1lxe0FRjCu5FG2SVbX5m1vDMfVAXzS0i_bnwxxPNuCX8?v=41.620996,-75.378680,4.93,0,0&a=0&as=1&b=1&bo=75&c=1&ca=1&d=1&fe=1&lt=1&lfm=ALL&col=interpolateViridis&f=50). <iframe src="https://flowmap.blue/1lxe0FRjCu5FG2SVbX5m1vDMfVAXzS0i_bnwxxPNuCX8?v=41.620996,-75.378680,4.93,0,0&a=0&as=1&b=1&bo=75&c=1&ca=1&d=1&fe=1&lt=1&lfm=ALL&col=interpolateViridis&f=50" width=1000 height=800"></iframe>
+This map shows the commuter patterns in the [Northeast Megalopolis/Acela Corridor/BosWash metro area](https://en.wikipedia.org/wiki/Northeast_megalopolis). I pulled the data from the [Census Longitudinal Employer-Household Dynamics (LODES)](https://lehd.ces.census.gov/data/) system via the `{lehdr}` package. The map was created through the [Flowmap.blue](https://flowmap.blue/) tool, which makes interactive maps of movement between areas. Flowmap.blue also exposes a bunch of cool features, like animating and clustering connections, among others.
+
+You can view a full version of the map [here](https://flowmap.blue/1lxe0FRjCu5FG2SVbX5m1vDMfVAXzS0i_bnwxxPNuCX8?v=41.620996,-75.378680,4.93,0,0&a=0&as=1&b=1&bo=75&c=1&ca=1&d=1&fe=1&lt=1&lfm=ALL&col=interpolateViridis&f=50). <iframe src="https://flowmap.blue/1lxe0FRjCu5FG2SVbX5m1vDMfVAXzS0i_bnwxxPNuCX8?v=41.620996,-75.378680,4.93,0,0&a=0&as=1&b=1&bo=75&c=1&ca=1&d=1&fe=1&lt=1&lfm=ALL&col=interpolateViridis&f=50" width=1000 height=800"></iframe>
 
 ## Code
 
