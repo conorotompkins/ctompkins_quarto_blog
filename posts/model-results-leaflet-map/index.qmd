@@ -1,0 +1,164 @@
+---
+title: "Pittsburgh City Boundary Model Leaflet Map"
+subtitle: ""
+summary: "View this classification model that distinguishes between census tracts that are inside or outside the City of Pittsburgh"
+author: "Conor Tompkins"
+tags: [R, Pittsburgh, Allegheny County]
+categories: [R, Pittsburgh, Allegheny County]
+date: 2020-08-23T13:50:21-04:00
+lastmod: 2020-08-23T13:50:21-04:00
+featured: true
+draft: false
+---
+
+[Last Friday I posted a classification model](https://ctompkins.netlify.app/post/classifying-pittsburgh-city-boundary/) that attempted to identify which census tracts in Allegheny County fall within the border of the City of Pittsburgh. I used a variety of data from the 2010 US Census via `{tidycensus}`, and I intentionally did not train the model with any geographic data. I am more interested in which census tracts are more "city-like", regardless of their distance from the geographic center of the city.
+
+As with most models, I think you can learn the most when you investigate the cases where the model failed. I made an interactive Leaflet map to help me to interrogate the model's results. For each tract it includes the average city classification % and the model's correct classification %, as well as the census data that was used to train the model. Make sure to click the "View Fullscreen" button in the top left corner to see more of the map.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,
+                      message = FALSE,
+                      warning = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(tidycensus)
+library(sf)
+library(leaflet)
+library(leaflet.extras)
+library(widgetframe)
+
+options(scipen = 999, digits = 4, tigris_use_cache = TRUE)
+
+full_predictions <- read_csv("post_data/full_prediction_percent.csv", 
+                             col_types = cols(.default = "c")) 
+
+tract_info <- read_csv("post_data/combined_census_data_tract.csv", 
+                       col_types = cols(.default = "c")) %>% 
+  mutate(across(total_population_housed:housed_population_density_pop_per_square_km, as.numeric)) %>% 
+  mutate(across(where(is.numeric), round, digits = 2))
+
+full_predictions_small <- full_predictions %>% 
+  select(GEOID, mean_city, pct_correct) %>% 
+  mutate(GEOID = as.character(GEOID),
+         across(c(mean_city, pct_correct), as.numeric),
+         across(c(mean_city, pct_correct), round, digits = 2)) %>% 
+  left_join(tract_info) %>% 
+  mutate(across(c(mean_city, matches("pct")), ~. * 100))
+
+#glimpse(full_predictions_small)
+
+tracts <- get_decennial(year = 2010, state = "PA", county = "Allegheny County", 
+                        variables = "P001001",
+                        geography = "tract", geometry = TRUE) %>% 
+  st_transform(crs = "WGS84")
+
+pgh_official_boundary <- st_read("post_data/Pittsburgh_City_Boundary-shp",
+                                 quiet = TRUE) %>% 
+  mutate(geography = "City boundary") %>% 
+  st_transform(crs = "WGS84") %>% 
+  st_cast("POLYGON") %>% 
+  filter(FID != 7)
+
+tract_pred <- tracts %>% 
+  left_join(full_predictions_small)
+```
+
+```{r}
+border_lines <- pgh_official_boundary %>% 
+  st_cast("LINESTRING")
+
+bounds <- tracts %>% st_bbox() %>% unlist()
+
+names(bounds) <- NULL
+
+prediction_palette <- colorNumeric(palette = "viridis", domain = tract_pred$mean_city)
+
+labels <- sprintf(
+  "Census tract ID: %s
+  <br/>Average city classification: %g%%
+  <br/>Model correct: %g%%
+  <br/>Percent white: %g%%
+  <br/>Percent of housing units owned with a loan: %g%%
+  <br/>Workers: %g
+  <br/>Housed population density per sq km: %g
+  <br/>Percent of housing units rented: %g%%
+  <br/>Jobs: %g
+  <br/>Percent black: %g%%",
+  tract_pred$GEOID, 
+  tract_pred$mean_city, 
+  tract_pred$pct_correct,
+  tract_pred$pct_white,
+  tract_pred$pct_units_owned_loan,
+  tract_pred$workers,
+  tract_pred$housed_population_density_pop_per_square_km, 
+  tract_pred$pct_units_rented,
+  tract_pred$jobs,
+  tract_pred$pct_black,
+  tract_pred$pct_units_owned_entire) %>%
+  lapply(htmltools::HTML)
+
+map <- leaflet(tract_pred) %>% 
+  setView(lat = 40.441606, lng = -80.010957, zoom = 10) %>% 
+  addProviderTiles(providers$OpenStreetMap.Mapnik,
+                   group = "Toner (default)",
+                   options = providerTileOptions(minZoom = 10)) %>%
+  addTiles(group = "OSM") %>%
+  addMapPane("Census tracts", zIndex = 400) %>%              
+  addMapPane("City boundary", zIndex = 490) %>%
+  addPolygons(weight = .5,
+              color = "black",
+              fillColor = ~prediction_palette(mean_city),
+              fillOpacity = .8,
+              #
+              group = "Census tracts",
+              #
+              highlightOptions = highlightOptions(weight = 5,
+                                                  bringToFront = TRUE),
+              #
+              label = labels,
+              labelOptions = labelOptions(
+                style = list("font-weight" = "normal", padding = "3px 8px"),
+                textsize = "15px",
+                direction = "auto"),
+              
+              #
+              options = pathOptions(pane = "Census tracts")
+              ) %>% 
+  addLegend(pal = prediction_palette, 
+            values = ~mean_city, 
+            opacity = 0.7, 
+            labFormat = labelFormat(suffix = "%"),
+            title = "City classification %",
+            position = "bottomright",
+            
+            group = "Legend") %>% 
+  addPolylines(data = border_lines,
+              weight = 10,
+              stroke = TRUE,
+              color = "black",
+               #
+               
+               group = "City boundary",
+               options = pathOptions(pane = "City boundary")
+               ) %>% 
+  addPolylines(data = border_lines,
+              weight = 2,
+              stroke = TRUE,
+              color = "yellow",
+               #
+               
+               group = "City boundary",
+               options = pathOptions(pane = "City boundary")
+               ) %>% 
+  addLayersControl(
+    baseGroups = c("Toner (default)", "OSM"),
+    overlayGroups = c("Census tracts", "City boundary", "Legend"),
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>% 
+  addFullscreenControl()
+
+#map
+frameWidget(map, options=frameOptions(allowfullscreen = TRUE))
+```
