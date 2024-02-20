@@ -20,6 +20,7 @@ knitr::opts_chunk$set(echo = FALSE,
                       message = FALSE,
                       warning = FALSE)
 ```
+
 ```{r}
 library(tidyverse)
 library(tidycensus)
@@ -30,10 +31,10 @@ library(widgetframe)
 
 options(scipen = 999, digits = 4, tigris_use_cache = TRUE)
 
-full_predictions <- read_csv("data/full_prediction_percent.csv", 
+full_predictions <- read_csv("post_data/full_prediction_percent.csv", 
                              col_types = cols(.default = "c")) 
 
-tract_info <- read_csv("data/combined_census_data_tract.csv", 
+tract_info <- read_csv("post_data/combined_census_data_tract.csv", 
                        col_types = cols(.default = "c")) %>% 
   mutate(across(total_population_housed:housed_population_density_pop_per_square_km, as.numeric)) %>% 
   mutate(across(where(is.numeric), round, digits = 2))
@@ -53,7 +54,7 @@ tracts <- get_decennial(year = 2010, state = "PA", county = "Allegheny County",
                         geography = "tract", geometry = TRUE) %>% 
   st_transform(crs = "WGS84")
 
-pgh_official_boundary <- st_read("data/Pittsburgh_City_Boundary-shp",
+pgh_official_boundary <- st_read("post_data/Pittsburgh_City_Boundary-shp",
                                  quiet = TRUE) %>% 
   mutate(geography = "City boundary") %>% 
   st_transform(crs = "WGS84") %>% 
@@ -100,7 +101,7 @@ labels <- sprintf(
 
 map <- leaflet(tract_pred) %>% 
   setView(lat = 40.441606, lng = -80.010957, zoom = 10) %>% 
-  addProviderTiles(providers$Stamen.Toner, 
+  addProviderTiles(providers$OpenStreetMap.Mapnik,
                    group = "Toner (default)",
                    options = providerTileOptions(minZoom = 10)) %>%
   addTiles(group = "OSM") %>%
