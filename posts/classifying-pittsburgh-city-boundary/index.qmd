@@ -3,6 +3,8 @@ title: "Modeling the Pittsburgh City Boundary"
 subtitle: ""
 summary: "In this post I create a model that differentiates census tracts that are inside and outside the city limits of Pittsburgh"
 author: "Conor Tompkins"
+date: 2020-08-14
+lastmod: 2020-08-14T12:58:17-04:00
 editor_options: 
   chunk_output_type: console
 execute:
