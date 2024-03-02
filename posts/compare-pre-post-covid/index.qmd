@@ -1,0 +1,148 @@
+---
+title: 'Comparing Healthy Ride Usage Pre And "Post" COVID-19'
+author: "Conor Tompkins"
+date: 2020-08-14
+lastmod: 2020-08-14T12:58:17-04:00
+editor_options: 
+  chunk_output_type: console
+image: preview.png
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+Lawrence Andrews asked me on Twitter if there had been a change in Health Ride usage after COVID-19.
+<blockquote class="twitter-tweet"><p lang="en" dir="ltr">Would be interested to see this <a href="https://twitter.com/healthyridepgh?ref_src=twsrc%5Etfw">@healthyridepgh</a> data to compare pre-covid (2019) and during (2020)</p>&mdash; Lawrence Andrews (@lawrenceandrews) <a href="https://twitter.com/lawrenceandrews/status/1293879786528546816?ref_src=twsrc%5Etfw">August 13, 2020</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script> 
+  
+The `{tidyverts}` universe of packages from Rob Hyndman provides a lot of tools that let you interrogate time series data. I will use some of these tools to decompose the Healthy Ride time series and see if there was a change.
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(janitor)
+library(tsibble)
+library(feasts)
+library(hrbrthemes)
+
+options(scipen = 999, digits = 4)
+
+theme_set(theme_ipsum(base_size = 20, 
+                      strip_text_size = 18, 
+                      axis_title_size = 18))
+```
+
+I had already combined the usage data from the [WPRDC](https://data.wprdc.org/dataset/healthyride-trip-data) with `list.files` and `map_df(read_csv)`, so I can just read in the combined CSV file:
+```{r}
+#| eval: false
+#| echo: false
+
+combined_ride_data <- list.files("post_data", full.names = TRUE) |> 
+  discard(~str_detect(.x, "combined")) |> 
+  set_names() |>
+  map_dfr(read_csv, col_types = cols(.default = "c"), .id = "file_name") |>
+  clean_names()
+
+combined_ride_data
+
+combined_ride_data <- combined_ride_data |> 
+  separate(starttime, " ", into = c("date_orig", "time"), remove = FALSE) %>% 
+  mutate(date = mdy(date_orig),
+         year = year(date),
+         month = month(date, label = TRUE),
+         yday = yday(date),
+         wday = wday(date, label = TRUE)) %>% 
+  select(file_name, date_orig, date, year, month, wday) %>% 
+  filter(!(str_detect(file_name, "2019-q3.csv") & is.na(date)))
+
+combined_ride_data |> 
+  write_csv("post_data/combined_ride_data.csv")
+```
+
+```{r}
+data <- read_csv("post_data/combined_ride_data.csv")
+```
+
+Summarizing the number of rides per day shows that the data is very seasonal. The red line is on March 6, which is the date of the first *known* positive COVID-19 case in the state.
+```{r}
+data %>% 
+  count(date, name = "number_of_rides", sort = TRUE) %>% 
+  filter(!is.na(date)) %>% 
+  ggplot(aes(date, number_of_rides)) +
+  geom_point(alpha = .5, size = .5) +
+  geom_vline(xintercept = ymd("2020-03-06"), color = "red")
+```
+I use the `{tsibble}` package to make a time series tibble and fill in a few gaps in the data. Then I create 3 different models to decompose the time series. I will compare these 3 models to see which strips away the seasonality the best.
+```{r}
+dcmp <- data %>%
+  mutate(time = date) %>% 
+  count(time, name = "number_of_rides") %>%
+  as_tsibble(index = time) %>%
+  tsibble::fill_gaps(number_of_rides = 0) %>% 
+  model(STL(number_of_rides),
+        STL(number_of_rides ~ season(window = Inf)),
+        STL(number_of_rides ~ trend(window=7) + season(window='periodic'),
+            robust = TRUE))
+
+components(dcmp) %>% 
+  glimpse()
+```
+
+This code pivots the data long and plots the true number of rides per day and the estimate of the underlying trend per model. The "season_adjust" panel shows the number of rides adjusted for seasonal effects, the "trend" panel shows the underlying trend, and the "remainder" panel shows how much the seasonal adjustment missed by.
+```{r fig.height=10, fig.width=10}
+components(dcmp) %>% 
+  pivot_longer(cols = number_of_rides:season_adjust) %>% 
+  mutate(name = factor(name, levels = c("number_of_rides", "season_adjust",
+                                        "trend", "seasonal",
+                                        "season_year", "season_week",
+                                        "random", "remainder"))) %>% 
+  filter(!is.na(value)) %>% 
+  filter(name == "trend" | name == "season_adjust" | name == "number_of_rides" | name == "remainder") %>% 
+  ggplot(aes(time, value, color = .model)) +
+  geom_point(alpha = .6, size = .6) +
+  annotate(geom = "rect", 
+           xmin = ymd("2020-03-06"), xmax = ymd("2020-12-31"),
+           ymin = -Inf, ymax = Inf, 
+           fill = "red", alpha = .1) +
+  facet_grid(name ~ .model, scales = "free_y", labeller = label_wrap_gen()) +
+  guides(color = FALSE)
+```
+
+I am not a time series expert, but it appears that the most basic STL model `STL(number_of_rides)` does the best job because that model's "trend" panel shows the least seasonality.
+```{r fig.height=10, fig.width=10}
+components(dcmp) %>% 
+  pivot_longer(cols = number_of_rides:season_adjust) %>% 
+  mutate(name = factor(name, levels = c("number_of_rides", "season_adjust",
+                                        "trend", "seasonal",
+                                        "season_year", "season_week",
+                                        "random", "remainder"))) %>% 
+  filter(!is.na(value)) %>% 
+  filter(name == "trend" | name == "season_adjust" | name == "number_of_rides" | name == "remainder") %>% 
+  filter(.model == "STL(number_of_rides)") %>% 
+  ggplot(aes(time, value, color = .model)) +
+  geom_point(alpha = .6, size = .6, color = "#619CFF") +
+  annotate(geom = "rect", 
+           xmin = ymd("2016-03-06"), xmax = ymd("2016-03-30"),
+           ymin = -Inf, ymax = Inf, 
+           fill = "black", alpha = .3) +
+  annotate(geom = "rect", 
+           xmin = ymd("2017-03-06"), xmax = ymd("2017-03-30"),
+           ymin = -Inf, ymax = Inf, 
+           fill = "black", alpha = .3) +
+  annotate(geom = "rect", 
+           xmin = ymd("2018-03-06"), xmax = ymd("2018-03-30"),
+           ymin = -Inf, ymax = Inf, 
+           fill = "black", alpha = .3) +
+  annotate(geom = "rect", 
+           xmin = ymd("2019-03-06"), xmax = ymd("2019-03-30"),
+           ymin = -Inf, ymax = Inf, 
+           fill = "black", alpha = .3) +
+  annotate(geom = "rect", 
+           xmin = ymd("2020-03-06"), xmax = ymd("2020-03-06") + 60,
+           ymin = -Inf, ymax = Inf, 
+           fill = "red", alpha = .3) +
+  facet_grid(name ~ .model, scales = "free_y", labeller = label_wrap_gen()) +
+  guides(color = FALSE)
+```
+
+Focusing on that model, it appears that the trend dropped in mid-March, but rebounded to normal levels quickly. I highlighted the data from previous Marches to see if there was a recurring dip in March.
