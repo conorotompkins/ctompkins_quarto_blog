@@ -1,7 +1,6 @@
 ---
   # Documentation: https://sourcethemes.com/academic/docs/managing-content/
-  
-  title: "Time series clustering COVID-19 case data"
+title: "Time series clustering COVID-19 case data"
 subtitle: ""
 summary: ""
 slug: time-series-clustering-covid-19-cases
@@ -12,32 +11,16 @@ date: 2020-07-20
 lastmod: 2020-08-07T09:32:51-04:00
 featured: false
 draft: false
-
-# Featured image
-# To use, add an image named `featured.jpg/png` to your page's folder.
-# Focal points: Smart, Center, TopLeft, Top, TopRight, Left, Right, BottomLeft, Bottom, BottomRight.
-image:
-  caption: ""
-focal_point: ""
-preview_only: false
-
-# Projects (optional).
-#   Associate this post with one or more of your projects.
-#   Simply enter your project's folder or file name without extension.
-#   E.g. `projects = ["internal-project"]` references `content/project/deep-learning/index.md`.
-#   Otherwise, set `projects = []`.
-projects: []
+editor_options: 
+  chunk_output_type: console
+execute: 
+  message: false
+  warning: false
 ---
   
-  [Interactive Tableau visualization of the clusters](https://public.tableau.com/profile/conorotompkins#!/vizhome/COVID-19TimeSeriesClustering/Dashboard?publish=yes)
+[Interactive Tableau visualization of the clusters](https://public.tableau.com/app/profile/conorotompkins/viz/COVID-19TimeSeriesClustering/Dashboard)
                                                       
-                                                      The goal of this post is to group states into clusters based on the shape of the curve of a state's cumulative sum of COVID-19 cases. This type of clustering is useful when the variance in absolute values of a time series obscures the underlying pattern in the data. Since states experienced plateaus and peaks at different times, my hope is that the clustering is able to identify those differences.
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE,
-                      message = FALSE,
-                      warning = FALSE)
-```
+The goal of this post is to group states into clusters based on the shape of the curve of a state's cumulative sum of COVID-19 cases. This type of clustering is useful when the variance in absolute values of a time series obscures the underlying pattern in the data. Since states experienced plateaus and peaks at different times, my hope is that the clustering is able to identify those differences.
 
 This loads the packages I will use in the analysis and set up the environment:
 ```{r}
@@ -66,6 +49,16 @@ census_data <- get_acs(geography = "state", variables = "B01003_001", geometry =
 
 This pulls the COVID-19 data from the [NYTimes GitHub page]():
 ```{r}
+#| echo: false
+#covid <- read_csv("posts/time-series-clustering-covid-19-cases/post_data/nytimes_covid_us_states.csv") %>% 
+covid <- read_csv("post_data/nytimes_covid_us_states.csv") %>% 
+  arrange(state, date) %>% 
+  semi_join(census_data) %>% 
+  filter(date <= "2020-07-18")
+```
+
+```{r}
+#| eval: false
 covid <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-states.csv") %>% 
   arrange(state, date) %>% 
   semi_join(census_data) %>% 
@@ -129,14 +122,14 @@ covid %>%
 ```
 
 `tsclust` requires that the input data be a series of lists, not a dataframe. `unstack` takes a `key` and `value` as arguments and turns the dataframe into a list of lists.
-```{r eval = FALSE}
+```{r}
 covid_list <- covid %>% 
   select(state, cases_per_capita_scaled) %>% 
   unstack(cases_per_capita_scaled ~ state)
 ```
 
 This loops through the clustering function 20 times and saves each output to a list. The first object groups the data into 2 clusters, the second object has 3 clusters, and it continues in that pattern.
-```{r eval = FALSE}
+```{r}
 cluster_dtw_h <- list()
 
 kclust <- 20
@@ -160,7 +153,7 @@ The object that `tsclust` outputs has a complex structure that makes it difficul
 ### Cluster assigments
 
 This function pulls which cluster each state was assigned to, for each `kclust`.
-```{r eval = FALSE}
+```{r}
 get_cluster_assignments <- function(object, cluster_number){
   
   df <- slot(object[[cluster_number]], "cluster")
@@ -169,13 +162,7 @@ get_cluster_assignments <- function(object, cluster_number){
 }
 ```
 
-```{r include = FALSE}
-cluster_assignments <- read_csv("data/time_series_clustering/cluster_assignments.csv") %>% 
-  arrange(kclust, cluster_assignment)
-```
-
-
-```{r eval = FALSE}
+```{r}
 cluster_assignments <- 2:kclust %>%
   set_names() %>% 
   map_df(~get_cluster_assignments(cluster_dtw_h, cluster_number = .x), .id = "kclust") %>% 
@@ -189,7 +176,8 @@ glimpse(cluster_assignments)
 ```
 
 These graphs shows which states are more likely to be assigned to a different cluster, depending on the number of clusters.
-```{r fig.height=12}
+```{r}
+#| fig-height: 12
 state_variance <- cluster_assignments %>% 
   distinct(state, cluster_assignment) %>% 
   count(state, sort = TRUE)
@@ -204,7 +192,8 @@ cluster_assignments %>%
        y = NULL) +
   theme(legend.position = "bottom", legend.direction = "horizontal")
 ```
-```{r fig.height=12}
+```{r}
+#| fig-height: 12
 cluster_assignments %>% 
   distinct(state, cluster_assignment) %>% 
   count(state) %>% 
@@ -240,13 +229,13 @@ cluster_singletons %>%
        y = "Number of singleton clusters")
 ```
 
-There is not a singleton cluster until `kclust` is 8.
+There is not a singleton cluster until `kclust` is 7.
 ```{r}
 cluster_singletons %>% 
   mutate(first_singleton = cumsum(min_cluster_population == 1) == 1) %>%
   filter(first_singleton == TRUE)
 ```
-```{r eval=FALSE, include=FALSE}
+```{r}
 cluster_assignments %>% 
   count(kclust, cluster_assignment) %>% 
   ggplot(aes(kclust, n, color = as.factor(kclust))) +
@@ -259,16 +248,22 @@ cluster_assignments %>%
 ### Cluster distance
 
 This function pulls the average distance of each cluster, for each value of `kclust`. Clusters with lower average distance are more similar, and those with higher average distance are less similar.
-```{r eval = FALSE}
+```{r}
 get_cluster_metrics <- function(object, cluster_number){
   
-  df <- slot(object[[cluster_number]], "clusinfo")
+  object %>%
+    pluck(cluster_number) %>%
+    slot("clusinfo") %>%
+    as_tibble()
   
-  return(df)
 }
 ```
-```{r include = FALSE}
-cluster_metrics <- read_csv("data/time_series_clustering/cluster_metrics.csv")
+
+```{r}
+cluster_metrics <- map(2:kclust, ~get_cluster_metrics(cluster_dtw_h, .x)) |> 
+  list_rbind(names_to = "kclust")
+
+cluster_metrics
 ```
 
 This shows that 12 clusters may be the optimal number for `kclust`. Values greater than that begin to see diminishing returns.
@@ -310,7 +305,7 @@ covid %>%
   labs(title = "kclust == 12")
 ```
 
-I think 12 clusters is appropriate, but there are obviously cases where individual assignments can be disputed. This is an unsupervised clustering problem, so I generally pick the `kclust` with the least diminishing returns and go with it.
+I think 13 clusters is appropriate, but there are obviously cases where individual assignments can be disputed. This is an unsupervised clustering problem, so I generally pick the `kclust` with the least diminishing returns and go with it.
 
 ## Mapping
 
