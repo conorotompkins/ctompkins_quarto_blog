@@ -1,10 +1,8 @@
 ---
   # Documentation: https://sourcethemes.com/academic/docs/managing-content/
 title: "Time series clustering COVID-19 case data"
-subtitle: ""
-summary: ""
 slug: time-series-clustering-covid-19-cases
-authors: []
+author: "Conor Tompkins"
 tags: []
 categories: []
 date: 2020-07-20
@@ -13,6 +11,7 @@ featured: false
 draft: false
 editor_options: 
   chunk_output_type: console
+image: preview.png
 execute: 
   message: false
   warning: false
