@@ -23,9 +23,6 @@ knitr::opts_chunk$set(echo = TRUE,
                       warning = FALSE)
 ```
 
-This post is **not** syndicated on 
-[www.creedthoughts.gov.www\creedthoughts](www.creedthoughts.gov.www\creedthoughts).
-
 The goal for this analysis is to determine which characters, directors, and writers from The Office most influence an episode's IMDB rating. My hypothesis is that IMDB rating is largely driven by a few show personnel. I also briefly walk through the data cleaning and modeling processes. This analysis is based on code from Julia Silge's [Tidy Tuesdays](https://juliasilge.com/blog/lasso-the-office/) writeup She does a very good job of explaining the modeling aspects of this. She uses LASSO regression, which is very similar to the ridge regression I use.
 
 The steps in the analysis are:
