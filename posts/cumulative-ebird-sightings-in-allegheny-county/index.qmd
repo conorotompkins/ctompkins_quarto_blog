@@ -11,7 +11,7 @@ lastmod: 2020-08-07T13:47:31-04:00
 featured: false
 draft: false
 # Focal points: Smart, Center, TopLeft, Top, TopRight, Left, Right, BottomLeft, Bottom, BottomRight.
-image: featured.png
+image: cumulative_observations.gif
 projects: []
 editor_options: 
   chunk_output_type: console
