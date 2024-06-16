@@ -1,0 +1,121 @@
+---
+title: "Cumulative eBird Sightings in Allegheny County"
+author: "Conor Tompkins"
+subtitle: ""
+summary: ""
+authors: [Conor Tompkins]
+tags: [R]
+categories: [R]
+date: 2020-04-29
+lastmod: 2020-08-07T13:47:31-04:00
+featured: false
+draft: false
+# Focal points: Smart, Center, TopLeft, Top, TopRight, Left, Right, BottomLeft, Bottom, BottomRight.
+image: featured.png
+projects: []
+editor_options: 
+  chunk_output_type: console
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+This will be a quick post on cumulative bird observations in Allegheny County. Cumulative graphs show overall trends, seasonality, and quirks in how the data was recorded. They are also fun to turn into animated gifs with `gganimate`. 
+
+Load the relevant libraries:
+```{r}
+library(tidyverse)
+library(lubridate)
+library(tidyquant)
+library(janitor)
+library(hrbrthemes)
+library(vroom)
+library(ggrepel)
+library(gganimate)
+
+set.seed(1234)
+
+theme_set(theme_bw(base_size = 16))
+```
+
+This reads in data from the [eBird data portal](https://ebird.org/data/download):
+```{r cache=TRUE}
+df <- vroom("post_data/ebd_US-PA-003_201001_202003_relFeb-2020.zip", delim = "\t") %>% 
+  clean_names() %>% 
+  mutate_at(vars(observer_id, locality, observation_date, time_observations_started, protocol_type), str_replace_na, "NA") %>% 
+  mutate(observation_count = as.numeric(str_replace(observation_count, "X", as.character(NA))),
+         observation_event_id = str_c(observer_id, locality, observation_date, time_observations_started, sep = "-"),
+         observation_date = ymd(observation_date)) %>%
+  filter(all_species_reported == 1)
+
+glimpse(df)
+```
+
+I focus on the two main ways people use the eBird app: traveling and stationary. I also filter to only observations from 2016 onwards, since that is when eBird usage became stable in the county.
+```{r}
+df_top_protocols <- df %>% 
+  count(protocol_type, sort = TRUE) %>% 
+  slice(1:2)
+
+df <- df %>% 
+  semi_join(df_top_protocols) %>% 
+  filter(year(observation_date) >= 2016)
+```
+
+This identifies the top 10 birds in terms of total observations:
+```{r}
+df_species_count <- df %>% 
+  group_by(common_name) %>% 
+  summarize(observation_count = sum(observation_count, na.rm = TRUE)) %>% 
+  arrange(desc(observation_count)) %>% 
+  slice(1:10)
+```
+
+This code filters on the top 10 birds and caculates the cumulative number of sightings and the rolling 21 day average of sightings.
+```{r}
+df_cumulative <- df %>% 
+  semi_join(df_species_count, by = c("common_name")) %>% 
+  group_by(common_name, observation_date) %>% 
+  summarize(observation_count = sum(observation_count, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  arrange(common_name, observation_date) %>% 
+  group_by(common_name) %>% 
+  mutate(observation_count_cumulative = cumsum(observation_count)) %>% 
+  tq_mutate(
+    # tq_mutate args
+    select     = observation_count,
+    mutate_fun = rollapply, 
+    # rollapply args
+    width      = 21,
+    align      = "right",
+    FUN        = mean,
+    # mean args
+    na.rm      = TRUE,
+    # tq_mutate args
+    col_rename = "mean_21"
+  )
+```
+
+This plots the cumulative observations by bird and creates an animation with `gganimate`:
+```{r eval = FALSE}
+plot <- df_cumulative %>% 
+  ggplot(aes(observation_date, observation_count_cumulative, group = common_name)) +
+  geom_line(alpha = .5) +
+  geom_segment(aes(xend = last(df_cumulative$observation_date) + 240, yend = observation_count_cumulative), linetype = 2, colour = 'grey') +
+  geom_point(aes(size = mean_21)) +
+  geom_label(aes(x = last(df_cumulative$observation_date) + 210, label = common_name), size = 6) +
+  scale_y_comma() +
+  scale_size_continuous("21 day rolling average of observation count", range = c(2, 10), labels = scales::comma) +
+  scale_x_date(limits = c(first(df_cumulative$observation_date), last(df_cumulative$observation_date) + 250)) +
+  labs(x = NULL,
+       y = "Cumulative observations",
+       title = "eBird observations in Allegheny County",
+       subtitle = "Top 10 birds 2016 through January 2020",
+       caption = "@conor_tompkins") +
+  coord_cartesian(clip = 'off') +
+  transition_reveal(observation_date)
+
+plot
+```
+![](cumulative_observations.gif)
