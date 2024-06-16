@@ -5,6 +5,8 @@ summary: ""
 authors: [Conor Tompkins]
 tags: [R]
 categories: [R]
+date: 2020-05-25
+lastmod: 2020-08-07T13:47:31-04:00
 featured: false
 draft: false
 # Focal points: Smart, Center, TopLeft, Top, TopRight, Left, Right, BottomLeft, Bottom, BottomRight.
