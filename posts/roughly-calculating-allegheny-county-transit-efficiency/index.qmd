@@ -1,0 +1,209 @@
+---
+# Documentation: https://sourcethemes.com/academic/docs/managing-content/
+title: "Roughly Calculating Allegheny County Transit Efficiency"
+subtitle: ""
+summary: ""
+authors: [Conor Tompkins]
+tags: [R, WPRDC, Allegheny County, Transit]
+categories: [R, WPRDC, Allegheny County, Transit]
+date: 2020-04-04
+lastmod: 2020-08-12T09:43:40-04:00
+featured: false
+draft: false
+# Focal points: Smart, Center, TopLeft, Top, TopRight, Left, Right, BottomLeft, Bottom, BottomRight.
+image: featured.png
+projects: []
+execute:
+  echo: true
+  warning: false
+  message: false
+editor_options: 
+  chunk_output_type: console
+---
+
+As part my work on transit lines in Allegheny County, I am interested in which transit lines are most efficient, in terms of residents and jobs served. This is possible with the Port Authority transit line datasets [hosted on the WPRDC](https://data.wprdc.org/dataset/port-authority-current-transit-routes) and data from the Census.
+
+Load libraries and set up the environment:
+```{r}
+library(tidyverse)
+library(sf)
+library(janitor)
+library(ggrepel)
+library(hrbrthemes)
+
+options(scipen = 999, digits = 2,
+        fig.width = 9,
+        fig.height = 9)
+
+theme_set(theme_bw())
+```
+
+This loads the summarized LODES census tract data ([munging script here](https://github.com/conorotompkins/commuter_route_transit_availability/blob/master/scripts/munge_data.R))
+```{r results = 'hide'}
+df_tract_centroid_summary <- st_read("post_data/shapefiles/tract_centroid_summary/tract_centroid_summary.shp")
+```
+
+To recap, the distribution of jobs and residents across census tracts is vaguely normal. The main outlier in the "jobs" measure is the census tract for the Golden Triangle (Downtown).
+```{r}
+#| fig-height: 9
+
+df_tract_centroid_summary %>% 
+  select(GEOID, residents, jobs) %>% 
+  st_drop_geometry() %>% 
+  pivot_longer(cols = c(residents, jobs), names_to = "measure", values_to = "value") %>% 
+  ggplot(aes(value, fill = measure)) +
+    geom_density() +
+    facet_wrap(~str_to_title(measure), ncol = 1, scales = "free") +
+    scale_x_log10() +
+    guides(fill = "none") +
+    labs(x = "Log 10 scale",
+         y = "Density")
+```
+
+```{r}
+#| fig-height: 9
+
+df_tract_centroid_summary %>% 
+  ggplot(aes(residents, jobs)) +
+    geom_point() +
+    geom_label_repel(data = df_tract_centroid_summary %>% filter(jobs == max(jobs)),
+                     label = "Downtown") +
+    scale_y_comma() +
+    scale_x_comma() +
+    labs(x = "Residents",
+         y = "Jobs")
+```
+
+This code grabs the shapefile with the transit route stats and stop geometry. This [code](https://github.com/conorotompkins/commuter_route_transit_availability/blob/master/scripts/munge_data.R):
+
+* calculates how many residents and jobs are in each census tract
+* calculates which transit lines stops serve which census tracts
+* summarizes how many residents and jobs a transit line servers
+```{r results = 'hide'}
+df_route_stats <- st_read("post_data/shapefiles/route_stats/route_stats.shp") %>% 
+  rename(route_id = route_d,
+         service_type = srvc_ty,
+         residents = resdnts,
+         stop_count = stp_cnt,
+         route_name = rout_nm,
+         route_length_miles = rt_lng_,
+         stops_per_mile = stps_p_)
+```
+```{r}
+df_route_stats
+```
+
+This is a basic plot of all the transit stops in the county:
+```{r}
+#| fig-height: 9
+
+df_route_stats %>% 
+  ggplot() +
+    geom_sf(size = .1, alpha = .5) +
+    theme_void()
+```
+
+The immediate question that comes to mind is "how many residents and jobs does a transit line serve?". Keep in mind that more than one transit line can serve a given resident or job. This shows that the "Key Corridor" lines serve the most jobs.
+```{r}
+#| fig-height: 9
+
+df_route_stats %>% 
+  ggplot(aes(jobs, residents, fill = service_type)) +
+    geom_label(aes(label = route_id), alpha = .5) +
+    scale_x_comma() +
+    scale_y_comma() +
+    scale_fill_discrete("Service type") +
+    labs(x = "Jobs served",
+         y = "Residents served")
+```
+
+This graph compares how many residents/jobs a transit line serves to how long the line is. The 28X and P10 are the least efficient in both cases. However, the 28X serves the Pittsburgh International Airport, and that utility is not captured in this analysis.
+```{r}
+#| fig-height: 9
+
+df_route_stats %>% 
+  filter(!is.na(route_id)) %>% 
+  select(route_id, service_type, route_length_miles, residents, jobs) %>% 
+  pivot_longer(cols = c(residents, jobs), names_to = "variable", values_to = "value") %>% 
+  ggplot(aes(route_length_miles, value, fill = service_type)) +
+    geom_label(aes(label = route_id), alpha = .5) +
+    facet_wrap(~str_to_title(str_c(variable, "served", sep = " ")),
+               scales = "free_y",
+               ncol = 1,
+               strip.position = "left") +
+    scale_y_comma() +
+    scale_fill_discrete("Service Type") +
+    labs(x = "Route length (miles)",
+         y = NULL) +
+    theme(strip.text = element_text(hjust = .5),
+          strip.background = element_rect(color = "grey"),
+          strip.placement = "outside")
+```
+
+This performs a similar comparison, but uses the number of stops per line instead of line distance. The 71/61 lines are very efficient in terms of jobs/stops, and the 59 appears to be the most inefficient.
+```{r}
+#| fig-height: 9
+
+df_route_stats %>% 
+  filter(!is.na(route_id)) %>% 
+  select(route_id, service_type, stop_count, residents, jobs) %>% 
+  pivot_longer(cols = c(residents, jobs), names_to = "variable", values_to = "value") %>% 
+  ggplot(aes(stop_count, value, fill = service_type)) +
+    geom_label(aes(label = route_id), alpha = .5) +
+    facet_wrap(~str_to_title(str_c(variable, "served", sep = " ")),
+               scales = "free_y",
+               ncol = 1,
+               strip.position = "left") +
+    scale_y_comma() +
+    scale_fill_discrete("Service type") +
+    labs(x = "Number of stops",
+         y = NULL) +
+    theme(strip.text = element_text(hjust = .5),
+          strip.background = element_rect(color = "grey"),
+          strip.placement = "outside")
+```
+
+In terms of stops per mile, the Express lines are most efficient. The incline lines are least efficient, but that is an artifact of their unique geography.
+```{r}
+#| fig-height: 9
+
+df_route_stats %>% 
+  filter(!is.na(route_id)) %>% 
+  select(route_id, service_type, stops_per_mile, residents, jobs) %>% 
+  pivot_longer(cols = c(residents, jobs), names_to = "variable", values_to = "value") %>% 
+  ggplot(aes(stops_per_mile, value, fill = service_type)) +
+    geom_label(aes(label = route_id), alpha = .5) +
+    facet_wrap(~str_to_title(str_c(variable, "served", sep = " ")), 
+               scales = "free_y",
+               ncol = 1,
+               strip.position = "left") +
+    scale_y_comma() +
+    scale_fill_discrete("Service type") +
+    labs(x = "Stops per mile",
+         y = NULL) +
+    theme(strip.text = element_text(hjust = .5),
+          strip.background = element_rect(color = "grey"),
+          strip.placement = "outside")
+```
+
+This graph attempts to summarize everything by adding residents + jobs and comparing that to stops per mile. The "Express" and "Key Corridor" lines do the best here.
+```{r}
+#| fig-height: 9
+
+plot <- df_route_stats %>% 
+  filter(!is.na(route_id)) %>% 
+  select(route_id, service_type, stops_per_mile, residents, jobs) %>% 
+  mutate(residents_plus_jobs = residents + jobs) %>% 
+  ggplot(aes(stops_per_mile, residents_plus_jobs, fill = service_type, label = route_id)) +
+    geom_label(alpha = .5) +
+    labs(x = "Stops per mile",
+         y = "Residents plus jobs served",
+         caption = "'Served' means the line came within 200 meters of the center of a census tract") +
+    scale_x_continuous(expand = c(.1, .1)) +
+    scale_y_comma(expand = c(.1, .1)) +
+    scale_fill_discrete("Service type") +
+    facet_wrap(vars(service_type), ncol = 1) +
+  theme(legend.position = "bottom")
+
+plot
+```
