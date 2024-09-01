@@ -1,0 +1,346 @@
+---
+# Documentation: https://sourcethemes.com/academic/docs/managing-content/
+
+title: "Visualizing Transit Connections Between Pittsburgh Census Tracts"
+subtitle: ""
+summary: ""
+authors: [Conor Tompkins]
+tags: [R, Pittsburgh, Allegheny County, Transit, WPRDC]
+categories: [R, Pittsburgh, Allegheny County, Transit, WPRDC]
+date: 2020-03-01
+lastmod: 2020-08-12T10:50:44-04:00
+featured: false
+draft: false
+
+# Featured image
+# To use, add an image named `featured.jpg/png` to your page's folder.
+# Focal points: Smart, Center, TopLeft, Top, TopRight, Left, Right, BottomLeft, Bottom, BottomRight.
+image: featured.png
+
+# Projects (optional).
+#   Associate this post with one or more of your projects.
+#   Simply enter your project's folder or file name without extension.
+#   E.g. `projects = ["internal-project"]` references `content/project/deep-learning/index.md`.
+#   Otherwise, set `projects = []`.
+projects: []
+editor_options: 
+  chunk_output_type: console
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+In this post I will use transit line and stop data from the [WPRDC](https://data.wprdc.org/group/0f962c7b-baa3-483b-93e3-539118d0213c?tags=Port+Authority) to map connections between census tracts. I access the census data via `{tidycensus}`, which contains information about the commuter connections between census tracts.
+
+```{r}
+library(tidyverse)
+library(sf)
+library(tigris)
+library(janitor)
+library(tidycensus)
+library(leaflet)
+
+options(tigris_use_cache = TRUE,
+        scipen = 999,
+        digits = 2)
+```
+
+This code loads the transit line data from the [WPRDC](). I create the `full_route_name_id` column and set the coordinate reference system to `4326`.
+```{r}
+##load transit data
+transit_lines <- st_read("post_data/shapefiles/transit_lines/PAAC_Routes_1909.shp") %>%
+  clean_names() %>%
+  mutate_at(vars(-all_of(c("geometry"))), as.character) %>%
+  rename(route_id = route,
+         service_type = type_serv) %>% 
+  distinct(service_type, route_id, route_name, geometry) %>%
+  mutate(full_route_name_id = str_c(route_id, route_name, sep = " ")) %>% 
+  st_transform(3488)
+
+transit_lines
+```
+
+This is what the transit lines look like on a basic map:
+```{r}
+transit_lines %>% 
+  ggplot(aes(color = route_id)) + 
+    geom_sf() +
+    guides(color = FALSE) +
+    theme_minimal()
+```
+
+This creates a table of `route_id` and `service_type` that I will join against later.
+```{r}
+df_service_type <- transit_lines %>% 
+  distinct(service_type, route_id, full_route_name_id) %>% 
+  st_drop_geometry()
+```
+
+This code loads the transit stop shapefile from the [WPRDC](https://data.wprdc.org/dataset/port-authority-of-allegheny-county-transit-stops):
+```{r}
+transit_stops <- st_read("post_data/shapefiles/transit_stops/PAAC_Stops_1909.shp") %>%
+  st_transform(3488) %>% 
+  clean_names() %>% 
+  mutate_at(vars(-all_of(c("geometry", "routes_cou"))), as.character) %>%
+  select(stop_name, routes_served = routes_ser, routes_cou, geometry) %>% 
+  distinct(stop_name, routes_served = routes_served, routes_cou, geometry)
+
+transit_stops
+```
+
+Much of the important data is stored in the `routes_served` column. This code pivots the data longer to make it easier to work with.
+```{r}
+#identify maximum number of routes served by a stop
+max_routes_served <- transit_stops %>% 
+  summarize(max_routes = max(routes_cou)) %>% 
+  pull(max_routes)
+
+transit_stops %>% 
+  filter(routes_cou == max_routes_served)
+```
+
+```{r}
+#separate routes_served into multiple columns, one per route
+transit_stops <- transit_stops %>% 
+  separate(routes_served, sep = ", ", into = str_c("route_", 1:max_routes_served), extra = "merge", fill = "right")
+
+transit_stops
+```
+
+```{r}
+transit_stops %>% 
+  filter(routes_cou == max_routes_served)
+
+#pivot data longer
+transit_stops <- transit_stops %>% 
+  pivot_longer(cols = starts_with("route_"), names_to = "route_number", values_to = "route_id") %>% 
+  st_as_sf()
+  
+transit_stops
+```
+
+```{r}
+transit_stops <- transit_stops %>%
+  filter(!is.na(route_id)) %>% 
+  left_join(df_service_type)
+```
+
+This code loads the census tract data via `{tidycensus}`. I choose the census tracts `42003020100` (Downtown) and `42003070300` (Shadyside).
+```{r}
+#load tract data
+allegheny_tracts <- get_decennial(geography = "tract",
+                                  variables = c(total_pop = "P001001"),
+                                  state = "PA",
+                                  county = "Allegheny County",
+                                  geometry = TRUE,
+                                  output = "wide",
+                                  year = 2010) %>%
+  mutate(name = case_when(GEOID == "42003020100" ~ "Downtown",
+                          GEOID == "42003070300" ~ "Shadyside")) %>% 
+  st_transform(3488)
+
+#calculate centers of the tracts
+allegheny_tracts_centroid <- allegheny_tracts %>%
+  mutate(name = case_when(GEOID == "42003020100" ~ "Downtown",
+                          GEOID == "42003070300" ~ "Shadyside")) %>% 
+  mutate(lon = map_dbl(geometry, ~st_centroid(.x)[[1]]),
+         lat = map_dbl(geometry, ~st_centroid(.x)[[2]])) %>% 
+  st_drop_geometry() %>% 
+  st_as_sf(coords = c("lon", "lat"), crs = 3488) %>% 
+  st_transform(3488)
+
+#creates table with geometry of the county border
+allegheny <- allegheny_tracts %>% 
+  summarize()
+```
+
+```{r}
+commute_tracts <- allegheny_tracts %>% 
+  filter(!is.na(name))
+
+commute_centroids <- allegheny_tracts_centroid %>% 
+  filter(!is.na(name))
+```
+
+
+This code uses `st_is_within_distance` to find the transit stops that are within 700 meters of the center of the Downtown AND Shadyside census tracts.
+```{r}
+df_stops_joined_distance <- transit_stops %>% 
+  st_join(commute_centroids, st_is_within_distance, dist = 700, left = TRUE) %>% 
+  arrange(route_id)
+
+df_stops_joined_distance
+
+df_stops_joined_distance <- df_stops_joined_distance %>% 
+  filter(!is.na(name))
+
+df_stops_joined_distance
+
+df_route_filter <- df_stops_joined_distance %>% 
+  st_drop_geometry() %>% 
+  distinct(route_id, name) %>% 
+  group_by(route_id) %>% 
+  filter(n() >= 2) %>% 
+  ungroup() %>% 
+  distinct(route_id)
+
+df_route_filter
+
+df_stops_joined_distance <- df_stops_joined_distance %>% 
+  semi_join(df_route_filter, by = c("route_id" = "route_id")) %>% 
+  left_join(df_service_type)
+
+df_stops_joined_distance <- df_stops_joined_distance %>% 
+  mutate(stop_name_route_id_route_name = str_c(full_route_name_id, str_to_title(stop_name), sep = " - "))
+```
+
+To help visualize how the join works, imagine a buffer around each point (transit stop). This shows the stops from 71A with a buffer:
+```{r}
+st_crs(transit_stops)$units
+
+transit_stops %>% 
+  mutate(geometry_buffered = st_buffer(geometry, dist = 700)) %>% 
+  #st_transform(crs = 3488) %>% 
+  filter(route_id == "71A") %>% 
+  ggplot() +
+    geom_sf(data = commute_centroids,
+            color = "blue",
+            size = 3) +
+    geom_sf(color = "red", size = 1) +
+    geom_sf(aes(geometry = geometry_buffered),
+            fill = NA
+            ) +
+    #coord_sf(crs = 4326) +
+    theme_minimal()
+```
+
+`st_is_within_distance` identifies which red points are within 700 meters of the blue points.
+
+This shows the tracts, the tract centroids, and the transit stops within 700 meters of the centroids.
+```{r}
+df_stops_joined_distance %>% 
+  ggplot() +
+    geom_sf(data = commute_tracts) +
+    geom_sf(data = commute_centroids, color = "red") +
+    geom_sf() +
+    theme_minimal()
+```
+
+This filters on the transit lines served by the stops that successfully joined against the Downtown and Shadyside centroids:
+```{r}
+commuter_transit_lines <- transit_lines %>% 
+  semi_join(df_route_filter, by = c("route_id" = "route_id"))
+
+commuter_transit_lines
+```
+
+These are the transit lines that serve the two tracts:
+```{r}
+commute_centroids %>% 
+  ggplot() +
+    geom_sf(size = 3) +
+    geom_sf(data = commuter_transit_lines, aes(color = route_id)) +
+    theme_void()
+```
+
+This sets the bounding box for the final static map:
+```{r}
+commute_zoom <- commute_tracts %>% 
+  st_buffer(dist = 700) %>% 
+  st_bbox()
+```
+
+This crops the transit lines to only include the parts within the bounding box:
+```{r}
+commuter_transit_lines %>% 
+  st_crop(commute_zoom)
+```
+
+This plots the Downtown and Shadyside census tracts and the transit lines and stops that serve them:
+```{r}
+p <- commuter_transit_lines %>% 
+  st_crop(commute_zoom) %>% 
+  ggplot() +
+    geom_sf(data = allegheny, fill = NA) +
+    geom_sf(data = commute_tracts, aes(fill = name), size = 1, alpha = .5) +
+    geom_sf_label(data = commute_centroids, aes(label = name)) +
+    geom_sf(aes(color = route_id)) +
+    geom_sf(data = st_jitter(df_stops_joined_distance), aes(color = route_id), shape = 21, size = 3) +
+    geom_sf_label(aes(color = route_id, label = route_id)) +
+    coord_sf(xlim = c(commute_zoom[1], commute_zoom[3]),
+             ylim = c(commute_zoom[2], commute_zoom[4])) +
+    facet_wrap(~service_type) +
+    guides(color = FALSE,
+           fill = FALSE) +
+    theme_void() +
+    theme(panel.border = element_rect(color = "black", fill = NA))
+
+p
+```
+
+You can use this interactive map made with `leaflet` to explore the transit lines and stops that connect Downtown and Shadyside:
+```{r}
+library(widgetframe)
+#transform geometries to crs 4326
+
+allegheny <- st_transform(allegheny, crs = 4326)
+commute_tracts <- st_transform(commute_tracts, crs = 4326)
+commuter_transit_lines <- st_transform(commuter_transit_lines, crs = 4326)
+df_stops_joined_distance <- st_transform(df_stops_joined_distance, crs = 4326)
+commute_tracts <- st_transform(commute_tracts, crs = 4326)
+
+commute_zoom <- commute_tracts %>% 
+  st_buffer(dist = .01) %>% 
+  st_bbox()
+
+names(commute_zoom) <- NULL
+
+###leaflet
+transit_lines_palette <- colorFactor(palette = "Set1", domain = commuter_transit_lines$full_route_name_id)
+tract_palette <- colorFactor(palette = "Set1", domain = commute_tracts$GEOID)
+
+interactive_map <- leaflet() %>% 
+  addProviderTiles(providers$CartoDB.Positron) %>% 
+  addPolygons(data = allegheny,
+              color = "#444444",
+              stroke = TRUE,
+              fillOpacity = 0,
+              opacity = 1,
+              weight = 2,
+              group = "Census tracts") %>%
+  addPolygons(data = commute_tracts,
+              #color
+              color = NA,
+              #fill
+              fillColor = ~tract_palette(GEOID),
+              fillOpacity = .3,
+              
+              #label
+              label = commute_tracts$name,
+              group = "Census tracts") %>% 
+  addPolylines(data = commuter_transit_lines,
+              color = ~transit_lines_palette(full_route_name_id),
+              label = commuter_transit_lines$full_route_name_id,
+              
+              #highlight
+              highlightOptions = highlightOptions(weight = 10, bringToFront = TRUE),
+              group = "Transit lines and stops"
+               ) %>% 
+  addCircles(data = df_stops_joined_distance,
+             radius = 3,
+             color = ~transit_lines_palette(full_route_name_id),
+             
+             #highlight
+             highlightOptions = highlightOptions(weight = 10, bringToFront = TRUE),
+             
+             #label
+             label = str_to_title(df_stops_joined_distance$stop_name_route_id_route_name),
+             group = "Transit lines and stops") %>% 
+  addLayersControl(overlayGroups = c("Census tracts","Transit lines and stops"), position = "topleft", 
+                   options = layersControlOptions(collapsed = FALSE)) %>% 
+  addMiniMap() %>% 
+  fitBounds(lng1 = commute_zoom[[1]], lat1 = commute_zoom[[2]], lng2 = commute_zoom[[3]], lat2 = commute_zoom[[4]])
+
+frameWidget(interactive_map)
+```
