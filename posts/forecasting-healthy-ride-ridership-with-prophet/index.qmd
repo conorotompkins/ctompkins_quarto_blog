@@ -1,0 +1,205 @@
+---
+# Documentation: https://sourcethemes.com/academic/docs/managing-content/
+
+title: "Forecasting Healthy Ride Ridership With Prophet"
+subtitle: ""
+summary: ""
+authors: [Conor Tompkins]
+tags: [R, Pittsburgh, Healthy Ride]
+categories: [R, Pittsburgh, Healthy Ride]
+date: 2019-08-03
+lastmod: 2020-08-24T13:20:16-04:00
+featured: false
+draft: false
+
+# Featured image
+# To use, add an image named `featured.jpg/png` to your page's folder.
+# Focal points: Smart, Center, TopLeft, Top, TopRight, Left, Right, BottomLeft, Bottom, BottomRight.
+image: featured.png
+projects: []
+execute:
+  warning: false
+  message: false
+editor_options: 
+  chunk_output_type: console
+---
+
+This post is about predicting demand for the Healthy Ride bike system in Pittsburgh. I wanted to try out Facebook's `prophet` package and try to do some time series forecasting.
+
+As usual, load the required packages and set up the environment:
+```{r}
+library(tidyverse)
+library(lubridate)
+library(prophet)
+library(janitor)
+library(hrbrthemes)
+
+options(scipen = 999)
+
+theme_set(theme_bw())
+```
+```{r}
+#| output: false
+
+df <- read_csv("post_data/combined_ride_data.csv") %>%
+  filter(date < "2019-08-01") %>% 
+  count(date)
+```
+
+This code loads the data and formats the date column so the `prophet` package can interface with it. I use `dir()` to find all the CSV files in  the folder and then `set_names()` and `map_df(read_csv())` to read each of the CSV files into memory.
+```{r}
+#| eval: false
+
+files <- dir("data", ".csv")
+
+data <- str_c("data/", files) %>% 
+  set_names() %>% 
+  map_df(read_csv) %>% 
+  clean_names()
+
+df <- data %>% 
+  filter(date < "2019-08-01") %>% 
+  count(date)
+
+# df %>% 
+#   ggplot(aes(date, n)) +
+#   geom_point()
+# 
+# last(df$date)
+```
+
+The data I will use contains the number of rides per day and also includes the month and year. `prophet` will identify the time series patterns ("seasonality") in the data and identify the "true" pattern
+
+`prophet` has a plug-and-play workflow that is easy to use, but it has more stringent requirements for how the data has to be shaped. The date data has to be named `ds` and the target variable has to be named `y`. I set the floor to zero because there cannot be fewer than 0 rides in a day. `prophet` requires a cap
+```{r}
+max_rides <- df %>% 
+  summarize(max_rides = max(n) * 3) %>% 
+  pull()
+
+df <- df %>% 
+  mutate(n = log(n),
+         cap = log(max_rides)) %>% 
+  filter(!is.na(date)) %>% 
+  rename(ds = date,
+         y = n) %>% 
+  mutate(floor = 0)
+
+
+
+df %>% 
+  filter(is.na(ds))
+```
+
+```{r}
+glimpse(df)
+```
+
+This creates the set of holidays I use in the model.
+```{r}
+us_holidays <- prophet::generated_holidays %>% 
+  as_tibble() %>% 
+  filter(country == "US") %>% 
+  mutate(ds = as.Date(ds))
+```
+
+This code fits a model to the dataset.
+```{r}
+m <- prophet(df, growth = 'logistic', holidays = us_holidays)
+```
+
+`make_future_dataframe()` creates the dataframe that `prophet` uses to make its forecast. In this case, I have it create a dataframe with 365 days of additional rows to predict onto.
+```{r}
+future <- make_future_dataframe(m, periods = 365, freq = "day") %>% 
+  mutate(floor = 0,
+         cap = unique(df$cap))
+```
+
+This code performs the forecast on the future dataset.
+```{r}
+forecast <- predict(m, future) %>% 
+  as_tibble()
+```
+
+The output is a dataframe with the date, the predicted ridership, and the upper and lower bounds of the prediction.
+```{r}
+forecast
+```
+
+`plot` automatically plots the `forecast` data:
+```{r}
+plot(m, forecast)
+```
+
+`prophet` also decomposes the various seasonal effects.
+```{r}
+prophet_plot_components(m, forecast)
+```
+
+We can of course use `ggplot` to manually plot the data.
+```{r fig.height=6, fig.width=12}
+df_aug <- forecast %>% 
+  mutate(ds = ymd(ds)) %>% 
+  left_join(df) %>% 
+  mutate(yhat = exp(yhat),
+         yhat_lower = exp(yhat_lower),
+         yhat_upper = exp(yhat_upper),
+         y = exp(y))
+
+df_aug %>% 
+  ggplot(aes(x = ds)) +
+    geom_ribbon(data = df_aug %>% filter(ds > last(df$ds)), 
+                aes(ymin = yhat_lower, ymax = yhat_upper), alpha = .2, fill = "blue") +
+    geom_line(data = df_aug %>% filter(ds > last(df$ds)), 
+              aes(y = yhat), color = "blue") +
+    geom_point(aes(y = y), alpha = .5) +
+    geom_hline(aes(yintercept = unique(floor)), linetype = 2) +
+    labs(x = NULL,
+         y = "Number of rides") +
+    scale_y_comma() +
+  theme_bw(base_size = 20)
+```
+
+`prophet` also provides functions for cross-validation.
+```{r}
+df_cv <- cross_validation(m, horizon = 30, units = 'days')
+
+performance_metrics(df_cv) %>% 
+  as_tibble() %>% 
+  gather(metric, measure, -horizon) %>% 
+  ggplot(aes(horizon, measure)) +
+  geom_line() +
+  facet_wrap(~metric, scales = "free_y",
+             ncol = 1) +
+  labs(x = "Horizon",
+       y = "Measure") +
+  theme_bw()
+```
+
+We can also inspect the impact of holidays on the prediction.
+```{r}
+df_holiday_impact <- forecast %>% 
+  clean_names() %>% 
+  select(ds, christmas_day:washingtons_birthday) %>% 
+  select(-contains("upper"), -contains("lower")) %>% 
+  pivot_longer(-ds, names_to = "holiday", values_to = "value") %>% 
+  mutate(year = as.factor(year(ds))) %>% 
+  filter(holiday != "holidays",
+         value != 0)
+
+df_holiday_impact %>% 
+  arrange(ds) %>% 
+  mutate(holiday = as.factor(holiday)) %>% 
+  ggplot(aes(holiday, value, color = year)) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  geom_jitter() +
+  coord_flip() +
+  labs(x = "Holiday",
+       y = "Impact") +
+  scale_color_discrete("Year") +
+  theme_ipsum()
+```
+
+## Documentation and references
+
+* https://facebook.github.io/prophet/
+* https://data.wprdc.org/dataset/healthyride-trip-data
