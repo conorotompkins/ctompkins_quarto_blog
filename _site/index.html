@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.3.450">
+<meta name="generator" content="quarto-1.4.555">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -47,7 +47,13 @@ ul.task-list li input[type="checkbox"] {
   "collapse-after": 3,
   "panel-placement": "end",
   "type": "overlay",
-  "limit": 20,
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
   "language": {
     "search-no-results-text": "No results",
     "search-matching-documents-text": "matching documents",
@@ -56,6 +62,7 @@ ul.task-list li input[type="checkbox"] {
     "search-more-match-text": "more match in this document",
     "search-more-matches-text": "more matches in this document",
     "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
     "search-detached-cancel-button-title": "Cancel",
     "search-submit-button-title": "Submit",
     "search-label": "Search"
@@ -95,16 +102,43 @@ ul.task-list li input[type="checkbox"] {
   <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
 
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
 <link rel="stylesheet" href="styles.css">
 </head>
 
 <body class="nav-fixed">
 
 <div id="quarto-search-results"></div>
-  <header id="quarto-header" class="headroom fixed-top">
-    <nav class="navbar navbar-expand-lg navbar-dark ">
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
-      <div class="navbar-brand-container">
+      <div class="navbar-brand-container mx-auto">
     <a class="navbar-brand" href="./index.html">
     <span class="navbar-title">ctompkins_quarto_blog</span>
     </a>
@@ -116,23 +150,23 @@ ul.task-list li input[type="checkbox"] {
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
   <li class="nav-item">
-    <a class="nav-link" href="./about.html" rel="" target="">
- <span class="menu-text">About</span></a>
+    <a class="nav-link" href="./about.html"> 
+<span class="menu-text">About</span></a>
   </li>  
   <li class="nav-item compact">
-    <a class="nav-link" href="https://github.com/conorotompkins" rel="" target=""><i class="bi bi-github" role="img">
+    <a class="nav-link" href="https://github.com/conorotompkins"> <i class="bi bi-github" role="img">
 </i> 
- <span class="menu-text"></span></a>
+<span class="menu-text"></span></a>
   </li>  
   <li class="nav-item compact">
-    <a class="nav-link" href="./www.linkedin.com/in/conor-tompkins-04b06a3b" rel="" target=""><i class="bi bi-linkedin" role="img">
+    <a class="nav-link" href="./www.linkedin.com/in/conor-tompkins-04b06a3b"> <i class="bi bi-linkedin" role="img">
 </i> 
- <span class="menu-text"></span></a>
+<span class="menu-text"></span></a>
   </li>  
 </ul>
-            <div class="quarto-navbar-tools">
-</div>
           </div> <!-- /navcollapse -->
+          <div class="quarto-navbar-tools">
+</div>
       </div> <!-- /container-fluid -->
     </nav>
 </header>
@@ -145,7 +179,7 @@ ul.task-list li input[type="checkbox"] {
   </div>
     
   
-  <div class="quarto-title-meta">
+  <div class="quarto-title-meta column-page-left">
 
       
     
@@ -158,7 +192,7 @@ ul.task-list li input[type="checkbox"] {
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
         
-    <h5 class="quarto-listing-category-title">Categories</h5><div class="quarto-listing-category category-default"><div class="category" data-category="">All <span class="quarto-category-count">(31)</span></div><div class="category" data-category="Allegheny County">Allegheny County <span class="quarto-category-count">(5)</span></div><div class="category" data-category="COVID-19">COVID-19 <span class="quarto-category-count">(2)</span></div><div class="category" data-category="Census">Census <span class="quarto-category-count">(4)</span></div><div class="category" data-category="Commuter patterns">Commuter patterns <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Commuters">Commuters <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Healthy Ride">Healthy Ride <span class="quarto-category-count">(2)</span></div><div class="category" data-category="Housing">Housing <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Mapbox">Mapbox <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Parking">Parking <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Pittsburgh">Pittsburgh <span class="quarto-category-count">(7)</span></div><div class="category" data-category="Politics">Politics <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Potholes">Potholes <span class="quarto-category-count">(1)</span></div><div class="category" data-category="R">R <span class="quarto-category-count">(18)</span></div><div class="category" data-category="Transit">Transit <span class="quarto-category-count">(2)</span></div><div class="category" data-category="WPRDC">WPRDC <span class="quarto-category-count">(4)</span></div><div class="category" data-category="Zillow">Zillow <span class="quarto-category-count">(1)</span></div><div class="category" data-category="analysis">analysis <span class="quarto-category-count">(1)</span></div><div class="category" data-category="code">code <span class="quarto-category-count">(1)</span></div><div class="category" data-category="eBird">eBird <span class="quarto-category-count">(1)</span></div><div class="category" data-category="news">news <span class="quarto-category-count">(2)</span></div><div class="category" data-category="politics">politics <span class="quarto-category-count">(1)</span></div><div class="category" data-category="shiny">shiny <span class="quarto-category-count">(1)</span></div></div></div>
+    <h5 class="quarto-listing-category-title">Categories</h5><div class="quarto-listing-category category-default"><div class="category" data-category="">All <span class="quarto-category-count">(32)</span></div><div class="category" data-category="538">538 <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Allegheny County">Allegheny County <span class="quarto-category-count">(5)</span></div><div class="category" data-category="COVID-19">COVID-19 <span class="quarto-category-count">(2)</span></div><div class="category" data-category="Census">Census <span class="quarto-category-count">(4)</span></div><div class="category" data-category="Commuter patterns">Commuter patterns <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Commuters">Commuters <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Healthy Ride">Healthy Ride <span class="quarto-category-count">(2)</span></div><div class="category" data-category="Housing">Housing <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Mapbox">Mapbox <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Parking">Parking <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Pittsburgh">Pittsburgh <span class="quarto-category-count">(8)</span></div><div class="category" data-category="Politics">Politics <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Potholes">Potholes <span class="quarto-category-count">(1)</span></div><div class="category" data-category="R">R <span class="quarto-category-count">(19)</span></div><div class="category" data-category="Soccer">Soccer <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Transit">Transit <span class="quarto-category-count">(2)</span></div><div class="category" data-category="WPRDC">WPRDC <span class="quarto-category-count">(4)</span></div><div class="category" data-category="Zillow">Zillow <span class="quarto-category-count">(1)</span></div><div class="category" data-category="analysis">analysis <span class="quarto-category-count">(1)</span></div><div class="category" data-category="code">code <span class="quarto-category-count">(1)</span></div><div class="category" data-category="eBird">eBird <span class="quarto-category-count">(1)</span></div><div class="category" data-category="news">news <span class="quarto-category-count">(2)</span></div><div class="category" data-category="politics">politics <span class="quarto-category-count">(1)</span></div><div class="category" data-category="shiny">shiny <span class="quarto-category-count">(1)</span></div></div></div>
 <!-- main -->
 <main class="content quarto-banner-title-block column-page-left" id="quarto-document-content">
 
@@ -169,21 +203,22 @@ ul.task-list li input[type="checkbox"] {
 
 
 
+
 <div class="quarto-listing quarto-listing-container-default" id="listing-listing">
 <div class="list quarto-listing-default">
-<div class="quarto-post image-right" data-index="0" data-categories="news,code,analysis" data-listing-date-sort="1696737600000" data-listing-file-modified-sort="1696784898426" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="1">
+<div class="quarto-post image-right" data-index="0" data-categories="news,code,analysis" data-listing-date-sort="1696737600000" data-listing-file-modified-sort="1696784898426" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="1" data-listing-word-count-sort="9">
 <div class="thumbnail">
-<p><a href="./posts/post-with-code/index.html"> <img src="./posts/post-with-code/image.jpg" class="thumbnail-image"> </a></p>
+<p><a href="./posts/post-with-code/index.html" class="no-external"></a></p><a href="./posts/post-with-code/index.html" class="no-external">
+<p><img src="./posts/post-with-code/image.jpg" class="thumbnail-image"></p>
+</a><p><a href="./posts/post-with-code/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/post-with-code/index.html">
 <h3 class="no-anchor listing-title">
-Post With Code
+<a href="./posts/post-with-code/index.html" class="no-external">Post With Code</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/post-with-code/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('news'); return false;">
 news
@@ -195,14 +230,12 @@ code
 analysis
 </div>
 </div>
-<a href="./posts/post-with-code/index.html">
 <div class="listing-description">
-This is a post with executable code.
+<a href="./posts/post-with-code/index.html" class="no-external">This is a post with executable code.</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/post-with-code/index.html">
+<a href="./posts/post-with-code/index.html" class="no-external">
 <div class="listing-date">
 Oct 8, 2023
 </div>
@@ -212,32 +245,30 @@ Harlow Malloc
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="1" data-categories="news" data-listing-date-sort="1696478400000" data-listing-file-modified-sort="1696784898423" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="1">
+<div class="quarto-post image-right" data-index="1" data-categories="news" data-listing-date-sort="1696478400000" data-listing-file-modified-sort="1696784898423" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="1" data-listing-word-count-sort="32">
 <div class="thumbnail">
-<p><a href="./posts/welcome/index.html"> <p class="card-img-top"><img src="posts/welcome/thumbnail.jpg"  class="thumbnail-image card-img"/></p> </a></p>
+<p><a href="./posts/welcome/index.html" class="no-external"></a></p><a href="./posts/welcome/index.html" class="no-external">
+<p class="card-img-top"><img src="posts/welcome/thumbnail.jpg"  class="thumbnail-image card-img"/></p>
+</a><p><a href="./posts/welcome/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/welcome/index.html">
 <h3 class="no-anchor listing-title">
-Welcome To My Blog
+<a href="./posts/welcome/index.html" class="no-external">Welcome To My Blog</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/welcome/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('news'); return false;">
 news
 </div>
 </div>
-<a href="./posts/welcome/index.html">
 <div class="listing-description">
-This is the first post in a Quarto blog. Welcome!
+<a href="./posts/welcome/index.html" class="no-external">This is the first post in a Quarto blog. Welcome!</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/welcome/index.html">
+<a href="./posts/welcome/index.html" class="no-external">
 <div class="listing-date">
 Oct 5, 2023
 </div>
@@ -247,30 +278,28 @@ Tristan O’Malley
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="2" data-categories="" data-listing-date-sort="1650254400000" data-listing-file-modified-sort="1696982015301" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="13">
+<div class="quarto-post image-right" data-index="2" data-categories="" data-listing-date-sort="1650254400000" data-listing-file-modified-sort="1696982015301" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="13" data-listing-word-count-sort="2478">
 <div class="thumbnail">
-<p><a href="./posts/suburbanization-of-allegheny-county/index.html"> <p class="card-img-top"><img src="posts/suburbanization-of-allegheny-county/index_files/figure-html/unnamed-chunk-4-1.png"  class="thumbnail-image card-img"/></p> </a></p>
+<p><a href="./posts/suburbanization-of-allegheny-county/index.html" class="no-external"></a></p><a href="./posts/suburbanization-of-allegheny-county/index.html" class="no-external">
+<p class="card-img-top"><img src="posts/suburbanization-of-allegheny-county/index_files/figure-html/unnamed-chunk-4-1.png"  class="thumbnail-image card-img"/></p>
+</a><p><a href="./posts/suburbanization-of-allegheny-county/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/suburbanization-of-allegheny-county/index.html">
 <h3 class="no-anchor listing-title">
-Suburbanization of Allegheny County
+<a href="./posts/suburbanization-of-allegheny-county/index.html" class="no-external">Suburbanization of Allegheny County</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/suburbanization-of-allegheny-county/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 
 </div>
-<a href="./posts/suburbanization-of-allegheny-county/index.html">
 <div class="listing-description">
-This March, researchers at the University of Georgia and Florida State University released the HHUUD10 dataset, which contains estimates of the number of housing units for decennial census years 1940-2010 and 2019. A “housing unit” could be a studio apartment or 5 bedroom…
+<a href="./posts/suburbanization-of-allegheny-county/index.html" class="no-external">This March, researchers at the University of Georgia and Florida State University released the HHUUD10 dataset, which contains estimates of the number of housing units for…</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/suburbanization-of-allegheny-county/index.html">
+<a href="./posts/suburbanization-of-allegheny-county/index.html" class="no-external">
 <div class="listing-date">
 Apr 18, 2022
 </div>
@@ -280,32 +309,30 @@ R package build
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="3" data-categories="shiny" data-listing-date-sort="1647061200000" data-listing-file-modified-sort="1696984292395" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="5">
+<div class="quarto-post image-right" data-index="3" data-categories="shiny" data-listing-date-sort="1647061200000" data-listing-file-modified-sort="1696984292395" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="5" data-listing-word-count-sort="967">
 <div class="thumbnail">
-<p><a href="./posts/shiny-venn-diagram/index.html"> <p class="card-img-top"><img src="posts/shiny-venn-diagram/index_files/figure-html/unnamed-chunk-1-1.png"  class="thumbnail-image card-img"/></p> </a></p>
+<p><a href="./posts/shiny-venn-diagram/index.html" class="no-external"></a></p><a href="./posts/shiny-venn-diagram/index.html" class="no-external">
+<p class="card-img-top"><img src="posts/shiny-venn-diagram/index_files/figure-html/unnamed-chunk-1-1.png"  class="thumbnail-image card-img"/></p>
+</a><p><a href="./posts/shiny-venn-diagram/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/shiny-venn-diagram/index.html">
 <h3 class="no-anchor listing-title">
-Making a Venn diagram in Shiny
+<a href="./posts/shiny-venn-diagram/index.html" class="no-external">Making a Venn diagram in Shiny</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/shiny-venn-diagram/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('shiny'); return false;">
 shiny
 </div>
 </div>
-<a href="./posts/shiny-venn-diagram/index.html">
 <div class="listing-description">
-This blog post is about making Venn diagrams work in Shiny, and the issues I ran into with <code>shiny::nearPoints()</code>. I show how…
+<a href="./posts/shiny-venn-diagram/index.html" class="no-external">This blog post is about making Venn diagrams work in Shiny, and the issues I ran into with <code>shiny::nearPoints()</code>. I show how this impacted my initial approach, and discuss the…</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/shiny-venn-diagram/index.html">
+<a href="./posts/shiny-venn-diagram/index.html" class="no-external">
 <div class="listing-date">
 Mar 12, 2022
 </div>
@@ -315,19 +342,19 @@ Conor Tompkins
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="4" data-categories="R,eBird" data-listing-date-sort="1637673643000" data-listing-file-modified-sort="1697292560104" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="6">
+<div class="quarto-post image-right" data-index="4" data-categories="R,eBird" data-listing-date-sort="1637673643000" data-listing-file-modified-sort="1697292560104" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="6" data-listing-word-count-sort="1195">
 <div class="thumbnail">
-<p><a href="./posts/effect-of-geographic-resolution-on-ebirdst-abundance/index.html"> <p class="card-img-top"><img src="posts/effect-of-geographic-resolution-on-ebirdst-abundance/index_files/figure-html/unnamed-chunk-8-1.png"  class="thumbnail-image card-img"/></p> </a></p>
+<p><a href="./posts/effect-of-geographic-resolution-on-ebirdst-abundance/index.html" class="no-external"></a></p><a href="./posts/effect-of-geographic-resolution-on-ebirdst-abundance/index.html" class="no-external">
+<p class="card-img-top"><img src="posts/effect-of-geographic-resolution-on-ebirdst-abundance/index_files/figure-html/unnamed-chunk-8-1.png"  class="thumbnail-image card-img"/></p>
+</a><p><a href="./posts/effect-of-geographic-resolution-on-ebirdst-abundance/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/effect-of-geographic-resolution-on-ebirdst-abundance/index.html">
 <h3 class="no-anchor listing-title">
-Effect of Geographic Resolution on ebirdst Abundance
+<a href="./posts/effect-of-geographic-resolution-on-ebirdst-abundance/index.html" class="no-external">Effect of Geographic Resolution on ebirdst Abundance</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/effect-of-geographic-resolution-on-ebirdst-abundance/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('R'); return false;">
 R
@@ -336,14 +363,12 @@ R
 eBird
 </div>
 </div>
-<a href="./posts/effect-of-geographic-resolution-on-ebirdst-abundance/index.html">
 <div class="listing-description">
-While exploring some of the citizen science bird observation data available through <code>ebirdst</code>, I was confused by how to understand the calculation of <code>ebirdst</code>’s <code>abundance</code> metric.
+<a href="./posts/effect-of-geographic-resolution-on-ebirdst-abundance/index.html" class="no-external">While exploring some of the citizen science bird observation data available through <code>ebirdst</code>, I was confused by how to understand the calculation of <code>ebirdst</code>’s <code>abundance</code> metric.</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/effect-of-geographic-resolution-on-ebirdst-abundance/index.html">
+<a href="./posts/effect-of-geographic-resolution-on-ebirdst-abundance/index.html" class="no-external">
 <div class="listing-date">
 Nov 23, 2021
 </div>
@@ -353,109 +378,103 @@ Conor Tompkins
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="5" data-categories="" data-listing-date-sort="1617595200000" data-listing-file-modified-sort="1718564655005" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="9">
+<div class="quarto-post image-right" data-index="5" data-categories="" data-listing-date-sort="1617595200000" data-listing-file-modified-sort="1718564655005" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="9" data-listing-word-count-sort="1665">
 <div class="thumbnail">
-<p><a href="./posts/riverhounds_lilley/index.html"> <p class="card-img-top"><img src="posts/riverhounds_lilley/index_files/figure-html/unnamed-chunk-3-1.png"  class="thumbnail-image card-img"/></p> </a></p>
+<p><a href="./posts/riverhounds_lilley/index.html" class="no-external"></a></p><a href="./posts/riverhounds_lilley/index.html" class="no-external">
+<p class="card-img-top"><img src="posts/riverhounds_lilley/index_files/figure-html/unnamed-chunk-3-1.png"  class="thumbnail-image card-img"/></p>
+</a><p><a href="./posts/riverhounds_lilley/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/riverhounds_lilley/index.html">
 <h3 class="no-anchor listing-title">
-Pittsburgh Riverhounds under Coach Lilley
+<a href="./posts/riverhounds_lilley/index.html" class="no-external">Pittsburgh Riverhounds under Coach Lilley</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/riverhounds_lilley/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 
 </div>
-<a href="./posts/riverhounds_lilley/index.html">
 <div class="listing-description">
-I have been a season-ticket holder with the Pittsburgh Riverhounds for a couple seasons now. The…
+<a href="./posts/riverhounds_lilley/index.html" class="no-external">I have been a season-ticket holder with the Pittsburgh Riverhounds for a couple seasons now. The stadium has a great fan experience, and the team has gotten a lot better…</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/riverhounds_lilley/index.html">
+<a href="./posts/riverhounds_lilley/index.html" class="no-external">
 <div class="listing-date">
 Apr 5, 2021
 </div>
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="6" data-categories="" data-listing-date-sort="1616990400000" data-listing-file-modified-sort="1718564654866" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="15">
+<div class="quarto-post image-right" data-index="6" data-categories="" data-listing-date-sort="1616990400000" data-listing-file-modified-sort="1718564654866" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="15" data-listing-word-count-sort="2832">
 <div class="thumbnail">
-<p><a href="./posts/bivariate_transit_map/index.html"> <img src="./posts/bivariate_transit_map/combined_bi_var_transit_featured.png" class="thumbnail-image"> </a></p>
+<p><a href="./posts/bivariate_transit_map/index.html" class="no-external"></a></p><a href="./posts/bivariate_transit_map/index.html" class="no-external">
+<p><img src="./posts/bivariate_transit_map/combined_bi_var_transit_featured.png" class="thumbnail-image"></p>
+</a><p><a href="./posts/bivariate_transit_map/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/bivariate_transit_map/index.html">
 <h3 class="no-anchor listing-title">
-Driving Alone vs.&nbsp;Public Transportation in Pittsburgh
+<a href="./posts/bivariate_transit_map/index.html" class="no-external">Driving Alone vs.&nbsp;Public Transportation in Pittsburgh</a>
 </h3>
 <div class="listing-subtitle">
-Mapping commuter modes with bivariate discretized bins
+<a href="./posts/bivariate_transit_map/index.html" class="no-external">Mapping commuter modes with bivariate discretized bins</a>
 </div>
-</a>
 <div class="listing-categories">
 
 </div>
-<a href="./posts/bivariate_transit_map/index.html">
 <div class="listing-description">
-The clash between public transportation and single passenger vehicles is a heated topic of discussion nationally and in the Pittsburgh area. Public transit ridership…
+<a href="./posts/bivariate_transit_map/index.html" class="no-external">The clash between public transportation and single passenger vehicles is a heated topic of discussion nationally and in the Pittsburgh area. Public transit ridership has…</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/bivariate_transit_map/index.html">
+<a href="./posts/bivariate_transit_map/index.html" class="no-external">
 <div class="listing-date">
 Mar 29, 2021
 </div>
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="7" data-categories="" data-listing-date-sort="1611865423000" data-listing-file-modified-sort="1718564654992" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="8">
+<div class="quarto-post image-right" data-index="7" data-categories="" data-listing-date-sort="1611865423000" data-listing-file-modified-sort="1718564654992" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="8" data-listing-word-count-sort="1499">
 <div class="thumbnail">
-<p><a href="./posts/house_price_estimator/index.html"> <img src="./posts/house_price_estimator/featured.jpg" class="thumbnail-image"> </a></p>
+<p><a href="./posts/house_price_estimator/index.html" class="no-external"></a></p><a href="./posts/house_price_estimator/index.html" class="no-external">
+<p><img src="./posts/house_price_estimator/featured.jpg" class="thumbnail-image"></p>
+</a><p><a href="./posts/house_price_estimator/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/house_price_estimator/index.html">
 <h3 class="no-anchor listing-title">
-House Price Estimator Dashboard
+<a href="./posts/house_price_estimator/index.html" class="no-external">House Price Estimator Dashboard</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/house_price_estimator/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 
 </div>
-<a href="./posts/house_price_estimator/index.html">
 <div class="listing-description">
-Click here to view the full dashboard
+<a href="./posts/house_price_estimator/index.html" class="no-external">Click here to view the full dashboard</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/house_price_estimator/index.html">
+<a href="./posts/house_price_estimator/index.html" class="no-external">
 <div class="listing-date">
 Jan 28, 2021
 </div>
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="8" data-categories="R,Pittsburgh,Healthy Ride,WPRDC" data-listing-date-sort="1607058000000" data-listing-file-modified-sort="1718564654984" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="12">
+<div class="quarto-post image-right" data-index="8" data-categories="R,Pittsburgh,Healthy Ride,WPRDC" data-listing-date-sort="1607058000000" data-listing-file-modified-sort="1718564654984" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="12" data-listing-word-count-sort="2319">
 <div class="thumbnail">
-<p><a href="./posts/healthy_ride_access_pittsburgh/index.html"> <img src="./posts/healthy_ride_access_pittsburgh/featured.png" class="thumbnail-image"> </a></p>
+<p><a href="./posts/healthy_ride_access_pittsburgh/index.html" class="no-external"></a></p><a href="./posts/healthy_ride_access_pittsburgh/index.html" class="no-external">
+<p><img src="./posts/healthy_ride_access_pittsburgh/featured.png" class="thumbnail-image"></p>
+</a><p><a href="./posts/healthy_ride_access_pittsburgh/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/healthy_ride_access_pittsburgh/index.html">
 <h3 class="no-anchor listing-title">
-Bike rental access in Pittsburgh
+<a href="./posts/healthy_ride_access_pittsburgh/index.html" class="no-external">Bike rental access in Pittsburgh</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/healthy_ride_access_pittsburgh/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('R'); return false;">
 R
@@ -470,33 +489,31 @@ Healthy Ride
 WPRDC
 </div>
 </div>
-<a href="./posts/healthy_ride_access_pittsburgh/index.html">
 <div class="listing-description">
-This is an interactive Leaflet map of Healthy Ride access in Pittsburgh. It counts how many Healthy Ride stations are within a 10 minute bike ride of a given location. This…
+<a href="./posts/healthy_ride_access_pittsburgh/index.html" class="no-external">This is an interactive Leaflet map of Healthy Ride access in Pittsburgh. It counts how many Healthy Ride stations are within a 10 minute bike ride of a given location. This…</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/healthy_ride_access_pittsburgh/index.html">
+<a href="./posts/healthy_ride_access_pittsburgh/index.html" class="no-external">
 <div class="listing-date">
 Dec 4, 2020
 </div>
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="9" data-categories="R,Politics" data-listing-date-sort="1605298715000" data-listing-file-modified-sort="1718564655007" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="20">
+<div class="quarto-post image-right" data-index="9" data-categories="R,Politics" data-listing-date-sort="1605298715000" data-listing-file-modified-sort="1718564655007" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="20" data-listing-word-count-sort="3858">
 <div class="thumbnail">
-<p><a href="./posts/shifting_political_winds/index.html"> <img src="./posts/shifting_political_winds/featured.png" class="thumbnail-image"> </a></p>
+<p><a href="./posts/shifting_political_winds/index.html" class="no-external"></a></p><a href="./posts/shifting_political_winds/index.html" class="no-external">
+<p><img src="./posts/shifting_political_winds/featured.png" class="thumbnail-image"></p>
+</a><p><a href="./posts/shifting_political_winds/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/shifting_political_winds/index.html">
 <h3 class="no-anchor listing-title">
-Shifting political winds
+<a href="./posts/shifting_political_winds/index.html" class="no-external">Shifting political winds</a>
 </h3>
 <div class="listing-subtitle">
-Or, drawing arrows on maps
+<a href="./posts/shifting_political_winds/index.html" class="no-external">Or, drawing arrows on maps</a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('R'); return false;">
 R
@@ -505,33 +522,31 @@ R
 Politics
 </div>
 </div>
-<a href="./posts/shifting_political_winds/index.html">
 <div class="listing-description">
-The purpose of this post is to recreate…
+<a href="./posts/shifting_political_winds/index.html" class="no-external">The purpose of this post is to recreate the “Shift from 2016” arrow map that the New York Times used to show which counties became more Democratic or Republican-leaning from…</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/shifting_political_winds/index.html">
+<a href="./posts/shifting_political_winds/index.html" class="no-external">
 <div class="listing-date">
 Nov 13, 2020
 </div>
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="10" data-categories="R,Allegheny County,Commuters,Census,Mapbox" data-listing-date-sort="1603598400000" data-listing-file-modified-sort="1718564654801" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="16">
+<div class="quarto-post image-right" data-index="10" data-categories="R,Allegheny County,Commuters,Census,Mapbox" data-listing-date-sort="1603598400000" data-listing-file-modified-sort="1718564654801" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="16" data-listing-word-count-sort="3002">
 <div class="thumbnail">
-<p><a href="./posts/ac_driving_commuter_routes/index.html"> <img src="./posts/ac_driving_commuter_routes/featured.png" class="thumbnail-image"> </a></p>
+<p><a href="./posts/ac_driving_commuter_routes/index.html" class="no-external"></a></p><a href="./posts/ac_driving_commuter_routes/index.html" class="no-external">
+<p><img src="./posts/ac_driving_commuter_routes/featured.png" class="thumbnail-image"></p>
+</a><p><a href="./posts/ac_driving_commuter_routes/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/ac_driving_commuter_routes/index.html">
 <h3 class="no-anchor listing-title">
-Analyzing major commuter routes in Allegheny County
+<a href="./posts/ac_driving_commuter_routes/index.html" class="no-external">Analyzing major commuter routes in Allegheny County</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/ac_driving_commuter_routes/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('R'); return false;">
 R
@@ -549,33 +564,31 @@ Census
 Mapbox
 </div>
 </div>
-<a href="./posts/ac_driving_commuter_routes/index.html">
 <div class="listing-description">
-In this post I will use the Mapbox API to calculate metrics for major commuter routes in Allegheny County. The API will provide the distance and duration of the trip, as…
+<a href="./posts/ac_driving_commuter_routes/index.html" class="no-external">In this post I will use the Mapbox API to calculate metrics for major commuter routes in Allegheny County. The API will provide the distance and duration of the trip, as…</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/ac_driving_commuter_routes/index.html">
+<a href="./posts/ac_driving_commuter_routes/index.html" class="no-external">
 <div class="listing-date">
 Oct 25, 2020
 </div>
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="11" data-categories="Housing,Zillow" data-listing-date-sort="1603252800000" data-listing-file-modified-sort="1718564655019" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="3">
+<div class="quarto-post image-right" data-index="11" data-categories="Housing,Zillow" data-listing-date-sort="1603252800000" data-listing-file-modified-sort="1718564655019" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="3" data-listing-word-count-sort="549">
 <div class="thumbnail">
-<p><a href="./posts/volatile-zillow-house-value/index.html"> <img src="./posts/volatile-zillow-house-value/featured.png" class="thumbnail-image"> </a></p>
+<p><a href="./posts/volatile-zillow-house-value/index.html" class="no-external"></a></p><a href="./posts/volatile-zillow-house-value/index.html" class="no-external">
+<p><img src="./posts/volatile-zillow-house-value/featured.png" class="thumbnail-image"></p>
+</a><p><a href="./posts/volatile-zillow-house-value/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/volatile-zillow-house-value/index.html">
 <h3 class="no-anchor listing-title">
-Graphing volatile home values in U.S. metro areas
+<a href="./posts/volatile-zillow-house-value/index.html" class="no-external">Graphing volatile home values in U.S. metro areas</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/volatile-zillow-house-value/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('Housing'); return false;">
 Housing
@@ -584,33 +597,31 @@ Housing
 Zillow
 </div>
 </div>
-<a href="./posts/volatile-zillow-house-value/index.html">
 <div class="listing-description">
-Zillow publishes a variety of cool data that I haven’t explored much yet. The first dataset that caught my eye was the Zillow Home Value Index (ZHVI). Zillow…<code></code>
+<a href="./posts/volatile-zillow-house-value/index.html" class="no-external">Zillow publishes a variety of cool data that I haven’t explored much yet. The first dataset that caught my eye was the Zillow Home Value Index (ZHVI). Zillow describes it as…<code></code></a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/volatile-zillow-house-value/index.html">
+<a href="./posts/volatile-zillow-house-value/index.html" class="no-external">
 <div class="listing-date">
 Oct 21, 2020
 </div>
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="12" data-categories="Pittsburgh,Parking,COVID-19" data-listing-date-sort="1601870400000" data-listing-file-modified-sort="1718564655000" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="12">
+<div class="quarto-post image-right" data-index="12" data-categories="Pittsburgh,Parking,COVID-19" data-listing-date-sort="1601870400000" data-listing-file-modified-sort="1718564655000" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="12" data-listing-word-count-sort="2274">
 <div class="thumbnail">
-<p><a href="./posts/pittsburgh-parking-covid-change/index.html"> <img src="./posts/pittsburgh-parking-covid-change/featured.png" class="thumbnail-image"> </a></p>
+<p><a href="./posts/pittsburgh-parking-covid-change/index.html" class="no-external"></a></p><a href="./posts/pittsburgh-parking-covid-change/index.html" class="no-external">
+<p><img src="./posts/pittsburgh-parking-covid-change/featured.png" class="thumbnail-image"></p>
+</a><p><a href="./posts/pittsburgh-parking-covid-change/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/pittsburgh-parking-covid-change/index.html">
 <h3 class="no-anchor listing-title">
-Effect of COVID-19 on Pittsburgh parking transactions
+<a href="./posts/pittsburgh-parking-covid-change/index.html" class="no-external">Effect of COVID-19 on Pittsburgh parking transactions</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/pittsburgh-parking-covid-change/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('Pittsburgh'); return false;">
 Pittsburgh
@@ -622,33 +633,31 @@ Parking
 COVID-19
 </div>
 </div>
-<a href="./posts/pittsburgh-parking-covid-change/index.html">
 <div class="listing-description">
-The COVID-19 pandemic’s affect on commerce and mobility habits is well documented. For example, Apple publishes Mobility Trends reports about…
+<a href="./posts/pittsburgh-parking-covid-change/index.html" class="no-external">The COVID-19 pandemic’s affect on commerce and mobility habits is well documented. For example, Apple publishes Mobility Trends reports about utilization of various…</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/pittsburgh-parking-covid-change/index.html">
+<a href="./posts/pittsburgh-parking-covid-change/index.html" class="no-external">
 <div class="listing-date">
 Oct 5, 2020
 </div>
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="13" data-categories="Census,Commuter patterns" data-listing-date-sort="1601006400000" data-listing-file-modified-sort="1718564654995" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="7">
+<div class="quarto-post image-right" data-index="13" data-categories="Census,Commuter patterns" data-listing-date-sort="1601006400000" data-listing-file-modified-sort="1718564654995" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="7" data-listing-word-count-sort="1322">
 <div class="thumbnail">
-<p><a href="./posts/mapping-boswash-commuter-patterns/index.html"> <img src="./posts/mapping-boswash-commuter-patterns/flowmapblue_sheet_screen.png" class="thumbnail-image"> </a></p>
+<p><a href="./posts/mapping-boswash-commuter-patterns/index.html" class="no-external"></a></p><a href="./posts/mapping-boswash-commuter-patterns/index.html" class="no-external">
+<p><img src="./posts/mapping-boswash-commuter-patterns/flowmapblue_sheet_screen.png" class="thumbnail-image"></p>
+</a><p><a href="./posts/mapping-boswash-commuter-patterns/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/mapping-boswash-commuter-patterns/index.html">
 <h3 class="no-anchor listing-title">
-Mapping BosWash commuter patterns with Flowmap.blue
+<a href="./posts/mapping-boswash-commuter-patterns/index.html" class="no-external">Mapping BosWash commuter patterns with Flowmap.blue</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/mapping-boswash-commuter-patterns/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('Census'); return false;">
 Census
@@ -657,33 +666,31 @@ Census
 Commuter patterns
 </div>
 </div>
-<a href="./posts/mapping-boswash-commuter-patterns/index.html">
 <div class="listing-description">
-This map shows the commuter patterns in the Northeast Megalopolis/Acela Corridor/BosWash metro area. I pulled the data from the Census…<code></code>
+<a href="./posts/mapping-boswash-commuter-patterns/index.html" class="no-external">This map shows the commuter patterns in the Northeast Megalopolis/Acela Corridor/BosWash metro area. I pulled the data from the Census Longitudinal Employer-Household…<code></code></a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/mapping-boswash-commuter-patterns/index.html">
+<a href="./posts/mapping-boswash-commuter-patterns/index.html" class="no-external">
 <div class="listing-date">
 Sep 25, 2020
 </div>
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="14" data-categories="R,Pittsburgh,Allegheny County" data-listing-date-sort="1598205021000" data-listing-file-modified-sort="1718564654995" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="8">
+<div class="quarto-post image-right" data-index="14" data-categories="R,Pittsburgh,Allegheny County" data-listing-date-sort="1598205021000" data-listing-file-modified-sort="1718564654995" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="8" data-listing-word-count-sort="1441">
 <div class="thumbnail">
-<p><a href="./posts/model-results-leaflet-map/index.html"> <div class="listing-item-img-placeholder card-img-top" >&nbsp;</div> </a></p>
+<p><a href="./posts/model-results-leaflet-map/index.html" class="no-external"></a></p><a href="./posts/model-results-leaflet-map/index.html" class="no-external">
+<div class="listing-item-img-placeholder card-img-top" >&nbsp;</div>
+</a><p><a href="./posts/model-results-leaflet-map/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/model-results-leaflet-map/index.html">
 <h3 class="no-anchor listing-title">
-Pittsburgh City Boundary Model Leaflet Map
+<a href="./posts/model-results-leaflet-map/index.html" class="no-external">Pittsburgh City Boundary Model Leaflet Map</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/model-results-leaflet-map/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('R'); return false;">
 R
@@ -695,14 +702,12 @@ Pittsburgh
 Allegheny County
 </div>
 </div>
-<a href="./posts/model-results-leaflet-map/index.html">
 <div class="listing-description">
-Last Friday I posted a classification model that attempted to identify which…<code></code>
+<a href="./posts/model-results-leaflet-map/index.html" class="no-external">Last Friday I posted a classification model that attempted to identify which census tracts in Allegheny County fall within the border of the City of Pittsburgh. I used a…<code></code></a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/model-results-leaflet-map/index.html">
+<a href="./posts/model-results-leaflet-map/index.html" class="no-external">
 <div class="listing-date">
 Aug 23, 2020
 </div>
@@ -712,25 +717,25 @@ Conor Tompkins
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="15" data-listing-date-sort="1597377600000" data-listing-file-modified-sort="1718564654902" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="10">
+<div class="quarto-post image-right" data-index="15" data-listing-date-sort="1597377600000" data-listing-file-modified-sort="1718564654902" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="10" data-listing-word-count-sort="1805">
 <div class="thumbnail">
-<p><a href="./posts/classifying-pittsburgh-city-boundary/index.html"> <p class="card-img-top"><img src="https://upload.wikimedia.org/wikipedia/commons/f/fd/Allegheny_City.jpg"  class="thumbnail-image card-img"/></p> </a></p>
+<p><a href="./posts/classifying-pittsburgh-city-boundary/index.html" class="no-external"></a></p><a href="./posts/classifying-pittsburgh-city-boundary/index.html" class="no-external">
+<div class="listing-item-img-placeholder card-img-top" >&nbsp;</div>
+</a><p><a href="./posts/classifying-pittsburgh-city-boundary/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/classifying-pittsburgh-city-boundary/index.html">
 <h3 class="no-anchor listing-title">
-Modeling the Pittsburgh City Boundary
+<a href="./posts/classifying-pittsburgh-city-boundary/index.html" class="no-external">Modeling the Pittsburgh City Boundary</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/classifying-pittsburgh-city-boundary/index.html" class="no-external"></a>
 </div>
 <div class="listing-description">
-My goal is to create a classification model that can distinguish between census tracts that are inside the…
+<a href="./posts/classifying-pittsburgh-city-boundary/index.html" class="no-external">My goal is to create a classification model that can distinguish between census tracts that are inside the city or outside the City of Pittsburgh. The border is interrupted…</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/classifying-pittsburgh-city-boundary/index.html">
+<a href="./posts/classifying-pittsburgh-city-boundary/index.html" class="no-external">
 <div class="listing-date">
 Aug 14, 2020
 </div>
@@ -740,27 +745,27 @@ Conor Tompkins
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="16" data-listing-date-sort="1597377600000" data-listing-file-modified-sort="1718564654967" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="7">
+<div class="quarto-post image-right" data-index="16" data-listing-date-sort="1597377600000" data-listing-file-modified-sort="1718564654967" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="7" data-listing-word-count-sort="1327">
 <div class="thumbnail">
-<p><a href="./posts/compare-pre-post-covid/index.html"> <img src="./posts/compare-pre-post-covid/preview.png" class="thumbnail-image"> </a></p>
+<p><a href="./posts/compare-pre-post-covid/index.html" class="no-external"></a></p><a href="./posts/compare-pre-post-covid/index.html" class="no-external">
+<p><img src="./posts/compare-pre-post-covid/preview.png" class="thumbnail-image"></p>
+</a><p><a href="./posts/compare-pre-post-covid/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/compare-pre-post-covid/index.html">
 <h3 class="no-anchor listing-title">
-Comparing Healthy Ride Usage Pre And “Post” COVID-19
+<a href="./posts/compare-pre-post-covid/index.html" class="no-external">Comparing Healthy Ride Usage Pre And “Post” COVID-19</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/compare-pre-post-covid/index.html" class="no-external"></a>
 </div>
 <div class="listing-description">
-
+<a href="./posts/compare-pre-post-covid/index.html" class="no-external">
 Would be interested to see this <span class="citation" data-cites="healthyridepgh">@healthyridepgh</span> data to compare pre-covid (2019) and during (2020)
-
-</div>
 </a>
 </div>
+</div>
 <div class="metadata">
-<a href="./posts/compare-pre-post-covid/index.html">
+<a href="./posts/compare-pre-post-covid/index.html" class="no-external">
 <div class="listing-date">
 Aug 14, 2020
 </div>
@@ -770,30 +775,28 @@ Conor Tompkins
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="17" data-categories="" data-listing-date-sort="1595217600000" data-listing-file-modified-sort="1718564655015" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="11">
+<div class="quarto-post image-right" data-index="17" data-categories="" data-listing-date-sort="1595217600000" data-listing-file-modified-sort="1718564655015" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="11" data-listing-word-count-sort="2156">
 <div class="thumbnail">
-<p><a href="./posts/time-series-clustering-covid-19-cases/index.html"> <img src="./posts/time-series-clustering-covid-19-cases/preview.png" class="thumbnail-image"> </a></p>
+<p><a href="./posts/time-series-clustering-covid-19-cases/index.html" class="no-external"></a></p><a href="./posts/time-series-clustering-covid-19-cases/index.html" class="no-external">
+<p><img src="./posts/time-series-clustering-covid-19-cases/preview.png" class="thumbnail-image"></p>
+</a><p><a href="./posts/time-series-clustering-covid-19-cases/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/time-series-clustering-covid-19-cases/index.html">
 <h3 class="no-anchor listing-title">
-Time series clustering COVID-19 case data
+<a href="./posts/time-series-clustering-covid-19-cases/index.html" class="no-external">Time series clustering COVID-19 case data</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/time-series-clustering-covid-19-cases/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 
 </div>
-<a href="./posts/time-series-clustering-covid-19-cases/index.html">
 <div class="listing-description">
-Interactive Tableau visualization of the clusters
+<a href="./posts/time-series-clustering-covid-19-cases/index.html" class="no-external">Interactive Tableau visualization of the clusters</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/time-series-clustering-covid-19-cases/index.html">
+<a href="./posts/time-series-clustering-covid-19-cases/index.html" class="no-external">
 <div class="listing-date">
 Jul 20, 2020
 </div>
@@ -803,19 +806,19 @@ Conor Tompkins
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="18" data-categories="R,politics" data-listing-date-sort="1594180800000" data-listing-file-modified-sort="1718564655020" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="10">
+<div class="quarto-post image-right" data-index="18" data-categories="R,politics" data-listing-date-sort="1594180800000" data-listing-file-modified-sort="1718564655020" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="10" data-listing-word-count-sort="1962">
 <div class="thumbnail">
-<p><a href="./posts/working-with-paycheck-protection-program-data-in-r/index.html"> <img src="./posts/working-with-paycheck-protection-program-data-in-r/preview.png" class="thumbnail-image"> </a></p>
+<p><a href="./posts/working-with-paycheck-protection-program-data-in-r/index.html" class="no-external"></a></p><a href="./posts/working-with-paycheck-protection-program-data-in-r/index.html" class="no-external">
+<p><img src="./posts/working-with-paycheck-protection-program-data-in-r/preview.png" class="thumbnail-image"></p>
+</a><p><a href="./posts/working-with-paycheck-protection-program-data-in-r/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/working-with-paycheck-protection-program-data-in-r/index.html">
 <h3 class="no-anchor listing-title">
-Working with Paycheck Protection Program data in R
+<a href="./posts/working-with-paycheck-protection-program-data-in-r/index.html" class="no-external">Working with Paycheck Protection Program data in R</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/working-with-paycheck-protection-program-data-in-r/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('R'); return false;">
 R
@@ -824,14 +827,12 @@ R
 politics
 </div>
 </div>
-<a href="./posts/working-with-paycheck-protection-program-data-in-r/index.html">
 <div class="listing-description">
-In this post, I walk through the process of reading in the data from the Paycheck Protection Program, and show some basic analyses that can be done.
+<a href="./posts/working-with-paycheck-protection-program-data-in-r/index.html" class="no-external">In this post, I walk through the process of reading in the data from the Paycheck Protection Program, and show some basic analyses that can be done.</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/working-with-paycheck-protection-program-data-in-r/index.html">
+<a href="./posts/working-with-paycheck-protection-program-data-in-r/index.html" class="no-external">
 <div class="listing-date">
 Jul 8, 2020
 </div>
@@ -841,19 +842,19 @@ Conor Tompkins
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="19" data-categories="R,COVID-19" data-listing-date-sort="1594094400000" data-listing-file-modified-sort="1718564654975" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="8">
+<div class="quarto-post image-right" data-index="19" data-categories="R,COVID-19" data-listing-date-sort="1594094400000" data-listing-file-modified-sort="1718564654975" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="8" data-listing-word-count-sort="1516">
 <div class="thumbnail">
-<p><a href="./posts/graphing-allegheny-county-covid-19-data/index.html"> <img src="./posts/graphing-allegheny-county-covid-19-data/featured.png" class="thumbnail-image"> </a></p>
+<p><a href="./posts/graphing-allegheny-county-covid-19-data/index.html" class="no-external"></a></p><a href="./posts/graphing-allegheny-county-covid-19-data/index.html" class="no-external">
+<p><img src="./posts/graphing-allegheny-county-covid-19-data/featured.png" class="thumbnail-image"></p>
+</a><p><a href="./posts/graphing-allegheny-county-covid-19-data/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/graphing-allegheny-county-covid-19-data/index.html">
 <h3 class="no-anchor listing-title">
-Graphing Allegheny County COVID-19 data
+<a href="./posts/graphing-allegheny-county-covid-19-data/index.html" class="no-external">Graphing Allegheny County COVID-19 data</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/graphing-allegheny-county-covid-19-data/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('R'); return false;">
 R
@@ -862,142 +863,132 @@ R
 COVID-19
 </div>
 </div>
-<a href="./posts/graphing-allegheny-county-covid-19-data/index.html">
 <div class="listing-description">
-In this post, I review the process I use to make daily graphs from data published by the Allegheny County Health Department. I use the data posted by Franklin Chen, who scrapes the data from the County’s…
+<a href="./posts/graphing-allegheny-county-covid-19-data/index.html" class="no-external">In this post, I review the process I use to make daily graphs from data published by the Allegheny County Health Department. I use the data posted by Franklin Chen, who…</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/graphing-allegheny-county-covid-19-data/index.html">
+<a href="./posts/graphing-allegheny-county-covid-19-data/index.html" class="no-external">
 <div class="listing-date">
 Jul 7, 2020
 </div>
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="20" data-categories="R" data-listing-date-sort="1592712000000" data-listing-file-modified-sort="1718564655004" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="14">
+<div class="quarto-post image-right" data-index="20" data-categories="R" data-listing-date-sort="1592712000000" data-listing-file-modified-sort="1718564655004" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="14" data-listing-word-count-sort="2716">
 <div class="thumbnail">
-<p><a href="./posts/remodeling-the-office/index.html"> <img src="./posts/remodeling-the-office/featured.png" class="thumbnail-image"> </a></p>
+<p><a href="./posts/remodeling-the-office/index.html" class="no-external"></a></p><a href="./posts/remodeling-the-office/index.html" class="no-external">
+<p><img src="./posts/remodeling-the-office/featured.png" class="thumbnail-image"></p>
+</a><p><a href="./posts/remodeling-the-office/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/remodeling-the-office/index.html">
 <h3 class="no-anchor listing-title">
-(re)Modeling the Office
+<a href="./posts/remodeling-the-office/index.html" class="no-external">(re)Modeling the Office</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/remodeling-the-office/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('R'); return false;">
 R
 </div>
 </div>
-<a href="./posts/remodeling-the-office/index.html">
 <div class="listing-description">
-The goal for this analysis is to determine which characters, directors, and writers from The Office most influence an episode’s IMDB rating. My hypothesis is…
+<a href="./posts/remodeling-the-office/index.html" class="no-external">The goal for this analysis is to determine which characters, directors, and writers from The Office most influence an episode’s IMDB rating. My hypothesis is that IMDB…</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/remodeling-the-office/index.html">
+<a href="./posts/remodeling-the-office/index.html" class="no-external">
 <div class="listing-date">
 Jun 21, 2020
 </div>
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="21" data-categories="R" data-listing-date-sort="1590379200000" data-listing-file-modified-sort="1718566457581" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="5">
+<div class="quarto-post image-right" data-index="21" data-categories="R" data-listing-date-sort="1590379200000" data-listing-file-modified-sort="1718566457581" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="5" data-listing-word-count-sort="959">
 <div class="thumbnail">
-<p><a href="./posts/cleaning-creatively-formatted-u-s-census-bureau-migration-data/index.html"> <img src="./posts/cleaning-creatively-formatted-u-s-census-bureau-migration-data/featured.png" class="thumbnail-image"> </a></p>
+<p><a href="./posts/cleaning-creatively-formatted-u-s-census-bureau-migration-data/index.html" class="no-external"></a></p><a href="./posts/cleaning-creatively-formatted-u-s-census-bureau-migration-data/index.html" class="no-external">
+<p><img src="./posts/cleaning-creatively-formatted-u-s-census-bureau-migration-data/featured.png" class="thumbnail-image"></p>
+</a><p><a href="./posts/cleaning-creatively-formatted-u-s-census-bureau-migration-data/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/cleaning-creatively-formatted-u-s-census-bureau-migration-data/index.html">
 <h3 class="no-anchor listing-title">
-Cleaning Creatively Formatted US Census Bureau Migration Data
+<a href="./posts/cleaning-creatively-formatted-u-s-census-bureau-migration-data/index.html" class="no-external">Cleaning Creatively Formatted US Census Bureau Migration Data</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/cleaning-creatively-formatted-u-s-census-bureau-migration-data/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('R'); return false;">
 R
 </div>
 </div>
-<a href="./posts/cleaning-creatively-formatted-u-s-census-bureau-migration-data/index.html">
 <div class="listing-description">
-I recently ran across the U.S. Census Bureau page for state-to-state migration flows. There’s a lot of interesting analyses that can be done with a dataset like this. Unfortunately, when I opened up the…
+<a href="./posts/cleaning-creatively-formatted-u-s-census-bureau-migration-data/index.html" class="no-external">I recently ran across the U.S. Census Bureau page for state-to-state migration flows. There’s a lot of interesting analyses that can be done with a dataset like this.…</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/cleaning-creatively-formatted-u-s-census-bureau-migration-data/index.html">
+<a href="./posts/cleaning-creatively-formatted-u-s-census-bureau-migration-data/index.html" class="no-external">
 <div class="listing-date">
 May 25, 2020
 </div>
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="22" data-categories="R" data-listing-date-sort="1588478400000" data-listing-file-modified-sort="1718567697090" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="7">
+<div class="quarto-post image-right" data-index="22" data-categories="R" data-listing-date-sort="1588478400000" data-listing-file-modified-sort="1718567697090" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="7" data-listing-word-count-sort="1341">
 <div class="thumbnail">
-<p><a href="./posts/clustering-bird-species-with-seasonality/index.html"> <img src="./posts/clustering-bird-species-with-seasonality/featured.png" class="thumbnail-image"> </a></p>
+<p><a href="./posts/clustering-bird-species-with-seasonality/index.html" class="no-external"></a></p><a href="./posts/clustering-bird-species-with-seasonality/index.html" class="no-external">
+<p><img src="./posts/clustering-bird-species-with-seasonality/featured.png" class="thumbnail-image"></p>
+</a><p><a href="./posts/clustering-bird-species-with-seasonality/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/clustering-bird-species-with-seasonality/index.html">
 <h3 class="no-anchor listing-title">
-Clustering Bird Species with Seasonality
+<a href="./posts/clustering-bird-species-with-seasonality/index.html" class="no-external">Clustering Bird Species with Seasonality</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/clustering-bird-species-with-seasonality/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('R'); return false;">
 R
 </div>
 </div>
-<a href="./posts/clustering-bird-species-with-seasonality/index.html">
 <div class="listing-description">
-In this post, I use k-means clustering to identify clusters of bird species based on frequency of observations per month. I use bird sightings in Allegheny County from eBird.
+<a href="./posts/clustering-bird-species-with-seasonality/index.html" class="no-external">In this post, I use k-means clustering to identify clusters of bird species based on frequency of observations per month. I use bird sightings in Allegheny County from eBird.</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/clustering-bird-species-with-seasonality/index.html">
+<a href="./posts/clustering-bird-species-with-seasonality/index.html" class="no-external">
 <div class="listing-date">
 May 3, 2020
 </div>
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="23" data-categories="R" data-listing-date-sort="1588132800000" data-listing-file-modified-sort="1718568511919" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="3">
+<div class="quarto-post image-right" data-index="23" data-categories="R" data-listing-date-sort="1588132800000" data-listing-file-modified-sort="1718568511919" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="3" data-listing-word-count-sort="519">
 <div class="thumbnail">
-<p><a href="./posts/cumulative-ebird-sightings-in-allegheny-county/index.html"> <img src="./posts/cumulative-ebird-sightings-in-allegheny-county/cumulative_observations.gif" class="thumbnail-image"> </a></p>
+<p><a href="./posts/cumulative-ebird-sightings-in-allegheny-county/index.html" class="no-external"></a></p><a href="./posts/cumulative-ebird-sightings-in-allegheny-county/index.html" class="no-external">
+<p><img src="./posts/cumulative-ebird-sightings-in-allegheny-county/cumulative_observations.gif" class="thumbnail-image"></p>
+</a><p><a href="./posts/cumulative-ebird-sightings-in-allegheny-county/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/cumulative-ebird-sightings-in-allegheny-county/index.html">
 <h3 class="no-anchor listing-title">
-Cumulative eBird Sightings in Allegheny County
+<a href="./posts/cumulative-ebird-sightings-in-allegheny-county/index.html" class="no-external">Cumulative eBird Sightings in Allegheny County</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/cumulative-ebird-sightings-in-allegheny-county/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('R'); return false;">
 R
 </div>
 </div>
-<a href="./posts/cumulative-ebird-sightings-in-allegheny-county/index.html">
 <div class="listing-description">
-This will be a quick post on cumulative bird…<code></code>
+<a href="./posts/cumulative-ebird-sightings-in-allegheny-county/index.html" class="no-external">This will be a quick post on cumulative bird observations in Allegheny County. Cumulative graphs show overall trends, seasonality, and quirks in how the data was recorded.…<code></code></a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/cumulative-ebird-sightings-in-allegheny-county/index.html">
+<a href="./posts/cumulative-ebird-sightings-in-allegheny-county/index.html" class="no-external">
 <div class="listing-date">
 Apr 29, 2020
 </div>
@@ -1007,51 +998,49 @@ Conor Tompkins
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="24" data-categories="R" data-listing-date-sort="1587182400000" data-listing-file-modified-sort="1724534249031" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="9">
+<div class="quarto-post image-right" data-index="24" data-categories="R" data-listing-date-sort="1587182400000" data-listing-file-modified-sort="1724534249031" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="9" data-listing-word-count-sort="1679">
 <div class="thumbnail">
-<p><a href="./posts/ebirding-in-allegheny-county/index.html"> <img src="./posts/ebirding-in-allegheny-county/featured.png" class="thumbnail-image"> </a></p>
+<p><a href="./posts/ebirding-in-allegheny-county/index.html" class="no-external"></a></p><a href="./posts/ebirding-in-allegheny-county/index.html" class="no-external">
+<p><img src="./posts/ebirding-in-allegheny-county/featured.png" class="thumbnail-image"></p>
+</a><p><a href="./posts/ebirding-in-allegheny-county/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/ebirding-in-allegheny-county/index.html">
 <h3 class="no-anchor listing-title">
-eBirding in Allegheny County
+<a href="./posts/ebirding-in-allegheny-county/index.html" class="no-external">eBirding in Allegheny County</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/ebirding-in-allegheny-county/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('R'); return false;">
 R
 </div>
 </div>
-<a href="./posts/ebirding-in-allegheny-county/index.html">
 <div class="listing-description">
-In this post I will do some exploratory analysis on eBird data. I’ve picked up birdwatching as a hobby during quarantine, and eBird has a ton of cool data on bird sightings.
+<a href="./posts/ebirding-in-allegheny-county/index.html" class="no-external">In this post I will do some exploratory analysis on eBird data. I’ve picked up birdwatching as a hobby during quarantine, and eBird has a ton of cool data on bird sightings.</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/ebirding-in-allegheny-county/index.html">
+<a href="./posts/ebirding-in-allegheny-county/index.html" class="no-external">
 <div class="listing-date">
 Apr 18, 2020
 </div>
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="25" data-categories="R,WPRDC,Allegheny County,Transit" data-listing-date-sort="1585972800000" data-listing-file-modified-sort="1725222177009" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="7">
+<div class="quarto-post image-right" data-index="25" data-categories="R,WPRDC,Allegheny County,Transit" data-listing-date-sort="1585972800000" data-listing-file-modified-sort="1725222177009" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="7" data-listing-word-count-sort="1302">
 <div class="thumbnail">
-<p><a href="./posts/roughly-calculating-allegheny-county-transit-efficiency/index.html"> <img data-src="./posts/roughly-calculating-allegheny-county-transit-efficiency/featured.png" class="thumbnail-image"> </a></p>
+<p><a href="./posts/roughly-calculating-allegheny-county-transit-efficiency/index.html" class="no-external"></a></p><a href="./posts/roughly-calculating-allegheny-county-transit-efficiency/index.html" class="no-external">
+<p><img data-src="./posts/roughly-calculating-allegheny-county-transit-efficiency/featured.png" class="thumbnail-image"></p>
+</a><p><a href="./posts/roughly-calculating-allegheny-county-transit-efficiency/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/roughly-calculating-allegheny-county-transit-efficiency/index.html">
 <h3 class="no-anchor listing-title">
-Roughly Calculating Allegheny County Transit Efficiency
+<a href="./posts/roughly-calculating-allegheny-county-transit-efficiency/index.html" class="no-external">Roughly Calculating Allegheny County Transit Efficiency</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/roughly-calculating-allegheny-county-transit-efficiency/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('R'); return false;">
 R
@@ -1066,33 +1055,31 @@ Allegheny County
 Transit
 </div>
 </div>
-<a href="./posts/roughly-calculating-allegheny-county-transit-efficiency/index.html">
 <div class="listing-description">
-As part my work on transit lines in…
+<a href="./posts/roughly-calculating-allegheny-county-transit-efficiency/index.html" class="no-external">As part my work on transit lines in Allegheny County, I am interested in which transit lines are most efficient, in terms of residents and jobs served. This is possible with…</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/roughly-calculating-allegheny-county-transit-efficiency/index.html">
+<a href="./posts/roughly-calculating-allegheny-county-transit-efficiency/index.html" class="no-external">
 <div class="listing-date">
 Apr 4, 2020
 </div>
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="26" data-categories="R,Pittsburgh,Allegheny County,Transit,WPRDC" data-listing-date-sort="1583038800000" data-listing-file-modified-sort="1725223131556" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="10">
+<div class="quarto-post image-right" data-index="26" data-categories="R,Pittsburgh,Allegheny County,Transit,WPRDC" data-listing-date-sort="1583038800000" data-listing-file-modified-sort="1725223131556" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="10" data-listing-word-count-sort="1946">
 <div class="thumbnail">
-<p><a href="./posts/visualizing-transit-connections-between-pittsburgh-census-tracts/index.html"> <img data-src="./posts/visualizing-transit-connections-between-pittsburgh-census-tracts/featured.png" class="thumbnail-image"> </a></p>
+<p><a href="./posts/visualizing-transit-connections-between-pittsburgh-census-tracts/index.html" class="no-external"></a></p><a href="./posts/visualizing-transit-connections-between-pittsburgh-census-tracts/index.html" class="no-external">
+<p><img data-src="./posts/visualizing-transit-connections-between-pittsburgh-census-tracts/featured.png" class="thumbnail-image"></p>
+</a><p><a href="./posts/visualizing-transit-connections-between-pittsburgh-census-tracts/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/visualizing-transit-connections-between-pittsburgh-census-tracts/index.html">
 <h3 class="no-anchor listing-title">
-Visualizing Transit Connections Between Pittsburgh Census Tracts
+<a href="./posts/visualizing-transit-connections-between-pittsburgh-census-tracts/index.html" class="no-external">Visualizing Transit Connections Between Pittsburgh Census Tracts</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/visualizing-transit-connections-between-pittsburgh-census-tracts/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('R'); return false;">
 R
@@ -1110,33 +1097,31 @@ Transit
 WPRDC
 </div>
 </div>
-<a href="./posts/visualizing-transit-connections-between-pittsburgh-census-tracts/index.html">
 <div class="listing-description">
-In this post I will use transit line and stop data from the WPRDC to map connections between census tracts. I access the census data via <code>{tidycensus}</code>, which contains information about the commuter…
+<a href="./posts/visualizing-transit-connections-between-pittsburgh-census-tracts/index.html" class="no-external">In this post I will use transit line and stop data from the WPRDC to map connections between census tracts. I access the census data via <code>{tidycensus}</code>, which contains…</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/visualizing-transit-connections-between-pittsburgh-census-tracts/index.html">
+<a href="./posts/visualizing-transit-connections-between-pittsburgh-census-tracts/index.html" class="no-external">
 <div class="listing-date">
 Mar 1, 2020
 </div>
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="27" data-categories="R,Pittsburgh,Allegheny County,Census,WPRDC" data-listing-date-sort="1581224400000" data-listing-file-modified-sort="1725307610182" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="22">
+<div class="quarto-post image-right" data-index="27" data-categories="R,Pittsburgh,Allegheny County,Census,WPRDC" data-listing-date-sort="1581224400000" data-listing-file-modified-sort="1725307610182" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="22" data-listing-word-count-sort="4250">
 <div class="thumbnail">
-<p><a href="./posts/how-many-pittsburghers-cross-the-river-to-get-to-work/index.html"> <img data-src="./posts/how-many-pittsburghers-cross-the-river-to-get-to-work/featured.png" class="thumbnail-image"> </a></p>
+<p><a href="./posts/how-many-pittsburghers-cross-the-river-to-get-to-work/index.html" class="no-external"></a></p><a href="./posts/how-many-pittsburghers-cross-the-river-to-get-to-work/index.html" class="no-external">
+<p><img data-src="./posts/how-many-pittsburghers-cross-the-river-to-get-to-work/featured.png" class="thumbnail-image"></p>
+</a><p><a href="./posts/how-many-pittsburghers-cross-the-river-to-get-to-work/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/how-many-pittsburghers-cross-the-river-to-get-to-work/index.html">
 <h3 class="no-anchor listing-title">
-How Many Pittsburghers Cross the River to Get to Work
+<a href="./posts/how-many-pittsburghers-cross-the-river-to-get-to-work/index.html" class="no-external">How Many Pittsburghers Cross the River to Get to Work</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/how-many-pittsburghers-cross-the-river-to-get-to-work/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('R'); return false;">
 R
@@ -1154,33 +1139,31 @@ Census
 WPRDC
 </div>
 </div>
-<a href="./posts/how-many-pittsburghers-cross-the-river-to-get-to-work/index.html">
 <div class="listing-description">
-This post focuses on how many rivers Pittsburghers cross to get to work. I use the U.S. Census Bureau LEHD Origin-Destination Employment Statistics (LODES) dataset to draw lines between “home” census tracts and “work” census tracts, and then count how many “commuter lines” intersect with the 3 main rivers in Pittsburgh. This…
+<a href="./posts/how-many-pittsburghers-cross-the-river-to-get-to-work/index.html" class="no-external">This post focuses on how many rivers Pittsburghers cross to get to work. I use the U.S. Census Bureau LEHD Origin-Destination Employment Statistics (LODES) dataset to draw…</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/how-many-pittsburghers-cross-the-river-to-get-to-work/index.html">
+<a href="./posts/how-many-pittsburghers-cross-the-river-to-get-to-work/index.html" class="no-external">
 <div class="listing-date">
 Feb 9, 2020
 </div>
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="28" data-categories="R,Pittsburgh,Healthy Ride" data-listing-date-sort="1564804800000" data-listing-file-modified-sort="1725309022993" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="5">
+<div class="quarto-post image-right" data-index="28" data-categories="R,Pittsburgh,Healthy Ride" data-listing-date-sort="1564804800000" data-listing-file-modified-sort="1725309022993" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="5" data-listing-word-count-sort="817">
 <div class="thumbnail">
-<p><a href="./posts/forecasting-healthy-ride-ridership-with-prophet/index.html"> <img data-src="./posts/forecasting-healthy-ride-ridership-with-prophet/featured.png" class="thumbnail-image"> </a></p>
+<p><a href="./posts/forecasting-healthy-ride-ridership-with-prophet/index.html" class="no-external"></a></p><a href="./posts/forecasting-healthy-ride-ridership-with-prophet/index.html" class="no-external">
+<p><img data-src="./posts/forecasting-healthy-ride-ridership-with-prophet/featured.png" class="thumbnail-image"></p>
+</a><p><a href="./posts/forecasting-healthy-ride-ridership-with-prophet/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/forecasting-healthy-ride-ridership-with-prophet/index.html">
 <h3 class="no-anchor listing-title">
-Forecasting Healthy Ride Ridership With Prophet
+<a href="./posts/forecasting-healthy-ride-ridership-with-prophet/index.html" class="no-external">Forecasting Healthy Ride Ridership With Prophet</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/forecasting-healthy-ride-ridership-with-prophet/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('R'); return false;">
 R
@@ -1192,33 +1175,31 @@ Pittsburgh
 Healthy Ride
 </div>
 </div>
-<a href="./posts/forecasting-healthy-ride-ridership-with-prophet/index.html">
 <div class="listing-description">
-This post is about predicting demand for the Healthy Ride bike system in Pittsburgh. I wanted to try out Facebook’s <code>prophet</code> package and try to do some time series forecasting.
+<a href="./posts/forecasting-healthy-ride-ridership-with-prophet/index.html" class="no-external">This post is about predicting demand for the Healthy Ride bike system in Pittsburgh. I wanted to try out Facebook’s <code>prophet</code> package and try to do some time series forecasting.</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/forecasting-healthy-ride-ridership-with-prophet/index.html">
+<a href="./posts/forecasting-healthy-ride-ridership-with-prophet/index.html" class="no-external">
 <div class="listing-date">
 Aug 3, 2019
 </div>
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="29" data-categories="R,Pittsburgh" data-listing-date-sort="1561176000000" data-listing-file-modified-sort="1725310354065" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="5">
+<div class="quarto-post image-right" data-index="29" data-categories="R,Pittsburgh" data-listing-date-sort="1561176000000" data-listing-file-modified-sort="1725310354065" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="5" data-listing-word-count-sort="926">
 <div class="thumbnail">
-<p><a href="./posts/residential-zoning-in-pittsburgh/index.html"> <img data-src="./posts/residential-zoning-in-pittsburgh/featured.png" class="thumbnail-image"> </a></p>
+<p><a href="./posts/residential-zoning-in-pittsburgh/index.html" class="no-external"></a></p><a href="./posts/residential-zoning-in-pittsburgh/index.html" class="no-external">
+<p><img data-src="./posts/residential-zoning-in-pittsburgh/featured.png" class="thumbnail-image"></p>
+</a><p><a href="./posts/residential-zoning-in-pittsburgh/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/residential-zoning-in-pittsburgh/index.html">
 <h3 class="no-anchor listing-title">
-Residential Zoning in Pittsburgh
+<a href="./posts/residential-zoning-in-pittsburgh/index.html" class="no-external">Residential Zoning in Pittsburgh</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/residential-zoning-in-pittsburgh/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('R'); return false;">
 R
@@ -1227,33 +1208,31 @@ R
 Pittsburgh
 </div>
 </div>
-<a href="./posts/residential-zoning-in-pittsburgh/index.html">
 <div class="listing-description">
-The New York Times recently published an article about zoning in…
+<a href="./posts/residential-zoning-in-pittsburgh/index.html" class="no-external">The New York Times recently published an article about zoning in U.S. cities, particularly single-unit detached residential housing. The article did not include Pittsburgh…</a>
 </div>
-</a>
 </div>
 <div class="metadata">
-<a href="./posts/residential-zoning-in-pittsburgh/index.html">
+<a href="./posts/residential-zoning-in-pittsburgh/index.html" class="no-external">
 <div class="listing-date">
 Jun 22, 2019
 </div>
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="30" data-categories="R,Potholes,Census" data-listing-date-sort="1559016000000" data-listing-file-modified-sort="1725551104788" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="11">
+<div class="quarto-post image-right" data-index="30" data-categories="R,Potholes,Census" data-listing-date-sort="1559016000000" data-listing-file-modified-sort="1725551457402" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="11" data-listing-word-count-sort="2049">
 <div class="thumbnail">
-<p><a href="./posts/map-census-data-with-r/index.html"> <img data-src="./posts/map-census-data-with-r/featured.png" class="thumbnail-image"> </a></p>
+<p><a href="./posts/map-census-data-with-r/index.html" class="no-external"></a></p><a href="./posts/map-census-data-with-r/index.html" class="no-external">
+<p><img data-src="./posts/map-census-data-with-r/featured.png" class="thumbnail-image"></p>
+</a><p><a href="./posts/map-census-data-with-r/index.html" class="no-external"></a></p>
 </div>
 <div class="body">
-<a href="./posts/map-census-data-with-r/index.html">
 <h3 class="no-anchor listing-title">
-Map Census Data With R
+<a href="./posts/map-census-data-with-r/index.html" class="no-external">Map Census Data With R</a>
 </h3>
 <div class="listing-subtitle">
-
+<a href="./posts/map-census-data-with-r/index.html" class="no-external"></a>
 </div>
-</a>
 <div class="listing-categories">
 <div class="listing-category" onclick="window.quartoListingCategory('R'); return false;">
 R
@@ -1265,16 +1244,53 @@ Potholes
 Census
 </div>
 </div>
-<a href="./posts/map-census-data-with-r/index.html">
 <div class="listing-description">
-This talk was presented on May 30th, 2019 at Code For Pittsburgh.
+<a href="./posts/map-census-data-with-r/index.html" class="no-external">This talk was presented on May 30th, 2019 at Code For Pittsburgh.</a>
+</div>
+</div>
+<div class="metadata">
+<a href="./posts/map-census-data-with-r/index.html" class="no-external">
+<div class="listing-date">
+May 28, 2019
 </div>
 </a>
 </div>
+</div>
+<div class="quarto-post image-right" data-index="31" data-categories="R,Pittsburgh,538,Soccer" data-listing-date-sort="1554609600000" data-listing-file-modified-sort="1725976910772" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="5" data-listing-word-count-sort="980">
+<div class="thumbnail">
+<p><a href="./posts/premier-league-538-spi-ratings/index.html" class="no-external"></a></p><a href="./posts/premier-league-538-spi-ratings/index.html" class="no-external">
+<p><img data-src="./posts/premier-league-538-spi-ratings/featured.png" class="thumbnail-image"></p>
+</a><p><a href="./posts/premier-league-538-spi-ratings/index.html" class="no-external"></a></p>
+</div>
+<div class="body">
+<h3 class="no-anchor listing-title">
+<a href="./posts/premier-league-538-spi-ratings/index.html" class="no-external">Premier League 538 SPI Ratings</a>
+</h3>
+<div class="listing-subtitle">
+<a href="./posts/premier-league-538-spi-ratings/index.html" class="no-external"></a>
+</div>
+<div class="listing-categories">
+<div class="listing-category" onclick="window.quartoListingCategory('R'); return false;">
+R
+</div>
+<div class="listing-category" onclick="window.quartoListingCategory('Pittsburgh'); return false;">
+Pittsburgh
+</div>
+<div class="listing-category" onclick="window.quartoListingCategory('538'); return false;">
+538
+</div>
+<div class="listing-category" onclick="window.quartoListingCategory('Soccer'); return false;">
+Soccer
+</div>
+</div>
+<div class="listing-description">
+<a href="./posts/premier-league-538-spi-ratings/index.html" class="no-external">538’s Soccer Power Index (SPI) rates the quality of soccer teams from a variety of leagues around the world. In this post I’ll use <code>gganimate</code> to animate team SPI over the…</a>
+</div>
+</div>
 <div class="metadata">
-<a href="./posts/map-census-data-with-r/index.html">
+<a href="./posts/premier-league-538-spi-ratings/index.html" class="no-external">
 <div class="listing-date">
-May 28, 2019
+Apr 7, 2019
 </div>
 </a>
 </div>
@@ -1366,10 +1382,27 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     // clear code selection
     e.clearSelection();
   });
-  function tippyHover(el, contentFn) {
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
     const config = {
       allowHTML: true,
-      content: contentFn,
       maxWidth: 500,
       delay: 100,
       arrow: false,
@@ -1379,8 +1412,17 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
       interactive: true,
       interactiveBorder: 10,
       theme: 'quarto',
-      placement: 'bottom-start'
+      placement: 'bottom-start',
     };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
     window.tippy(el, config); 
   }
   const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
@@ -1392,7 +1434,130 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
       try { href = new URL(href).hash; } catch {}
       const id = href.replace(/^#\/?/, "");
       const note = window.document.getElementById(id);
-      return note.innerHTML;
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
     });
   }
       let selectedAnnoteEl;
@@ -1436,6 +1601,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
             }
             div.style.top = top - 2 + "px";
             div.style.height = height + 4 + "px";
+            div.style.left = 0;
             let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
             if (gutterDiv === null) {
               gutterDiv = window.document.createElement("div");
@@ -1461,6 +1627,32 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
         });
         selectedAnnoteEl = undefined;
       };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
       // Attach click handler to the DT
       const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
       for (const annoteDlNode of annoteDls) {
@@ -1521,6 +1713,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 });
 </script>
 </div> <!-- /content -->
+
 
 
 
