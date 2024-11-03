@@ -1,0 +1,88 @@
+---
+# Documentation: https://sourcethemes.com/academic/docs/managing-content/
+
+title: "USL in the 538 Global Club Soccer Rankings"
+subtitle: ""
+summary: ""
+authors: [Conor Tompkins]
+tags: [R, USL, Riverhounds]
+categories: [R, USL, Riverhounds]
+date: 2018-08-14
+lastmod: 2020-09-26
+featured: false
+draft: false
+execute: 
+  echo: true
+  warning: false
+  message: false
+---
+*This post was originally run with data from August 2018. 538 does not provide historical rankings, so I had to rerun the code with June 2023 data when I migrated my blog.*
+
+538 recently added the United Soccer League to their [Soccer Power Index ratings](https://projects.fivethirtyeight.com/global-club-soccer-rankings/). I'm a Riverhounds fan, so I wanted to see how the team compared to teams from leagues around the world.
+
+```{r}
+library(tidyverse)
+library(ggrepel)
+
+theme_set(theme_bw())
+```
+
+```{r}
+df <- read_csv("https://projects.fivethirtyeight.com/soccer-api/club/spi_global_rankings.csv", progress = FALSE) %>% 
+  group_by(league) %>% 
+  mutate(league_spi = median(spi)) %>% 
+  ungroup() %>% 
+  mutate(league = fct_reorder(league, league_spi))
+
+df
+```
+
+```{r fig.height=10, fig.width=8}
+df %>% 
+  ggplot(aes(spi, league)) +
+  geom_jitter(aes(color = league), show.legend = FALSE,
+              height = .2,
+              alpha = .7) +
+  geom_jitter(data = df %>% filter(name == "Pittsburgh Riverhounds"),
+              show.legend = FALSE,
+              height = .2,
+              alpha = .7) +
+  geom_label_repel(data = df %>% filter(name == "Pittsburgh Riverhounds"), 
+                   aes(label = name), 
+                   size = 3,
+                   show.legend = FALSE,
+                   force = 6) +
+  labs(title = "538 Soccer Power Index",
+       subtitle = "One dot = one team",
+       y = NULL,
+       x = "Soccer Power Index",
+       caption = "538 data, @conor_tompkins")
+```
+
+```{r fig.height=10, fig.width=8}
+df %>% 
+  ggplot(aes(spi, league)) +
+  geom_jitter(aes(color = league), show.legend = FALSE,
+              height = .2,
+              alpha = .7) +
+  labs(title = "538 Soccer Power Index",
+       subtitle = "One dot = one team",
+       y = NULL,
+       x = "Soccer Power Index",
+       caption = "538 data, @conor_tompkins")
+```
+
+This shows the offensive and defensive ratings of each USL team. The Riverhounds are squarely in the #LilleyBall quadrant.
+```{r fig.height=12, fig.width=12}
+df %>% 
+  filter(league == "United Soccer League") %>% 
+  ggplot(aes(off, def, label = name)) +
+  geom_point() +
+  geom_label_repel(size = 4,
+                   force = 4) +
+  scale_y_reverse() +
+  labs(title = "538 Soccer Power Index",
+       y = "Defensive rating (scale reversed)",
+       x = "Offensive rating",
+       caption = "538 data, @conor_tompkins")
+```
