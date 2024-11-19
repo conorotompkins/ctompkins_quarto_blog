@@ -1,0 +1,233 @@
+---
+# Documentation: https://sourcethemes.com/academic/docs/managing-content/
+
+title: "Exploring 311 Data With PCA"
+subtitle: ""
+summary: ""
+authors: [Conor Tompkins]
+tags: [Census, Pittsburgh, WPRDC]
+categories: [Census, Pittsburgh, WPRDC]
+date: 2018-07-19
+lastmod: 2020-09-27
+featured: false
+draft: false
+execute: 
+  echo: true
+  warning: false
+  message: false
+---
+# Principal Component Analysis in R
+Principal Component Analysis is an unsupervised method that reduces the number of dimensions in a dataset and highlights where the data varies. We will use PCA to analyze the 311 dataset from the [WPRDC](https://data.wprdc.org/dataset/311-data).
+
+## Setup
+
+### Install packages
+```{r eval = FALSE}
+install.packages(c("tidyverse", "lubridate", "broom", "ggfortify", "ggrepel", "janitor"))
+```
+
+### Set up your environment
+```{r}
+library(tidyverse)
+library(lubridate)
+library(broom)
+library(ggfortify)
+library(ggrepel)
+library(janitor)
+
+options(scipen = 999, digits = 4)
+set.seed(1234)
+
+theme_set(theme_bw())
+```
+
+## Load the data
+```{r}
+read_csv("https://raw.githubusercontent.com/conorotompkins/pittsburgh_311/master/data/pittsburgh_311.csv", progress = FALSE) %>% 
+  clean_names() %>% 
+  mutate(date = ymd(str_sub(created_on, 1, 10)),
+         month = month(date, label = TRUE)) %>% 
+  filter(date < "2018-07-19") -> df
+```
+
+## Prep the data
+Create a dataframe of the top request types
+```{r}
+(df %>% 
+  count(request_type, sort = TRUE) %>% 
+  filter(n > 400)-> df_top_requests)
+```
+
+Count the number of requests per month by request type, filter for the top request types, and fill in gaps in the data
+```{r}
+(df %>%
+  semi_join(df_top_requests) %>% 
+  group_by(request_type, month) %>% 
+  summarize(n = n()) %>% 
+  ungroup() %>%
+  complete(request_type, month) %>% 
+  replace_na(replace = list(n = 0)) -> df_months)
+```
+
+Calculate the percentage of a request type for each month
+```{r}
+(df_months %>% 
+  group_by(request_type) %>% 
+  mutate(request_type_total = sum(n),
+         month_percentage = n / request_type_total) -> df_months)
+```
+
+Check for bad data
+```{r}
+df_months %>% 
+  filter(is.na(month_percentage) | is.nan(month_percentage))
+```
+
+Spread the data to turn the months into the columns
+```{r}
+(df_months %>% 
+  select(request_type, month, month_percentage) %>% 
+  spread(month, month_percentage) %>% 
+  ungroup() -> df_months)
+```
+
+Check that they all add up to 1 across the rows
+```{r}
+(df_months %>% 
+  select(Jan:Dec) %>% 
+  mutate(row_sum = rowSums(.)) %>% 
+  select(row_sum, everything()) -> test)
+```
+
+### Perform basic comparisons
+```{r}
+df_months %>% 
+  ggplot(aes(Jan, Jul)) +
+  geom_point()
+```
+
+Remember that each dot represents a request type, and the month shows what % of that request type occurred that month
+```{r}
+df_months %>% 
+  ggplot(aes(Apr, Oct)) +
+  geom_point()
+```
+
+It is not feasible to plot all the months against each other. PCA can help by condensing the columns and increasing the variance. PCA creates eigenvectors that represents the data in a concentrated way. Eigenvectors and eigenvalues do not represent observed data. They are calculated representations of the data. We will refer to eigenvectors as "principal components".
+
+In this case, where our data is measured by months in a year, each principal component could loosely be compared to a season.  
+
+## Prep the data for PCA
+The PCA function requires an all-numeric dataframe, so drop the request types into the dataframe metadata
+```{r}
+(df_months %>% 
+  ungroup() %>% 
+  remove_rownames() %>% 
+  column_to_rownames(var = "request_type") -> df_months_pca1)
+```
+
+Create the PCA object
+```{r}
+(df_months_pca1 %>% 
+  prcomp(scale = TRUE) -> pc)
+```
+
+Inspect the PCA object with tidier functions from the broom library. These functions turn the PCA object into a tidy dataframe
+```{r}
+pc %>% 
+  tidy() %>% 
+  head()
+```
+
+```{r}
+pc %>% 
+  tidy("pcs")
+```
+
+```{r}
+pc %>% 
+  augment(data = df_months) -> au
+
+au %>% 
+  head()
+```
+
+Plot how the PCA object explains the variance in the data
+```{r}
+pc %>% 
+  tidy("pcs") %>%
+  select(-std.dev) %>% 
+  gather(measure, value, -PC) %>% 
+    ggplot(aes(PC, value)) +
+    geom_line() +
+    geom_point() +
+    facet_wrap(~measure) +
+    labs(title = "Variance explained by each principal component",
+         x = "Principal Component",
+         y = NULL) +
+    scale_x_continuous(breaks = 1:12)
+```
+
+The first two principal components explain most of the variance
+
+For an in-depth plot we need to create the PCA object a different way
+```{r}
+df_months %>% 
+  nest() %>% 
+  mutate(pca = map(data, ~ prcomp(.x %>% select(-request_type), 
+                                  center = TRUE, scale = TRUE)),
+         pca_aug = map2(pca, data, ~augment(.x, data = .y))) -> df_months_pca2
+```
+
+Plot the PCA data
+```{r}
+df_months_pca2 %>%
+  mutate(
+    pca_graph = map2(
+      .x = pca,
+      .y = data,
+      ~ autoplot(.x, loadings = TRUE, loadings.label = TRUE,
+                 loadings.label.repel = TRUE,
+                 data = .y) +
+        theme_bw() +
+        labs(x = "Principal Component 1",
+             y = "Principal Component 2",
+             title = "First two principal components of PCA on 311 dataset")
+    )
+  ) %>%
+  pull(pca_graph)
+```
+
+This shows that summer and winter explain a significant part of the variance
+
+Plot the data to show the outliers
+```{r}
+au %>% 
+  mutate(outlier = case_when(abs(.fittedPC1) > 2 & abs(.fittedPC2) > 1.5 ~ TRUE),
+         pothole = case_when(request_type == "Potholes" ~ "Potholes",
+                             request_type != "Potholes" ~ "Other")) -> au
+
+au %>% 
+ggplot(aes(.fittedPC1, .fittedPC2)) +
+  geom_point() +
+  geom_label_repel(data = au %>% filter(outlier),
+             aes(label = request_type)) +
+  theme_bw()
+```
+
+```{r}
+au %>% 
+ggplot(aes(.fittedPC1, .fittedPC2)) +
+  geom_point(aes(color = pothole)) +
+  geom_label_repel(data = au %>% filter(request_type == "Potholes"),
+             aes(label = request_type)) +
+  theme_bw() +
+  scale_color_manual(NULL, values = c("black", "red"))
+```
+
+# Sources
+* https://tbradley1013.github.io/2018/02/01/pca-in-a-tidy-verse-framework/
+* https://rdrr.io/cran/broom/man/prcomp_tidiers.html
+* https://poissonisfish.wordpress.com/2017/01/23/principal-component-analysis-in-r/
+* http://rstatistics.net/principal-component-analysis/
+* https://community.rstudio.com/t/tidyverse-solutions-for-factor-analysis-principal-component-analysis/4504
