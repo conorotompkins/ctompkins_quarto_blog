@@ -179,6 +179,19 @@
       ],
       "Hash": "45f0398006e83a5b10b72a90663d8d8c"
     },
+    "RSpectra": {
+      "Package": "RSpectra",
+      "Version": "0.16-2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "Matrix",
+        "R",
+        "Rcpp",
+        "RcppEigen"
+      ],
+      "Hash": "5ffd7a70479497271e57cd0cc2465b3b"
+    },
     "Rcpp": {
       "Package": "Rcpp",
       "Version": "1.0.13",
@@ -237,6 +250,16 @@
         "Rcpp"
       ],
       "Hash": "6659c0ecb7b85f322f93e7f1e6ac7d35"
+    },
+    "RcppThread": {
+      "Package": "RcppThread",
+      "Version": "2.1.7",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R"
+      ],
+      "Hash": "496f1ac14c8eb1c560e07a96515eea76"
     },
     "Rttf2pt1": {
       "Package": "Rttf2pt1",
@@ -678,6 +701,34 @@
       ],
       "Hash": "3dcaebd52554438d12989e5061e15de8"
     },
+    "clue": {
+      "Package": "clue",
+      "Version": "0.3-65",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "cluster",
+        "graphics",
+        "methods",
+        "stats"
+      ],
+      "Hash": "d6b53853800595408a776900bcc0c23f"
+    },
+    "cluster": {
+      "Package": "cluster",
+      "Version": "2.1.6",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "grDevices",
+        "graphics",
+        "stats",
+        "utils"
+      ],
+      "Hash": "0aaa05204035dc43ea0004b9c76611dd"
+    },
     "codetools": {
       "Package": "codetools",
       "Version": "0.2-20",
@@ -971,6 +1022,54 @@
       ],
       "Hash": "54ed3ea01b11e81a86544faaecfef8e2"
     },
+    "dtw": {
+      "Package": "dtw",
+      "Version": "1.23-1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "grDevices",
+        "graphics",
+        "proxy",
+        "stats",
+        "utils"
+      ],
+      "Hash": "e32e0a155efd693d843b96e84af5c876"
+    },
+    "dtwclust": {
+      "Package": "dtwclust",
+      "Version": "6.0.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "Matrix",
+        "R",
+        "RSpectra",
+        "Rcpp",
+        "RcppArmadillo",
+        "RcppParallel",
+        "RcppThread",
+        "clue",
+        "cluster",
+        "dplyr",
+        "dtw",
+        "flexclust",
+        "foreach",
+        "ggplot2",
+        "ggrepel",
+        "methods",
+        "parallel",
+        "proxy",
+        "reshape2",
+        "rlang",
+        "shiny",
+        "shinyjs",
+        "stats",
+        "utils"
+      ],
+      "Hash": "3cdfeee2356f9bc58b9f8a7af5f88894"
+    },
     "dygraphs": {
       "Package": "dygraphs",
       "Version": "1.1.1.6",
@@ -1150,6 +1249,25 @@
         "vctrs"
       ],
       "Hash": "276b81269ccbe43e7ad23fe8d4b4cadd"
+    },
+    "flexclust": {
+      "Package": "flexclust",
+      "Version": "1.4-2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "class",
+        "graphics",
+        "grid",
+        "lattice",
+        "methods",
+        "modeltools",
+        "parallel",
+        "stats",
+        "stats4"
+      ],
+      "Hash": "e799e7b8ccd7dc7265f474db3a27c102"
     },
     "fontBitstreamVera": {
       "Package": "fontBitstreamVera",
@@ -1484,6 +1602,24 @@
       ],
       "Hash": "384b388bd9155468d2c851846ee69f9f"
     },
+    "ggfortify": {
+      "Package": "ggfortify",
+      "Version": "0.4.17",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "dplyr",
+        "ggplot2",
+        "grid",
+        "gridExtra",
+        "methods",
+        "scales",
+        "stringr",
+        "tibble",
+        "tidyr"
+      ],
+      "Hash": "28eb83fd20b824710e681fc4e1a9ac94"
+    },
     "ggfun": {
       "Package": "ggfun",
       "Version": "0.1.7",
@@ -1659,6 +1795,25 @@
         "tidyr"
       ],
       "Hash": "95296256ea213cdd58601260893d0fc7"
+    },
+    "ggthemes": {
+      "Package": "ggthemes",
+      "Version": "5.1.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "ggplot2",
+        "graphics",
+        "grid",
+        "lifecycle",
+        "methods",
+        "purrr",
+        "scales",
+        "stringr",
+        "tibble"
+      ],
+      "Hash": "16a4974681fc751a09a1250431361896"
     },
     "glmnet": {
       "Package": "glmnet",
@@ -2779,6 +2934,18 @@
       ],
       "Hash": "4f50122dc256b1b6996a4703fecea821"
     },
+    "modeltools": {
+      "Package": "modeltools",
+      "Version": "0.2-23",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "methods",
+        "stats",
+        "stats4"
+      ],
+      "Hash": "f5a957c02222589bdf625a67be68b2a9"
+    },
     "munsell": {
       "Package": "munsell",
       "Version": "0.5.1",
@@ -3813,6 +3980,19 @@
         "xtable"
       ],
       "Hash": "6a293995a66e12c48d13aa1f957d09c7"
+    },
+    "shinyjs": {
+      "Package": "shinyjs",
+      "Version": "2.1.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "digest",
+        "jsonlite",
+        "shiny"
+      ],
+      "Hash": "802e4786b353a4bb27116957558548d5"
     },
     "slider": {
       "Package": "slider",

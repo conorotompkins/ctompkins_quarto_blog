@@ -1,0 +1,164 @@
+---
+# Documentation: https://sourcethemes.com/academic/docs/managing-content/
+
+title: "Exploring Allegheny County With Census Data"
+subtitle: ""
+summary: ""
+authors: [Conor Tompkins]
+tags: [R, Census, Allegheny County]
+categories: [R, Census, Allegheny County]
+date: 2018-08-06
+lastmod: 2020-09-26
+featured: false
+draft: false
+execute: 
+  echo: true
+  warning: false
+  message: false
+---
+
+This post explores Allegheny County and Pennsylvania through census data. I use the tidycensus and sf packages to collect data from the census API and draw maps with the data.
+
+## Setup
+```{r}
+library(tidyverse)
+library(tidycensus)
+library(tigris)
+library(sf)
+library(broom)
+library(ggfortify)
+library(viridis)
+library(scales)
+library(janitor)
+
+options(tigris_use_cache = TRUE)
+
+theme_set(theme_bw())
+
+census_vars <- load_variables(2010, "sf1", cache = TRUE)
+```
+
+## Collect data
+
+tidycensus provides a wrapper for the U.S. Census API. You can request a wide variety of data, from economic measures to information about demography. The API also includes data about geographic regions.
+
+This code creates a dataframe of some of the variables available through the census API.
+```{r}
+vars <- load_variables(2016, "acs5", cache = TRUE)
+
+vars
+```
+
+This code requests information about the median income of census tracts in Allegheny County. The "geography" argument sets the level of geographic granularity.
+```{r}
+allegheny <- get_acs(state = "PA", 
+                     county = "Allegheny County", 
+                     geography = "tract", 
+                     variables = c(median_income = "B19013_001"),
+                     year = 2018,
+                     geometry = TRUE,
+                     cb = FALSE)
+
+head(allegheny)
+```
+
+This code maps the data onto the census tracts.
+```{r}
+allegheny %>%
+  ggplot(aes(fill = estimate, color = estimate)) + 
+  geom_sf() + 
+  scale_fill_viridis("Median household income", option = "magma", labels = comma) +
+  scale_color_viridis("Median household income", option = "magma", labels = comma) +
+  labs(title = "Allegheny County",
+       subtitle = "American Community Survey") +
+  theme(axis.text = element_blank())
+```
+
+This code requests information about the ethnicities within each census tract. Then, it calculates the percentage of the entire population of a tract that each ethnicity makes up.
+```{r}
+racevars <- c(White = "P005003", 
+              Black = "P005004", 
+              Asian = "P005006", 
+              Hispanic = "P004003")
+
+get_decennial(geography = "tract", 
+              variables = racevars,
+              state = "PA", 
+              county = "Allegheny", 
+              geometry = TRUE,
+              summary_var = "P001001",
+              year = 2010,) %>% 
+  mutate(value = value / summary_value,
+         variable = str_c("percent_", tolower(variable))) -> allegheny_race
+
+head(allegheny_race)
+```
+
+This code maps that data. The facet_wrap function creates a map for each ethnicity.
+```{r}
+#allegheny_race <- st_erase(allegheny_race, allegheny_water)
+
+allegheny_race %>%
+  ggplot(aes(fill = value, color = value)) +
+  facet_wrap(~variable) +
+  geom_sf() +
+  scale_fill_viridis("Percent", option = "magma", labels = percent) +
+  scale_color_viridis("Percent", option = "magma", labels = percent) +
+  theme(axis.text = element_blank())
+```
+
+You can also request data for an entire state. This code requests the median income for each census tract in Pennsylvania.
+```{r}
+pa <- get_acs(state = "PA",
+              geography = "tract", 
+              variables = c(median_income = "B19013_001"), 
+              year = 2018,
+              geometry = TRUE)
+
+head(pa)
+```
+```{r}
+pa %>%
+  ggplot(aes(fill = estimate, color = estimate)) + 
+  geom_sf() + 
+  scale_fill_viridis("Estimated median income", option = "magma", label = comma) + 
+  scale_color_viridis("Estimated median income", option = "magma", label = comma) +
+  theme(axis.text = element_blank())
+```
+
+This code requests ethnicity data for each tract in Pennsylvania.
+```{r}
+racevars <- c(White = "P005003", 
+              Black = "P005004", 
+              Asian = "P005006", 
+              Hispanic = "P004003")
+
+get_decennial(geography = "tract", 
+              variables = racevars,
+              state = "PA",
+              year = 2010,
+              geometry = TRUE,
+              summary_var = "P001001") %>% 
+  mutate(value = value / summary_value,
+         variable = str_c("percent_", tolower(variable))) -> pa_race
+
+head(pa_race)
+```
+```{r}
+pa_race %>%
+  ggplot(aes(fill = value, color = value)) +
+  facet_wrap(~variable) +
+  geom_sf() +
+  labs(title = "Major ethncities in Pennsylvania",
+       subtitle = "Census data") +
+  scale_fill_viridis("Percent", option = "magma", label = percent) +
+  scale_color_viridis("Percent", option = "magma", label = percent) +
+  theme(axis.text = element_blank())
+```
+
+Resources used:
+
+* http://strimas.com/r/tidy-sf/
+* https://walkerke.github.io/tidycensus/articles/spatial-data.html
+* https://walkerke.github.io/tidycensus/index.html
+* https://walkerke.github.io/2017/06/comparing-metros/
