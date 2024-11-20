@@ -17,6 +17,8 @@ execute:
   message: false
 ---
 
+This material was presented at Code & Supply in 2018.
+
 # Goals
 
 -   Learn how R works
