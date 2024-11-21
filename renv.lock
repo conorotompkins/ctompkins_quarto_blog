@@ -3779,6 +3779,29 @@
       "Repository": "CRAN",
       "Hash": "96710351d642b70e8f02ddeb237c46a7"
     },
+    "rtweet": {
+      "Package": "rtweet",
+      "Version": "2.0.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "bit64",
+        "curl",
+        "httr",
+        "httr2",
+        "jsonlite",
+        "lifecycle",
+        "methods",
+        "progress",
+        "rlang",
+        "tibble",
+        "tools",
+        "utils",
+        "withr"
+      ],
+      "Hash": "76c5253622f3de1d506184981386ffa3"
+    },
     "rvest": {
       "Package": "rvest",
       "Version": "1.0.4",
