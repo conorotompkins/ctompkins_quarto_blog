@@ -1637,6 +1637,23 @@
       ],
       "Hash": "e20ff08a801abd734bf95801ef02adba"
     },
+    "gghighlight": {
+      "Package": "gghighlight",
+      "Version": "0.4.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "dplyr",
+        "ggplot2",
+        "ggrepel",
+        "lifecycle",
+        "purrr",
+        "rlang",
+        "tibble"
+      ],
+      "Hash": "a8f51a6b707d802a73bcb8920e368a06"
+    },
     "ggimage": {
       "Package": "ggimage",
       "Version": "0.3.3",
