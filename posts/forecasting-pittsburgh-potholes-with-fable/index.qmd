@@ -1,0 +1,284 @@
+---
+title: Forecasting Pittsburgh Potholes with {fable}
+author: Conor Tompkins
+date: '2023-10-28'
+slug: forecasting-pittsburgh-potholes-with-fable
+categories: []
+tags: []
+subtitle: ''
+summary: ''
+authors: []
+lastmod: '2023-10-28T09:50:42-04:00'
+featured: no
+image: featured.png
+execute: 
+  echo: true
+  warning: false
+  message: false
+editor_options: 
+  chunk_output_type: console
+---
+
+## Intro
+
+Potholes are the [bane](https://www.wtae.com/article/pittsburgh-pothole-season/42679802) of Pittsburgh drivers' existence. You can either weave around the [minefield](https://www.reddit.com/r/pittsburgh/comments/7y7rpe/challenge_level_40th_street_bridge_potholes/) of holes in the road (some of [alarming](https://www.reddit.com/r/pittsburgh/comments/8td27k/watch_out_for_them_potholes_southside/) size) or risk [damage to your vehicle](https://www.reddit.com/r/pittsburgh/comments/8175li/when_a_pothole_takes_your_whole_tire/). Drastic swings in weather also exacerbate the natural freeze-thaw cycle. The winter of 2017/2018 was a particularly bad year for potholes in the region.
+
+In this post I will use `{fable}` and related `{tidyverts}` packages to model the number of reports about potholes to Pittsburgh's 311 service. The report data is available [here](https://data.wprdc.org/dataset/311-data).
+
+## EDA
+
+### Pothole data from 311
+
+This code loads the relevant packages:
+
+```{r}
+library(fpp3)
+library(tidyverse)
+library(janitor)
+library(future)
+library(hrbrthemes)
+
+theme_set(theme_ipsum())
+
+plan(multisession)
+
+options(scipen = 999, digits = 4)
+```
+
+This code reads in CSV containing the 311 data and filters to only the pothole complaints.
+
+```{r}
+#read in pothole data
+pothole_data <- read_csv("post_data/wprdc_311.csv") |> 
+  clean_names() |> 
+  filter(request_type == "Potholes") |> 
+  mutate(created_yearmonth = yearmonth(created_on))
+```
+
+Next, summarize the data by year and month, and convert the data into a time series `tsibble`.
+
+```{r}
+#create basic tsibble
+pothole_df <- pothole_data |> 
+  group_by(created_yearmonth, request_type) |> 
+  summarize(report_count = n()) |> 
+  ungroup() |>
+  as_tsibble()
+
+pothole_df
+```
+
+`{tidyverts}` provides some out-of-the-box functions to visualize the time series data. This is an important step to understand the dynamics of the data.
+
+```{r}
+autoplot(pothole_df)
+```
+
+```{r}
+gg_season(pothole_df)
+```
+
+```{r}
+gg_subseries(pothole_df) +
+  facet_wrap(vars(month(created_yearmonth)))
+```
+
+Decomposing a time series into components (trend, seasonality, remainder) gives a more detailed view into how the series behaves.
+
+```{r}
+dcmp <- pothole_df |>
+  model(stl = STL(report_count, robust = TRUE))
+
+dcmp_components <- components(dcmp)
+
+dcmp_components
+```
+
+```{r}
+dcmp_components |> 
+  autoplot()
+```
+
+You can use the remainders to look for outliers in the data.
+
+```{r}
+outliers <- dcmp_components |>
+  filter(
+    remainder < quantile(remainder, 0.25) - 3*IQR(remainder) |
+    remainder > quantile(remainder, 0.75) + 3*IQR(remainder)
+  )
+
+outliers |> 
+  select(created_yearmonth, remainder)
+```
+
+The winter of 2017/2018 clearly had many outliers.
+
+```{r}
+pothole_df |>
+  ggplot(aes(created_yearmonth, report_count)) +
+  geom_line() +
+  geom_point(data = outliers, color = "red")
+```
+
+## Train/test approach
+
+The classic method for determining the accuracy of any model is to train the model on a subset of the data and test the model against another subset. This code splits the time series into 80% training and 20% testing sets.
+
+```{r}
+#split into train/test and forecast
+data_test <- pothole_df |> 
+  slice_tail(prop = .2)
+
+data_train <- pothole_df |> 
+  anti_join(data_test, by = "created_yearmonth")
+```
+
+I fit 3 models against the training set:
+
+-   ARIMA
+
+-   Exponential smoothing
+
+-   Linear model with seasonal effects
+
+I transform the data with `log()` and add 1 to the result to guarantee that the forecasts are positive. This is necessary because many of the observations are close to zero, and the models would not know otherwise that the count of pothole complaints cannot be negative. `{fable}` automatically back-transforms the forecast onto the original scale of the data.
+
+```{r}
+model_df <- data_train |> 
+    model(arima = ARIMA(log(report_count + 1)),
+          ets = ETS(log(report_count + 1)),
+          lm_seasonal = TSLM(log(report_count + 1) ~ trend() + season()))
+```
+
+The `forecast()` function returns the full (transformed) distribution of the forecast and the mean of that distribution.
+
+```{r}
+pothole_fc <- model_df |> 
+  forecast(data_test)
+
+pothole_fc
+```
+
+`{fabletools}` provides many measures of forecast accuracy. I focus on the following:
+
+-   CPRS (skill score): [CPRS](https://otexts.com/fpp3/distaccuracy.html) measures how well the forecast distribution fits the test data. The `skill_score` function compares this to the CPRS of a naive model. This results in a measure how much accuracy the model is adding over a naive model.
+
+-   RMSE: Root Mean Squared Error
+
+```{r}
+fc_acc <- pothole_fc |> 
+  accuracy(pothole_df,
+           measures = list(point_accuracy_measures, distribution_accuracy_measures, skill_cprs = skill_score(CRPS))) |> 
+  select(.model, .type, skill_cprs, RMSE) |> 
+  arrange(desc(skill_cprs))
+
+fc_acc
+```
+
+The `lm_seasonal` model provides the most accurate distribution and average forecast.
+
+The `autoplot` function automatically extracts the 80% and 95% prediction intervals from the forecast distribution. You can see that the 80% interval of the `lm_seasonal` model fully contains the actual observations.
+
+```{r}
+pothole_fc |> 
+  autoplot(pothole_df |> 
+             filter(year(created_yearmonth) >= 2021)) +
+  facet_wrap(vars(.model), scales = "free_y", ncol = 1)
+```
+
+The `report` function provides the details of the specified model:
+
+```{r}
+model_df |> 
+  select(lm_seasonal) |> 
+  report()
+```
+
+This code refits the `lm_seasonal` model against the entire `pothole_df` dataset and produces a true forecast with a 12 month horizon. The distribution reflects the uncertainty from the variation in previous years. The model forecasts that the overall downward trend will continue.
+
+```{r}
+final_model <- model_df |> 
+  select(lm_seasonal) |> 
+  refit(pothole_df, reestimate = TRUE)
+
+final_model |> 
+  forecast(h = 12) |> 
+  autoplot(pothole_df)
+```
+
+## Cross-validation approach
+
+Cross-validation is the more robust way to measure the accuracy of a model. Instead of splitting the data into train/test sets, I create multiple subsets of the data with increasing origin points. This code creates the CV set by starting with the first 36 observations and adding 1 observation at a time to the rolling origin.
+
+```{r}
+pothole_cv <- stretch_tsibble(pothole_df, .step = 1, .init = 36) |> 
+  relocate(created_yearmonth, .id)
+
+pothole_cv
+```
+
+Each CV `.id` contains one more observation than the previous `.id`.
+
+```{r}
+pothole_cv |> 
+  count(.id)
+```
+
+This code refits the models against the cross-validation set. The `{fable}` package automatically finds the appropriate model parameters for ARIMA and ETS models. Since each `.id` has a different subset of the data, the model parameters can be different for each `.id`.
+
+```{r}
+models_cv <- pothole_cv |> 
+    model(arima = ARIMA(log(report_count + 1)),
+          ets = ETS(log(report_count + 1)),
+          lm_seasonal = TSLM(log(report_count + 1) ~ trend() + season()))
+
+models_cv
+```
+
+Next we forecast for each model and `.id` with a 12 month horizon.
+
+```{r}
+forecast_cv <- models_cv |> 
+    forecast(h = 12)
+
+forecast_cv
+```
+
+You can see that each `.id` gains one observation, and the model forecasts reflect that difference. This code graphs every 10th `.id`.
+
+```{r}
+forecast_cv |> 
+  filter(.id %in% seq(min(.id), max(.id), 10)) |> 
+  autoplot(pothole_cv) +
+  facet_wrap(vars(.id), ncol = 2, scales = "free_y")
+```
+
+The forecast accuracy for each model is averaged across all the `.id`s. This gives a more robust estimation of accuracy.
+
+```{r}
+cv_acc <- forecast_cv |> 
+    accuracy(pothole_df, measures = list(point_accuracy_measures, distribution_accuracy_measures, skill_cprs = skill_score(CRPS))) |> 
+    select(.model, .type, skill_cprs, RMSE) |> 
+    arrange(desc(skill_cprs))
+
+cv_acc |> 
+  arrange(desc(skill_cprs))
+```
+
+On average, the `lm_seasonal` model provides more accurate forecasts.
+
+The basic models have higher CV accuracy than ARIMA, which probably shows that the more complicated ARIMA model over-fits the training data.
+
+```{r}
+fc_acc |> 
+  mutate(type = "train_test") |> 
+  bind_rows(cv_acc |> 
+              mutate(type = "cv")) |> 
+  select(.model, type, skill_cprs) |> 
+  pivot_wider(names_from = type, values_from = skill_cprs)
+```
+
+```{r}
+sessionInfo()
+```
