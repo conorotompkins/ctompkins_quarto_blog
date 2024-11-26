@@ -1,0 +1,171 @@
+---
+# Documentation: https://sourcethemes.com/academic/docs/managing-content/
+
+title: "Graphing Seasonality in Ebird Bird Sightings"
+subtitle: ""
+summary: ""
+authors: [Conor Tompkins]
+tags: [R, eBird]
+categories: [R, eBird]
+date: 2020-03-31
+lastmod: 2020-08-12T10:40:18-04:00
+featured: false
+draft: false
+image: featured.png
+execute: 
+  echo: true
+  warning: false
+  message: false
+---
+
+Over the winter I became interested in birding. Sitting in your back yard doing nothing but watching birds fly around is quite relaxing. Naturally I am looking for ways to optimize and quantify this relaxing activity. [eBird](https://ebird.org/home) lets you track your bird sightings and research which birds are common or more rare in your area. Luckily, the folks at [ROpenSci](https://ropensci.org/) have the `{rebird}` [package](https://cran.r-project.org/web/packages/rebird/index.html), which provides an easy interface to the eBird API.
+
+In this post I will graph the seasonality of observation frequency of the top 10 birds in Pennsylvania. Frequency in this context is the % of eBird checklists that the bird appeared in during a given period.
+
+Load up packages:
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(vroom)
+library(janitor)
+library(rebird)
+library(hrbrthemes)
+library(ggrepel)
+library(gganimate)
+
+theme_set(theme_ipsum())
+
+options(scipen = 99, digits = 2)
+```
+
+The `ebirdfreq` takes a location and time period and returns the frequency and sample size for the birds returned in the query.
+
+```{r}
+#| echo: false
+#read_lines("post_data/ebird_US-PA__2019_2019_1_12_barchart.txt", skip = 15) %>% cat() %>% head()
+rep(month.name, each = 4) %>% length()
+rep(1:4, times = 12) %>% length()
+
+cnames <- str_c(rep(month.name, each = 4), rep(1:4, times = 12), sep = "-")
+
+df_freq_raw <- read_tsv("post_data/ebird_US-PA__2019_2019_1_12_barchart.txt",
+         skip = 15,
+         col_names = c("com_name", cnames)) %>% 
+  select(-X50) %>% 
+  pivot_longer(-com_name, names_to = "month_qt", values_to = "frequency")
+```
+
+```{r}
+#| eval: false
+df_freq_raw <- ebirdfreq(loctype = 'states', loc = 'US-PA', startyear = 2019,
+                         endyear = 2019, startmonth = 1, endmonth = 12)
+```
+
+```{r}
+df_freq_raw
+```
+
+This does some light data munging to get the data in shape.
+
+```{r}
+df_freq_clean <- df_freq_raw %>% 
+  separate(month_qt, into = c("month", "week")) %>% 
+  mutate(week = as.numeric(week),
+         month = ymd(str_c("2019", month, "01", sep = "-")),
+         month = month(month, label = TRUE, abbr = TRUE),
+         state = "PA") %>% 
+  rename(common_name = com_name) %>% 
+  arrange(common_name, month, week)
+
+df_freq_clean
+```
+
+This takes the month-week time series and summarizes to the month level:
+
+```{r}
+df_month <- df_freq_clean %>% 
+  group_by(common_name, month) %>% 
+  summarize(frequency_mean = mean(frequency) %>% round(2)) %>%
+  ungroup()
+
+df_month
+```
+
+Here I find the top 10 birds in terms of average monthly observation frequency:
+
+```{r}
+df_top_birds <- df_freq_clean %>% 
+  group_by(common_name) %>% 
+  summarize(frequency_mean = mean(frequency) %>% round(2)) %>% 
+  ungroup() %>% 
+  arrange(desc(frequency_mean)) %>% 
+  select(common_name) %>% 
+  slice(1:10)
+
+df_top_birds
+```
+
+This basic line graph shows some of the pattern of seasonality, but fails to show the cyclical nature of the data.
+
+```{r}
+df_month %>% 
+  semi_join(df_top_birds) %>% 
+  ggplot(aes(month, frequency_mean, group = common_name)) +
+    geom_line() +
+    scale_y_percent() +
+    labs(title = "Bird observation frequency",
+         subtitle = "Top 10 birds in PA, 2019",
+         x = NULL,
+         y = "Mean frequency",
+         caption = "Data from ebird.org. @conorotompkins")
+```
+
+I use `coord_polar` to change the coordinate system to match the cyclical flow of the months:
+
+```{r}
+#| eval: false
+df_month %>% 
+  semi_join(df_top_birds) %>% 
+  ggplot(aes(month, frequency_mean, group = common_name)) +
+    geom_polygon(color = "black", fill = NA, size = .5) +
+    coord_polar() +
+    scale_y_percent() +
+    labs(title = "Bird observation frequency",
+         subtitle = "Top 10 birds in PA, 2019",
+         x = NULL,
+         y = "Mean frequency",
+         caption = "Data from ebird.org. @conorotompkins")
+```
+
+![](polar_graph_1.png)
+
+`gganimate` lets me focus on one species at a time while showing all the data.
+
+```{r}
+#| eval: false
+plot_animated <- df_month %>% 
+  semi_join(df_top_birds) %>% 
+  mutate(common_name = fct_inorder(common_name)) %>% 
+  ggplot(aes(month, frequency_mean)) +
+  geom_polygon(data = df_month %>% rename(name = common_name),
+               aes(group = name),
+               color = "grey", fill = NA, size = .5) +
+  geom_polygon(aes(group = common_name),
+               color = "blue", fill = NA, size = 1.2) +
+  coord_polar() +
+  #facet_wrap(~common_name) +
+  scale_y_percent() +
+   labs(subtitle = "Most frequently observed birds in PA (2019)",
+        x = NULL,
+        y = "Frequency of observation",
+        caption = "Data from ebird.org. @conorotompkins") +
+  theme(plot.margin = margin(2, 2, 2, 2),
+        plot.title = element_text(color = "blue"))
+
+plot_animated +
+  transition_manual(common_name) +
+  ggtitle("{current_frame}")
+```
+
+![](polar_graph_2.gif)
