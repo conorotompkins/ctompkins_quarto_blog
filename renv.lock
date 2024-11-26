@@ -1158,6 +1158,26 @@
       ],
       "Hash": "a861555ddec7451c653b40e713166c6f"
     },
+    "fable": {
+      "Package": "fable",
+      "Version": "0.4.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "Rcpp",
+        "distributional",
+        "dplyr",
+        "fabletools",
+        "rlang",
+        "stats",
+        "tibble",
+        "tidyr",
+        "tsibble",
+        "utils"
+      ],
+      "Hash": "1515a618a47d110a2b97bf4d9e4b520f"
+    },
     "fabletools": {
       "Package": "fabletools",
       "Version": "0.5.0",
@@ -1368,6 +1388,30 @@
         "zoo"
       ],
       "Hash": "7bcbf8c17ac848d9593bebc182b5195a"
+    },
+    "fpp3": {
+      "Package": "fpp3",
+      "Version": "1.0.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "cli",
+        "crayon",
+        "dplyr",
+        "fable",
+        "fabletools",
+        "feasts",
+        "ggplot2",
+        "lubridate",
+        "purrr",
+        "rstudioapi",
+        "tibble",
+        "tidyr",
+        "tsibble",
+        "tsibbledata"
+      ],
+      "Hash": "87f9c28fdf311845b0aca8d52df53884"
     },
     "fracdiff": {
       "Package": "fracdiff",
@@ -4682,6 +4726,20 @@
         "vctrs"
       ],
       "Hash": "a75e397766b45996310908b5b32557ba"
+    },
+    "tsibbledata": {
+      "Package": "tsibbledata",
+      "Version": "0.4.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "rappdirs",
+        "tsibble",
+        "utils",
+        "vctrs"
+      ],
+      "Hash": "6b53c37a18049320fb08478aef6310c2"
     },
     "tune": {
       "Package": "tune",
