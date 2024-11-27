@@ -2,6 +2,7 @@
   {
     "listing": "/index.html",
     "items": [
+      "/posts/forecasting-potholes-with-exogenous-variables/index.html",
       "/posts/forecasting-pittsburgh-potholes-with-fable/index.html",
       "/posts/post-with-code/index.html",
       "/posts/welcome/index.html",
