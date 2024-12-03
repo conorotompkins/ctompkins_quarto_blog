@@ -11,22 +11,27 @@ date: 2018-07-19
 lastmod: 2020-09-27
 featured: false
 draft: false
+image: featured.png
 execute: 
   echo: true
   warning: false
   message: false
 ---
+
 # Principal Component Analysis in R
+
 Principal Component Analysis is an unsupervised method that reduces the number of dimensions in a dataset and highlights where the data varies. We will use PCA to analyze the 311 dataset from the [WPRDC](https://data.wprdc.org/dataset/311-data).
 
 ## Setup
 
 ### Install packages
+
 ```{r eval = FALSE}
 install.packages(c("tidyverse", "lubridate", "broom", "ggfortify", "ggrepel", "janitor"))
 ```
 
 ### Set up your environment
+
 ```{r}
 library(tidyverse)
 library(lubridate)
@@ -42,6 +47,7 @@ theme_set(theme_bw())
 ```
 
 ## Load the data
+
 ```{r}
 read_csv("https://raw.githubusercontent.com/conorotompkins/pittsburgh_311/master/data/pittsburgh_311.csv", progress = FALSE) %>% 
   clean_names() %>% 
@@ -51,7 +57,9 @@ read_csv("https://raw.githubusercontent.com/conorotompkins/pittsburgh_311/master
 ```
 
 ## Prep the data
+
 Create a dataframe of the top request types
+
 ```{r}
 (df %>% 
   count(request_type, sort = TRUE) %>% 
@@ -59,6 +67,7 @@ Create a dataframe of the top request types
 ```
 
 Count the number of requests per month by request type, filter for the top request types, and fill in gaps in the data
+
 ```{r}
 (df %>%
   semi_join(df_top_requests) %>% 
@@ -70,6 +79,7 @@ Count the number of requests per month by request type, filter for the top reque
 ```
 
 Calculate the percentage of a request type for each month
+
 ```{r}
 (df_months %>% 
   group_by(request_type) %>% 
@@ -78,12 +88,14 @@ Calculate the percentage of a request type for each month
 ```
 
 Check for bad data
+
 ```{r}
 df_months %>% 
   filter(is.na(month_percentage) | is.nan(month_percentage))
 ```
 
 Spread the data to turn the months into the columns
+
 ```{r}
 (df_months %>% 
   select(request_type, month, month_percentage) %>% 
@@ -92,6 +104,7 @@ Spread the data to turn the months into the columns
 ```
 
 Check that they all add up to 1 across the rows
+
 ```{r}
 (df_months %>% 
   select(Jan:Dec) %>% 
@@ -100,6 +113,7 @@ Check that they all add up to 1 across the rows
 ```
 
 ### Perform basic comparisons
+
 ```{r}
 df_months %>% 
   ggplot(aes(Jan, Jul)) +
@@ -107,6 +121,7 @@ df_months %>%
 ```
 
 Remember that each dot represents a request type, and the month shows what % of that request type occurred that month
+
 ```{r}
 df_months %>% 
   ggplot(aes(Apr, Oct)) +
@@ -115,10 +130,12 @@ df_months %>%
 
 It is not feasible to plot all the months against each other. PCA can help by condensing the columns and increasing the variance. PCA creates eigenvectors that represents the data in a concentrated way. Eigenvectors and eigenvalues do not represent observed data. They are calculated representations of the data. We will refer to eigenvectors as "principal components".
 
-In this case, where our data is measured by months in a year, each principal component could loosely be compared to a season.  
+In this case, where our data is measured by months in a year, each principal component could loosely be compared to a season.
 
 ## Prep the data for PCA
+
 The PCA function requires an all-numeric dataframe, so drop the request types into the dataframe metadata
+
 ```{r}
 (df_months %>% 
   ungroup() %>% 
@@ -127,12 +144,14 @@ The PCA function requires an all-numeric dataframe, so drop the request types in
 ```
 
 Create the PCA object
+
 ```{r}
 (df_months_pca1 %>% 
   prcomp(scale = TRUE) -> pc)
 ```
 
 Inspect the PCA object with tidier functions from the broom library. These functions turn the PCA object into a tidy dataframe
+
 ```{r}
 pc %>% 
   tidy() %>% 
@@ -153,6 +172,7 @@ au %>%
 ```
 
 Plot how the PCA object explains the variance in the data
+
 ```{r}
 pc %>% 
   tidy("pcs") %>%
@@ -171,6 +191,7 @@ pc %>%
 The first two principal components explain most of the variance
 
 For an in-depth plot we need to create the PCA object a different way
+
 ```{r}
 df_months %>% 
   nest() %>% 
@@ -180,6 +201,7 @@ df_months %>%
 ```
 
 Plot the PCA data
+
 ```{r}
 df_months_pca2 %>%
   mutate(
@@ -201,6 +223,7 @@ df_months_pca2 %>%
 This shows that summer and winter explain a significant part of the variance
 
 Plot the data to show the outliers
+
 ```{r}
 au %>% 
   mutate(outlier = case_when(abs(.fittedPC1) > 2 & abs(.fittedPC2) > 1.5 ~ TRUE),
@@ -226,8 +249,9 @@ ggplot(aes(.fittedPC1, .fittedPC2)) +
 ```
 
 # Sources
-* https://tbradley1013.github.io/2018/02/01/pca-in-a-tidy-verse-framework/
-* https://rdrr.io/cran/broom/man/prcomp_tidiers.html
-* https://poissonisfish.wordpress.com/2017/01/23/principal-component-analysis-in-r/
-* http://rstatistics.net/principal-component-analysis/
-* https://community.rstudio.com/t/tidyverse-solutions-for-factor-analysis-principal-component-analysis/4504
+
+-   https://tbradley1013.github.io/2018/02/01/pca-in-a-tidy-verse-framework/
+-   https://rdrr.io/cran/broom/man/prcomp_tidiers.html
+-   https://poissonisfish.wordpress.com/2017/01/23/principal-component-analysis-in-r/
+-   http://rstatistics.net/principal-component-analysis/
+-   https://community.rstudio.com/t/tidyverse-solutions-for-factor-analysis-principal-component-analysis/4504

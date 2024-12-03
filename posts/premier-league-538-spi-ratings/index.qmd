@@ -10,7 +10,7 @@ date: 2019-04-07
 lastmod: 2019-04-07
 featured: false
 draft: false
-image: featured.png
+image: featured.gif
 projects: []
 execute:
   warning: false
@@ -18,11 +18,13 @@ execute:
 editor_options: 
   chunk_output_type: console
 ---
+
 538's [Soccer Power Index (SPI)](https://projects.fivethirtyeight.com/soccer-predictions/) rates the quality of soccer teams from a variety of leagues around the world. In this post I'll use `gganimate` to animate team SPI over the past 3 seasons.
 
 The SPI data is available on 538's [GitHub repo](https://github.com/fivethirtyeight/data/tree/master/soccer-spi).
 
 Set up the environment:
+
 ```{r}
 library(tidyverse)
 library(purrr)
@@ -35,6 +37,7 @@ theme_set(theme_minimal(base_size = 18))
 ```
 
 Load the data and make the data long, instead of having different columns for home and away results:
+
 ```{r read_in_data1}
 #| eval: false
 data <- read_csv("https://projects.fivethirtyeight.com/soccer-api/club/spi_matches.csv")
@@ -68,6 +71,7 @@ df_all <- bind_rows(df_home, df_away) %>%
 ```
 
 Filter to EPL teams and add a `season` column:
+
 ```{r}
 df_epl <- df_all %>% 
   filter(date < Sys.Date(),
@@ -89,6 +93,7 @@ df_epl_smooth <- df_epl %>%
 ```
 
 Calculate the smoothed SPI per team per season using loess:
+
 ```{r}
 df_epl_smooth <- df_epl_smooth %>% 
   nest(-c(team, season)) %>% 
@@ -107,6 +112,7 @@ df_epl_last <- df_epl %>%
 ```
 
 Create the animation:
+
 ```{r spi_smooth_gif}
 spi_smooth_gif <- df_epl_smooth %>% 
   ggplot(aes(date, spi_smooth, color = team, group = team)) +
@@ -135,6 +141,7 @@ animate(spi_smooth_gif, height = 9, width = 9, duration = 15, nframes = 300)
 ```
 
 Observers of the EPL will know that in any given season there are 2-3 tiers of teams, given the economics and relegation structure of the league. In 2018 the difference between the top 6 and the rest of the league was particularly stark. This is partly due to the difficulties that Everton experienced after they sold Lukaku and signed older and less skilled players. This graph highlights Everton's SPI:
+
 ```{r everton_gif}
 everton_gif <- df_epl_smooth %>% 
   mutate(everton_flag = case_when(team == "Everton" ~ "Everton",

@@ -11,6 +11,7 @@ date: 2018-03-12
 lastmod: 2020-09-27T17:45:10-04:00
 featured: false
 draft: false
+image: featured.png
 execute: 
   echo: true
   warning: false

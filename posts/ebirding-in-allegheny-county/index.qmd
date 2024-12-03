@@ -48,6 +48,7 @@ set.seed(1234)
 ## Load and filter data
 
 I downloaded data for bird sightings in Allegheny County from the eBird data portal. This code loads the data in R and prepares it for analysis.
+
 ```{r}
 df <- vroom("post_data/ebd_US-PA-003_201001_202003_relFeb-2020.zip", delim = "\t") %>% 
   clean_names() %>% 
@@ -60,6 +61,7 @@ df <- vroom("post_data/ebd_US-PA-003_201001_202003_relFeb-2020.zip", delim = "\t
 ```
 
 I will focus on the two major "types" of observation protocols. The others are related to specific birding events, and might not be representative of the overall data.
+
 ```{r}
 df_top_protocols <- df %>% 
   count(protocol_type, sort = TRUE) %>% 
@@ -74,6 +76,7 @@ df <- df %>%
 ```
 
 This shows that Allegheny County birders began submitting data regularly in 2016. I will focus my analysis on recent observations.
+
 ```{r}
 df %>% 
   count(observation_date) %>% 
@@ -93,6 +96,7 @@ df <- df %>%
 ```
 
 There is wide variation in the number of times a species was sighted in a given observation.
+
 ```{r}
 df %>% 
   ggplot(aes(observation_count, group = common_name)) +
@@ -102,6 +106,7 @@ df %>%
 ```
 
 This calculates the 99th percentile of bird count per observation, and highlights the birds that are seen in large flocks.
+
 ```{r}
 df %>% 
   group_by(common_name) %>% 
@@ -110,6 +115,7 @@ df %>%
 ```
 
 This shows that the high count of Ring-billed Gulls is explained by groups of birders seeing flocks of thousands of the species. This also highlights that the same bird sighting can be counted twice because of simultaneous observation.
+
 ```{r}
 df %>% 
   filter(common_name == "Ring-billed Gull") %>% 
@@ -121,6 +127,7 @@ df %>%
 ## Species counts
 
 This does a basic count of the major species, not accounting for simultaneous observation:
+
 ```{r}
 df_counts <- df %>% 
   group_by(common_name) %>% 
@@ -144,6 +151,7 @@ df_counts %>%
 ## Species correlations
 
 I was interested in which birds are correlated most with two common and popular birds, the Cardinal and the Blue Jay. This calculates the pairwise correlation and plots the top 10 birds correlated with the two target species:
+
 ```{r}
 species_list <- c("Northern Cardinal", "Blue Jay")
 ```
@@ -175,6 +183,7 @@ df_pair_corr %>%
 Cardinals and Blue Jays share many birds in common, but there are some distinctions, and the level of correlation can vary. I use a slopegraph to show the difference in how much a bird is correlated with Blue Jays vs. Cardinals.
 
 This grabs the data for the two target species and gets the top 20 correlated birds for each species:
+
 ```{r}
 df_slopegraph <- df_pair_corr %>% 
   filter(item1 %in% species_list) %>% 
@@ -185,7 +194,8 @@ df_slopegraph <- df_pair_corr %>%
   ungroup()
 ```
 
-This calculates the difference in correlation for each bird: 
+This calculates the difference in correlation for each bird:
+
 ```{r}
 df_corr_diff <- df_slopegraph %>% 
   pivot_wider(names_from = item1, values_from = correlation, names_prefix = "corr_") %>% 
@@ -219,6 +229,7 @@ df_slopegraph %>%
 Network graphs are fun ways to show counts or correlations between groups. Since birds often exist in distinct environments and vary by season, graph analysis should be able to visualize connections.
 
 This takes the top 100 birds in terms of total count and makes a network graph object consisting of nodes and edges.
+
 ```{r}
 graph_object_corr <- df_pair_corr %>% 
   semi_join(df_counts %>% slice(1:75), by = c("item1" = "common_name")) %>% 
@@ -236,6 +247,7 @@ graph_object_corr
 ```
 
 This plots the network graph to show all the connections that fit the criteria in the code above:
+
 ```{r fig.height=10, fig.width=10}
 plot <- graph_object_corr %>% 
     ggraph() +
@@ -254,7 +266,8 @@ There is a dense group of birds that are highly correlated with each other. This
 
 ### Highlight species
 
-I also wanted to  be able to see where a given species fits in the network graph. This code prepares a network graph object and filters out species that are not highly connected to the main group.
+I also wanted to be able to see where a given species fits in the network graph. This code prepares a network graph object and filters out species that are not highly connected to the main group.
+
 ```{r}
 graph_object_corr <- df_pair_corr %>% 
   as_tbl_graph(directed = FALSE) %>% 
@@ -267,6 +280,7 @@ graph_object_corr <- df_pair_corr %>%
 ```
 
 This code identifies the node ID for the Northern Cardinal and makes a dataframe I will use to filter with in the next code chunk.
+
 ```{r}
 species_list <- c("Northern Cardinal")
 
@@ -278,6 +292,7 @@ df_species_corr_nodes <- graph_object_corr %>%
 ```
 
 This code identifes which node is the Northern Cardinal, and which edges connect to the Northern Cardinal. This identifies all the species that are connected to the bird, given the criteria I set above.
+
 ```{r fig.height=10, fig.width=10}
 plot_corr <- graph_object_corr %>% 
   activate(nodes) %>% 

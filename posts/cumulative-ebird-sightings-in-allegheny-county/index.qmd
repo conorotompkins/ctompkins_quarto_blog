@@ -21,9 +21,10 @@ execute:
   message: false
 ---
 
-This will be a quick post on cumulative bird observations in Allegheny County. Cumulative graphs show overall trends, seasonality, and quirks in how the data was recorded. They are also fun to turn into animated gifs with `gganimate`. 
+This will be a quick post on cumulative bird observations in Allegheny County. Cumulative graphs show overall trends, seasonality, and quirks in how the data was recorded. They are also fun to turn into animated gifs with `gganimate`.
 
 Load the relevant libraries:
+
 ```{r}
 library(tidyverse)
 library(lubridate)
@@ -40,6 +41,7 @@ theme_set(theme_bw(base_size = 16))
 ```
 
 This reads in data from the [eBird data portal](https://ebird.org/data/download):
+
 ```{r cache=TRUE}
 df <- vroom("post_data/ebd_US-PA-003_201001_202003_relFeb-2020.zip", delim = "\t") %>% 
   clean_names() %>% 
@@ -53,6 +55,7 @@ glimpse(df)
 ```
 
 I focus on the two main ways people use the eBird app: traveling and stationary. I also filter to only observations from 2016 onwards, since that is when eBird usage became stable in the county.
+
 ```{r}
 df_top_protocols <- df %>% 
   count(protocol_type, sort = TRUE) %>% 
@@ -64,6 +67,7 @@ df <- df %>%
 ```
 
 This identifies the top 10 birds in terms of total observations:
+
 ```{r}
 df_species_count <- df %>% 
   group_by(common_name) %>% 
@@ -73,6 +77,7 @@ df_species_count <- df %>%
 ```
 
 This code filters on the top 10 birds and caculates the cumulative number of sightings and the rolling 21 day average of sightings.
+
 ```{r}
 df_cumulative <- df %>% 
   semi_join(df_species_count, by = c("common_name")) %>% 
@@ -98,6 +103,7 @@ df_cumulative <- df %>%
 ```
 
 This plots the cumulative observations by bird and creates an animation with `gganimate`:
+
 ```{r eval = FALSE}
 plot <- df_cumulative %>% 
   ggplot(aes(observation_date, observation_count_cumulative, group = common_name)) +
@@ -118,4 +124,5 @@ plot <- df_cumulative %>%
 
 plot
 ```
+
 ![](cumulative_observations.gif)

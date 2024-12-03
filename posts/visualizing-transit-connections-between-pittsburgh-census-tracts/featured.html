@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html lang="en-us"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="generator" content="Source Themes Academic 4.8.0">
+
+  
+
+  
+  
+
+  
+  
+  
+  
+  
+    
+    
+    
+  
+  
+
+  <meta name="author" content="Conor Tompkins">
+
+  
+  
+  
+    
+  
+  <meta name="description" content="In this post I will use transit line and stop data from the WPRDC to map connections between census tracts. I access the census data via {tidycensus}, which contains information about the commuter connections between census tracts.">
+
+  
+  <link rel="alternate" hreflang="en-us" href="https://ctompkins.netlify.app/post/visualizing-transit-connections-between-pittsburgh-census-tracts/">
+
+  
+
+
+  
+  
+  
+  <meta name="theme-color" content="#2962ff">
+  
+
+  
+  
+
+  
+  
+  
+  
+    
+    
+    <link rel="stylesheet" href="featured_files/all.min.css" integrity="sha256-4w9DunooKSr3MFXHXWyFER38WmPdm361bQS/2KUWZbU=" crossorigin="anonymous">
+    <link rel="stylesheet" href="featured_files/jquery.fancybox.min.css" integrity="sha256-Vzbj7sDDS/woiFS3uNKo8eIuni59rjyNGtXfstRzStA=" crossorigin="anonymous">
+
+    
+    
+    
+      
+    
+    
+      
+      
+        
+          <link rel="stylesheet" href="featured_files/github.min.css" crossorigin="anonymous" title="hl-light">
+          <link rel="stylesheet" href="featured_files/dracula.min.css" crossorigin="anonymous" title="hl-dark" disabled="">
+        
+      
+    
+
+    
+    <link rel="stylesheet" href="featured_files/leaflet.css" integrity="sha256-SHMGCYmST46SoyGgo4YR/9AlK1vf3ff84Aq9yK4hdqM=" crossorigin="anonymous">
+    
+
+    
+
+    
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+        <script type="text/javascript" async="" src="featured_files/analytics.js"></script><script type="text/javascript" async="" src="featured_files/js_002"></script><script src="featured_files/lazysizes.min.js" integrity="sha256-Md1qLToewPeKjfAHU1zyPwOutccPAm5tahnaw7Osw0A=" crossorigin="anonymous" async=""></script>
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+        
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+
+  
+
+  
+  
+  
+    
+      
+      
+      <link rel="stylesheet" href="featured_files/css.css">
+    
+  
+
+  
+  
+  
+  
+  <link rel="stylesheet" href="featured_files/academic.min.d052d446044754dcc04bbe1e8b3691f7.css">
+
+  
+
+
+
+
+
+<script async="" src="featured_files/js"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+
+  function gtag() {
+      dataLayer.push(arguments);
+  }
+
+  function trackOutboundLink(url, target) {
+    gtag('event', 'click', {
+         'event_category': 'outbound',
+         'event_label': url,
+         'transport_type': 'beacon',
+         'event_callback': function () {
+           if (target !== '_blank') {
+             document.location = url;
+           }
+         }
+    });
+    console.debug("Outbound link clicked: " + url);
+  }
+
+  function onClickCallback(event) {
+    if ((event.target.tagName !== 'A') || (event.target.host === window.location.host)) {
+      return;
+    }
+    trackOutboundLink(event.target, event.target.getAttribute('target'));  
+  }
+
+  gtag('js', new Date());
+  gtag('config', 'UA-108245641-1', {});
+
+  
+  document.addEventListener('click', onClickCallback, false);
+</script>
+
+
+  
+
+
+  
+  
+
+  
+
+  <link rel="manifest" href="https://ctompkins.netlify.app/index.webmanifest">
+  <link rel="icon" type="image/png" href="https://ctompkins.netlify.app/images/icon_hu0b7a4cb9992c9ac0e91bd28ffd38dd00_9727_32x32_fill_lanczos_center_3.png">
+  <link rel="apple-touch-icon" type="image/png" href="https://ctompkins.netlify.app/images/icon_hu0b7a4cb9992c9ac0e91bd28ffd38dd00_9727_192x192_fill_lanczos_center_3.png">
+
+  <link rel="canonical" href="https://ctompkins.netlify.app/post/visualizing-transit-connections-between-pittsburgh-census-tracts/">
+
+  
+  
+  
+  
+  
+  
+  
+    
+  
+  
+  <meta property="twitter:card" content="summary_large_image">
+  
+  <meta property="twitter:site" content="@conor_tompkins">
+  <meta property="twitter:creator" content="@conor_tompkins">
+  
+  <meta property="og:site_name" content="Conor Tompkins">
+  <meta property="og:url" content="https://ctompkins.netlify.app/post/visualizing-transit-connections-between-pittsburgh-census-tracts/">
+  <meta property="og:title" content="Visualizing Transit Connections Between Pittsburgh Census Tracts | Conor Tompkins">
+  <meta property="og:description" content="In this post I will use transit line and stop data from the WPRDC to map connections between census tracts. I access the census data via {tidycensus}, which contains information about the commuter connections between census tracts."><meta property="og:image" content="https://ctompkins.netlify.app/post/visualizing-transit-connections-between-pittsburgh-census-tracts/featured.png">
+  <meta property="twitter:image" content="https://ctompkins.netlify.app/post/visualizing-transit-connections-between-pittsburgh-census-tracts/featured.png"><meta property="og:locale" content="en-us">
+  
+    
+      <meta property="article:published_time" content="2020-03-01T00:00:00+00:00">
+    
+    <meta property="article:modified_time" content="2020-08-12T10:50:44-04:00">
+  
+
+  
+
+
+    
+
+
+
+
+
+
+  
+
+
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://ctompkins.netlify.app/post/visualizing-transit-connections-between-pittsburgh-census-tracts/"
+  },
+  "headline": "Visualizing Transit Connections Between Pittsburgh Census Tracts",
+  
+  "image": [
+    "https://ctompkins.netlify.app/post/visualizing-transit-connections-between-pittsburgh-census-tracts/featured.png"
+  ],
+  
+  "datePublished": "2020-03-01T00:00:00Z",
+  "dateModified": "2020-08-12T10:50:44-04:00",
+  
+  "author": {
+    "@type": "Person",
+    "name": "Conor Tompkins"
+  },
+  
+  "publisher": {
+    "@type": "Organization",
+    "name": "Conor Tompkins",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ctompkins.netlify.app/images/icon_hu0b7a4cb9992c9ac0e91bd28ffd38dd00_9727_192x192_fill_lanczos_center_3.png"
+    }
+  },
+  "description": "In this post I will use transit line and stop data from the WPRDC to map connections between census tracts. I access the census data via {tidycensus}, which contains information about the commuter connections between census tracts."
+}
+</script>
+
+  
+
+  
+
+
+  
+
+
+  
+
+
+
+
+
+  <title>Visualizing Transit Connections Between Pittsburgh Census Tracts | Conor Tompkins</title>
+
+</head>
+<body id="top" data-spy="scroll" data-offset="70" data-target="#TableOfContents">
+
+  <aside class="search-results" id="search">
+  <div class="container">
+    <section class="search-header">
+
+      <div class="row no-gutters justify-content-between mb-3">
+        <div class="col-6">
+          <h1>Search</h1>
+        </div>
+        <div class="col-6 col-search-close">
+          <a class="js-search" href="#"><i class="fas fa-times-circle text-muted" aria-hidden="true"></i></a>
+        </div>
+      </div>
+
+      <div id="search-box">
+        
+        <input name="q" id="search-query" placeholder="Search..." autocapitalize="none" autocomplete="off" autocorrect="off" spellcheck="false" type="search" class="form-control">
+        
+      </div>
+
+    </section>
+    <section class="section-search-results">
+
+      <div id="search-hits">
+        
+      </div>
+
+    </section>
+  </div>
+</aside>
+
+
+  
+
+
+
+
+
+
+
+
+
+<nav class="navbar navbar-expand-lg navbar-light compensate-for-scrollbar" id="navbar-main">
+  <div class="container">
+
+    
+    <div class="d-none d-lg-inline-flex">
+      <a class="navbar-brand" href="https://ctompkins.netlify.app/">Conor Tompkins</a>
+    </div>
+    
+
+    
+    <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#navbar-content" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
+    <span><i class="fas fa-bars"></i></span>
+    </button>
+    
+
+    
+    <div class="navbar-brand-mobile-wrapper d-inline-flex d-lg-none">
+      <a class="navbar-brand" href="https://ctompkins.netlify.app/">Conor Tompkins</a>
+    </div>
+    
+
+    
+    
+    <div class="navbar-collapse main-menu-item collapse justify-content-start" id="navbar-content">
+
+      
+      <ul class="navbar-nav d-md-inline-flex">
+        
+
+        
+
+        
+        
+        
+          
+        
+
+        
+        
+        
+        
+        
+        
+          
+          
+          
+            
+          
+          
+        
+
+        <li class="nav-item">
+          <a class="nav-link " href="https://ctompkins.netlify.app/#posts"><span>Posts</span></a>
+        </li>
+
+        
+        
+
+        
+
+        
+        
+        
+          
+        
+
+        
+        
+        
+        
+        
+        
+
+        <li class="nav-item">
+          <a class="nav-link " href="https://ctompkins.netlify.app/apps/app-gallery/"><span>Apps</span></a>
+        </li>
+
+        
+        
+
+      
+
+        
+      </ul>
+    </div>
+
+    <ul class="nav-icons navbar-nav flex-row ml-auto d-flex pl-md-2">
+      
+      <li class="nav-item">
+        <a class="nav-link js-search" href="#" aria-label="Search"><i class="fas fa-search" aria-hidden="true"></i></a>
+      </li>
+      
+
+      
+      <li class="nav-item dropdown theme-dropdown">
+        <a href="#" class="nav-link js-theme-selector" data-toggle="dropdown" aria-haspopup="true">
+          <i class="fas fa-palette" aria-hidden="true"></i>
+        </a>
+        <div class="dropdown-menu">
+          <a href="#" class="dropdown-item js-set-theme-light dropdown-item-active">
+            <span>Light</span>
+          </a>
+          <a href="#" class="dropdown-item js-set-theme-dark">
+            <span>Dark</span>
+          </a>
+          <a href="#" class="dropdown-item js-set-theme-auto">
+            <span>Automatic</span>
+          </a>
+        </div>
+      </li>
+      
+
+      
+
+    </ul>
+
+  </div>
+</nav>
+
+
+  <article class="article">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+
+<div class="article-container pt-3">
+  <h1>Visualizing Transit Connections Between Pittsburgh Census Tracts</h1>
+
+  
+
+  
+
+
+<div class="article-metadata">
+
+  
+  
+  
+  
+  <div>
+    
+
+  
+  <span>Conor Tompkins</span>
+  </div>
+  
+  
+
+  
+  <span class="article-date">
+    
+    
+      
+          Last updated on
+      
+    
+    Aug 12, 2020
+  </span>
+  
+
+  
+
+  
+  <span class="middot-divider"></span>
+  <span class="article-reading-time">
+    17 min read
+  </span>
+  
+
+  
+  
+  
+
+  
+  
+  <span class="middot-divider"></span>
+  <span class="article-categories">
+    <i class="fas fa-folder mr-1"></i><a href="https://ctompkins.netlify.app/category/r/">R</a>, <a href="https://ctompkins.netlify.app/category/pittsburgh/">Pittsburgh</a>, <a href="https://ctompkins.netlify.app/category/allegheny-county/">Allegheny County</a>, <a href="https://ctompkins.netlify.app/category/transit/">Transit</a>, <a href="https://ctompkins.netlify.app/category/wprdc/">WPRDC</a></span>
+  
+
+</div>
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</div>
+
+
+<div class="article-header article-container featured-image-wrapper mt-4 mb-4" style="max-width: 720px; max-height: 377px;">
+  <div style="position: relative">
+    <img src="featured_files/featured_hub0664b3327a62d98f2b8fabef1a12137_2112372_720x0_re.png" alt="" class="featured-image">
+    
+  </div>
+</div>
+
+
+
+  <div class="article-container">
+
+    <div class="article-style">
+      
+<script src="featured_files/htmlwidgets.js"></script>
+<script src="featured_files/pym.v1.js"></script>
+<script src="featured_files/widgetframe.js"></script>
+
+
+<p>In this post I will use transit line and stop data from the <a href="https://data.wprdc.org/group/0f962c7b-baa3-483b-93e3-539118d0213c?tags=Port+Authority">WPRDC</a> to map connections between census tracts. I access the census data via <code>{tidycensus}</code>, which contains information about the commuter connections between census tracts.</p>
+<pre class="r"><code class="hljs"><span class="hljs-keyword">library</span>(tidyverse)
+<span class="hljs-keyword">library</span>(sf)
+<span class="hljs-keyword">library</span>(tigris)
+<span class="hljs-keyword">library</span>(janitor)
+<span class="hljs-keyword">library</span>(tidycensus)
+<span class="hljs-keyword">library</span>(leaflet)
+
+options(tigris_use_cache = <span class="hljs-literal">TRUE</span>,
+        scipen = <span class="hljs-number">999</span>,
+        digits = <span class="hljs-number">2</span>)</code></pre>
+<p>This code loads the transit line data from the <a href="">WPRDC</a>. I create the <code>full_route_name_id</code> column and set the coordinate reference system to <code>4326</code>.</p>
+<pre class="r"><code class="hljs"><span class="hljs-comment">##load transit data</span>
+transit_lines &lt;- st_read(<span class="hljs-string">"data/shapefiles/transit_lines/PAAC_Routes_1909.shp"</span>) %&gt;%
+  clean_names() %&gt;%
+  mutate_at(vars(-all_of(c(<span class="hljs-string">"geometry"</span>))), as.character) %&gt;%
+  rename(route_id = route,
+         service_type = type_serv) %&gt;% 
+  distinct(service_type, route_id, route_name, geometry) %&gt;%
+  mutate(full_route_name_id = str_c(route_id, route_name, sep = <span class="hljs-string">" "</span>)) %&gt;% 
+  st_transform(<span class="hljs-number">3488</span>)</code></pre>
+<pre><code class="hljs shell"><span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># Reading layer `PAAC_Routes_1909' from data source `/Users/conortompkins/github_repos/blog_hugo_academic/content/post/visualizing-transit-connections-between-pittsburgh-census-tracts/data/shapefiles/transit_lines/PAAC_Routes_1909.shp' using driver `ESRI Shapefile'</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># Simple feature collection with 102 features and 13 fields</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># geometry type:  MULTILINESTRING</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># dimension:      XY</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># bbox:           xmin: 1300000 ymin: 350000 xmax: 1400000 ymax: 490000</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># projected CRS:  NAD83(2011) / Pennsylvania South (ftUS)</span></span></code></pre>
+<pre class="r"><code class="hljs">transit_lines</code></pre>
+<pre><code class="hljs shell"><span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># Simple feature collection with 102 features and 4 fields</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># geometry type:  MULTILINESTRING</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># dimension:      XY</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># bbox:           xmin: 3300000 ymin: 960000 xmax: 3300000 ymax: 1000000</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># projected CRS:  NAD83(NSRS2007) / California Albers</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># First 10 features:</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#    route_id               route_name service_type</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 1        26                Chartiers        Local</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 2        27                Fairywood        Local</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 3        40           Mt. Washington        Local</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 4       61C   McKeesport - Homestead Key Corridor</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 5        65            Squirrel Hill      Express</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 6       71A                   Negley Key Corridor</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 7       71D                 Hamilton Key Corridor</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 8        74 Homewood - Squirrel Hill        Local</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 9        83             Bedford Hill        Local</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 10       89         Garfield Commons        Local</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#                          geometry          full_route_name_id</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 1  MULTILINESTRING ((3293319 9...                26 Chartiers</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 2  MULTILINESTRING ((3293319 9...                27 Fairywood</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 3  MULTILINESTRING ((3294223 9...           40 Mt. Washington</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 4  MULTILINESTRING ((3293614 9...  61C McKeesport - Homestead</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 5  MULTILINESTRING ((3300806 9...            65 Squirrel Hill</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 6  MULTILINESTRING ((3293614 9...                  71A Negley</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 7  MULTILINESTRING ((3293614 9...                71D Hamilton</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 8  MULTILINESTRING ((3298497 9... 74 Homewood - Squirrel Hill</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 9  MULTILINESTRING ((3293794 9...             83 Bedford Hill</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 10 MULTILINESTRING ((3298392 9...         89 Garfield Commons</span></span></code></pre>
+<p>This is what the transit lines look like on a basic map:</p>
+<pre class="r"><code class="hljs">transit_lines %&gt;% 
+  ggplot(aes(color = route_id)) + 
+    geom_sf() +
+    guides(color = <span class="hljs-literal">FALSE</span>) +
+    theme_minimal()</code></pre>
+<p><img src="featured_files/unnamed-chunk-3-1.png" width="672"></p>
+<p>This creates a table of <code>route_id</code> and <code>service_type</code> that I will join against later.</p>
+<pre class="r"><code class="hljs">df_service_type &lt;- transit_lines %&gt;% 
+  distinct(service_type, route_id, full_route_name_id) %&gt;% 
+  st_drop_geometry()</code></pre>
+<p>This code loads the transit stop shapefile from the <a href="https://data.wprdc.org/dataset/port-authority-of-allegheny-county-transit-stops">WPRDC</a>:</p>
+<pre class="r"><code class="hljs">transit_stops &lt;- st_read(<span class="hljs-string">"data/shapefiles/transit_stops/PAAC_Stops_1909.shp"</span>) %&gt;%
+  st_transform(<span class="hljs-number">3488</span>) %&gt;% 
+  clean_names() %&gt;% 
+  mutate_at(vars(-all_of(c(<span class="hljs-string">"geometry"</span>, <span class="hljs-string">"routes_cou"</span>))), as.character) %&gt;%
+  select(stop_name, routes_served = routes_ser, routes_cou, geometry) %&gt;% 
+  distinct(stop_name, routes_served = routes_served, routes_cou, geometry)</code></pre>
+<pre><code class="hljs shell"><span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># Reading layer `PAAC_Stops_1909' from data source `/Users/conortompkins/github_repos/blog_hugo_academic/content/post/visualizing-transit-connections-between-pittsburgh-census-tracts/data/shapefiles/transit_stops/PAAC_Stops_1909.shp' using driver `ESRI Shapefile'</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># Simple feature collection with 6946 features and 17 fields</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># geometry type:  POINT</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># dimension:      XY</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># bbox:           xmin: 1300000 ymin: 350000 xmax: 1400000 ymax: 490000</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># projected CRS:  NAD83(2011) / Pennsylvania South (ftUS)</span></span></code></pre>
+<pre class="r"><code class="hljs">transit_stops</code></pre>
+<pre><code class="hljs shell"><span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># Simple feature collection with 6946 features and 3 fields</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># geometry type:  POINT</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># dimension:      XY</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># bbox:           xmin: 3300000 ymin: 960000 xmax: 3300000 ymax: 1000000</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># projected CRS:  NAD83(NSRS2007) / California Albers</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># First 10 features:</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#                              stop_name routes_served routes_cou</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 1  26TH ST AT PENN AVE FS (SPRING WAY)    54, 88, 91          3</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 2               28TH ST AT LIBERTY AVE            54          1</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 3                32ND ST AT SPRING WAY    54, 88, 91          3</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 4                 40TH ST AT BUTLER ST            93          1</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 5            40TH ST AT DAVIDSON ST FS            93          1</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 6              40TH ST OPP DAVIDSON ST        64, 93          2</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 7                  4TH ST AT COREY AVE            59          1</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 8               FIFTH AVE AT AIKEN AVE 28X, 71B, 71D          3</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 9            FIFTH AVE AT AMBERSON AVE 28X, 71B, 71D          3</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 10         FIFTH AVE AT BEECHWOOD BLVD      28X, 71D          2</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#                  geometry</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 1  POINT (3294762 976882)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 2  POINT (3294959 977172)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 3  POINT (3295178 977765)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 4  POINT (3295366 978861)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 5  POINT (3295502 978803)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 6  POINT (3295495 978788)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 7  POINT (3305461 976046)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 8  POINT (3298449 977796)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 9  POINT (3298126 977556)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 10 POINT (3299655 978942)</span></span></code></pre>
+<p>Much of the important data is stored in the <code>routes_served</code> column. This code pivots the data longer to make it easier to work with.</p>
+<pre class="r"><code class="hljs"><span class="hljs-comment">#identify maximum number of routes served by a stop</span>
+max_routes_served &lt;- transit_stops %&gt;% 
+  summarize(max_routes = max(routes_cou)) %&gt;% 
+  pull(max_routes)
+
+transit_stops %&gt;% 
+  filter(routes_cou == max_routes_served)</code></pre>
+<pre><code class="hljs shell"><span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># Simple feature collection with 1 feature and 3 fields</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># geometry type:  POINT</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># dimension:      XY</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># bbox:           xmin: 3300000 ymin: 980000 xmax: 3300000 ymax: 980000</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># projected CRS:  NAD83(NSRS2007) / California Albers</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#                       stop_name</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 1 EAST BUSWAY AT PENN STATION C</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#                                                                                 routes_served</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 1 1, 11, 15, 19L, 39, 40, 44, 6, P1, P10, P12, P16, P17, P2, P67, P68, P69, P7, P71, P76, P78</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#   routes_cou               geometry</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 1         21 POINT (3294168 975311)</span></span></code></pre>
+<pre class="r"><code class="hljs"><span class="hljs-comment">#separate routes_served into multiple columns, one per route</span>
+transit_stops &lt;- transit_stops %&gt;% 
+  separate(routes_served, sep = <span class="hljs-string">", "</span>, into = str_c(<span class="hljs-string">"route_"</span>, <span class="hljs-number">1</span>:max_routes_served), extra = <span class="hljs-string">"merge"</span>, fill = <span class="hljs-string">"right"</span>)
+
+transit_stops</code></pre>
+<pre><code class="hljs xml">## Simple feature collection with 6946 features and 23 fields
+## geometry type:  POINT
+## dimension:      XY
+## bbox:           xmin: 3300000 ymin: 960000 xmax: 3300000 ymax: 1000000
+## projected CRS:  NAD83(NSRS2007) / California Albers
+## First 10 features:
+##                              stop_name route_1 route_2 route_3 route_4 route_5
+## 1  26TH ST AT PENN AVE FS (SPRING WAY)      54      88      91    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>
+## 2               28TH ST AT LIBERTY AVE      54    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>
+## 3                32ND ST AT SPRING WAY      54      88      91    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>
+## 4                 40TH ST AT BUTLER ST      93    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>
+## 5            40TH ST AT DAVIDSON ST FS      93    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>
+## 6              40TH ST OPP DAVIDSON ST      64      93    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>
+## 7                  4TH ST AT COREY AVE      59    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>
+## 8               FIFTH AVE AT AIKEN AVE     28X     71B     71D    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>
+## 9            FIFTH AVE AT AMBERSON AVE     28X     71B     71D    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>
+## 10         FIFTH AVE AT BEECHWOOD BLVD     28X     71D    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>
+##    route_6 route_7 route_8 route_9 route_10 route_11 route_12 route_13 route_14
+## 1     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>
+## 2     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>
+## 3     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>
+## 4     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>
+## 5     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>
+## 6     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>
+## 7     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>
+## 8     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>
+## 9     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>
+## 10    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>
+##    route_15 route_16 route_17 route_18 route_19 route_20 route_21 routes_cou
+## 1      <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>          3
+## 2      <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>          1
+## 3      <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>          3
+## 4      <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>          1
+## 5      <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>          1
+## 6      <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>          2
+## 7      <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>          1
+## 8      <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>          3
+## 9      <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>          3
+## 10     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>     <span class="hljs-tag">&lt;<span class="hljs-name">NA</span>&gt;</span>          2
+##                  geometry
+## 1  POINT (3294762 976882)
+## 2  POINT (3294959 977172)
+## 3  POINT (3295178 977765)
+## 4  POINT (3295366 978861)
+## 5  POINT (3295502 978803)
+## 6  POINT (3295495 978788)
+## 7  POINT (3305461 976046)
+## 8  POINT (3298449 977796)
+## 9  POINT (3298126 977556)
+## 10 POINT (3299655 978942)</code></pre>
+<pre class="r"><code class="hljs">transit_stops %&gt;% 
+  filter(routes_cou == max_routes_served)</code></pre>
+<pre><code class="hljs shell"><span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># Simple feature collection with 1 feature and 23 fields</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># geometry type:  POINT</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># dimension:      XY</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># bbox:           xmin: 3300000 ymin: 980000 xmax: 3300000 ymax: 980000</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># projected CRS:  NAD83(NSRS2007) / California Albers</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#                       stop_name route_1 route_2 route_3 route_4 route_5 route_6</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 1 EAST BUSWAY AT PENN STATION C       1      11      15     19L      39      40</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#   route_7 route_8 route_9 route_10 route_11 route_12 route_13 route_14 route_15</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 1      44       6      P1      P10      P12      P16      P17       P2      P67</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#   route_16 route_17 route_18 route_19 route_20 route_21 routes_cou</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 1      P68      P69       P7      P71      P76      P78         21</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#                 geometry</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 1 POINT (3294168 975311)</span></span></code></pre>
+<pre class="r"><code class="hljs"><span class="hljs-comment">#pivot data longer</span>
+transit_stops &lt;- transit_stops %&gt;% 
+  pivot_longer(cols = starts_with(<span class="hljs-string">"route_"</span>), names_to = <span class="hljs-string">"route_number"</span>, values_to = <span class="hljs-string">"route_id"</span>) %&gt;% 
+  st_as_sf()
+  
+transit_stops</code></pre>
+<pre><code class="hljs shell"><span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># Simple feature collection with 145866 features and 4 fields</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># geometry type:  POINT</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># dimension:      XY</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># bbox:           xmin: 3300000 ymin: 960000 xmax: 3300000 ymax: 1000000</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># projected CRS:  NAD83(NSRS2007) / California Albers</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># # A tibble: 145,866 x 5</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#    stop_name               routes_cou             geometry route_number route_id</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#    &lt;chr&gt;                        &lt;dbl&gt;          &lt;POINT [m]&gt; &lt;chr&gt;        &lt;chr&gt;   </span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#  1 26TH ST AT PENN AVE FS…          3     (3294762 976882) route_1      54      </span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#  2 26TH ST AT PENN AVE FS…          3     (3294762 976882) route_2      88      </span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#  3 26TH ST AT PENN AVE FS…          3     (3294762 976882) route_3      91      </span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#  4 26TH ST AT PENN AVE FS…          3     (3294762 976882) route_4      &lt;NA&gt;    </span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#  5 26TH ST AT PENN AVE FS…          3     (3294762 976882) route_5      &lt;NA&gt;    </span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#  6 26TH ST AT PENN AVE FS…          3     (3294762 976882) route_6      &lt;NA&gt;    </span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#  7 26TH ST AT PENN AVE FS…          3     (3294762 976882) route_7      &lt;NA&gt;    </span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#  8 26TH ST AT PENN AVE FS…          3     (3294762 976882) route_8      &lt;NA&gt;    </span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#  9 26TH ST AT PENN AVE FS…          3     (3294762 976882) route_9      &lt;NA&gt;    </span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 10 26TH ST AT PENN AVE FS…          3     (3294762 976882) route_10     &lt;NA&gt;    </span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># # … with 145,856 more rows</span></span></code></pre>
+<pre class="r"><code class="hljs">transit_stops &lt;- transit_stops %&gt;%
+  filter(!is.na(route_id)) %&gt;% 
+  left_join(df_service_type)</code></pre>
+<p>This code loads the census tract data via <code>{tidycensus}</code>. I choose the census tracts <code>42003020100</code> (Downtown) and <code>42003070300</code> (Shadyside).</p>
+<pre class="r"><code class="hljs"><span class="hljs-comment">#load tract data</span>
+allegheny_tracts &lt;- get_decennial(geography = <span class="hljs-string">"tract"</span>,
+                                  variables = c(total_pop = <span class="hljs-string">"P001001"</span>),
+                                  state = <span class="hljs-string">"PA"</span>,
+                                  county = <span class="hljs-string">"Allegheny County"</span>,
+                                  geometry = <span class="hljs-literal">TRUE</span>,
+                                  output = <span class="hljs-string">"wide"</span>) %&gt;%
+  mutate(name = case_when(GEOID == <span class="hljs-string">"42003020100"</span> ~ <span class="hljs-string">"Downtown"</span>,
+                          GEOID == <span class="hljs-string">"42003070300"</span> ~ <span class="hljs-string">"Shadyside"</span>)) %&gt;% 
+  st_transform(<span class="hljs-number">3488</span>)
+
+<span class="hljs-comment">#calculate centers of the tracts</span>
+allegheny_tracts_centroid &lt;- allegheny_tracts %&gt;%
+  mutate(name = case_when(GEOID == <span class="hljs-string">"42003020100"</span> ~ <span class="hljs-string">"Downtown"</span>,
+                          GEOID == <span class="hljs-string">"42003070300"</span> ~ <span class="hljs-string">"Shadyside"</span>)) %&gt;% 
+  mutate(lon = map_dbl(geometry, ~st_centroid(.x)[[<span class="hljs-number">1</span>]]),
+         lat = map_dbl(geometry, ~st_centroid(.x)[[<span class="hljs-number">2</span>]])) %&gt;% 
+  st_drop_geometry() %&gt;% 
+  st_as_sf(coords = c(<span class="hljs-string">"lon"</span>, <span class="hljs-string">"lat"</span>), crs = <span class="hljs-number">3488</span>) %&gt;% 
+  st_transform(<span class="hljs-number">3488</span>)
+
+<span class="hljs-comment">#creates table with geometry of the county border</span>
+allegheny &lt;- allegheny_tracts %&gt;% 
+  summarize()</code></pre>
+<pre class="r"><code class="hljs">commute_tracts &lt;- allegheny_tracts %&gt;% 
+  filter(!is.na(name))
+
+commute_centroids &lt;- allegheny_tracts_centroid %&gt;% 
+  filter(!is.na(name))</code></pre>
+<p>This code uses <code>st_is_within_distance</code> to find the transit stops that are within 700 meters of the center of the Downtown AND Shadyside census tracts.</p>
+<pre class="r"><code class="hljs">df_stops_joined_distance &lt;- transit_stops %&gt;% 
+  st_join(commute_centroids, st_is_within_distance, dist = <span class="hljs-number">700</span>, left = <span class="hljs-literal">TRUE</span>) %&gt;% 
+  arrange(route_id)
+
+df_stops_joined_distance</code></pre>
+<pre><code class="hljs shell"><span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># Simple feature collection with 12087 features and 10 fields</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># geometry type:  POINT</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># dimension:      XY</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># bbox:           xmin: 3300000 ymin: 960000 xmax: 3300000 ymax: 1000000</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># projected CRS:  NAD83(NSRS2007) / California Albers</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># First 10 features:</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#                        stop_name routes_cou route_number route_id service_type</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 1   WEST MIFFLIN GARAGE TERMINAL          4      route_2                  &lt;NA&gt;</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 2     LAYOVER PENN PARK TERMINAL         12      route_2                  &lt;NA&gt;</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 3     LAYOVER PENN PARK TERMINAL         12      route_6                  &lt;NA&gt;</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 4     LAYOVER PENN PARK TERMINAL         12      route_8                  &lt;NA&gt;</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 5     LAYOVER PENN PARK TERMINAL         12     route_11                  &lt;NA&gt;</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 6              4TH AVE AT 7TH ST          1      route_1        1        Local</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 7           E 4TH AVE AT BOYD ST          2      route_1        1        Local</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 8  4TH AVE AT CENTRAL CITY PLAZA          1      route_1        1        Local</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 9           E 4TH AVE AT LOCK ST          2      route_1        1        Local</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 10          E 4TH AVE AT WOOD ST          2      route_1        1        Local</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#    full_route_name_id GEOID NAME total_pop name               geometry</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 1                &lt;NA&gt;  &lt;NA&gt; &lt;NA&gt;        NA &lt;NA&gt; POINT (3302630 969221)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 2                &lt;NA&gt;  &lt;NA&gt; &lt;NA&gt;        NA &lt;NA&gt; POINT (3294348 975649)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 3                &lt;NA&gt;  &lt;NA&gt; &lt;NA&gt;        NA &lt;NA&gt; POINT (3294348 975649)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 4                &lt;NA&gt;  &lt;NA&gt; &lt;NA&gt;        NA &lt;NA&gt; POINT (3294348 975649)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 5                &lt;NA&gt;  &lt;NA&gt; &lt;NA&gt;        NA &lt;NA&gt; POINT (3294348 975649)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 6     1 Freeport Road  &lt;NA&gt; &lt;NA&gt;        NA &lt;NA&gt; POINT (3306225 995240)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 7     1 Freeport Road  &lt;NA&gt; &lt;NA&gt;        NA &lt;NA&gt; POINT (3305254 999390)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 8     1 Freeport Road  &lt;NA&gt; &lt;NA&gt;        NA &lt;NA&gt; POINT (3306153 995343)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 9     1 Freeport Road  &lt;NA&gt; &lt;NA&gt;        NA &lt;NA&gt; POINT (3305377 999550)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 10    1 Freeport Road  &lt;NA&gt; &lt;NA&gt;        NA &lt;NA&gt; POINT (3305323 999479)</span></span></code></pre>
+<pre class="r"><code class="hljs">df_stops_joined_distance &lt;- df_stops_joined_distance %&gt;% 
+  filter(!is.na(name))
+
+df_stops_joined_distance</code></pre>
+<pre><code class="hljs shell"><span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># Simple feature collection with 736 features and 10 fields</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># geometry type:  POINT</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># dimension:      XY</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># bbox:           xmin: 3300000 ymin: 970000 xmax: 3300000 ymax: 980000</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># projected CRS:  NAD83(NSRS2007) / California Albers</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># First 10 features:</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#                             stop_name routes_cou route_number route_id</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 1          7TH ST AT FT DUQUESNE BLVD          9      route_1        1</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 2               7TH ST AT PENN AVE FS          4      route_1        1</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 3  LIBERTY AVE AT 7TH ST (CLARK BLDG)          8      route_1        1</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 4        LIBERTY AVE AT SMITHFIELD ST         19      route_1        1</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 5      LIBERTY AVE AT WILLIAM PENN PL         18      route_1        1</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 6              LIBERTY AVE OPP 9TH ST         20      route_1        1</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 7       LIBERTY AVE OPP SMITHFIELD ST          8      route_1        1</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 8          7TH ST AT FT DUQUESNE BLVD          9      route_2       11</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 9               7TH ST AT PENN AVE FS          4      route_2       11</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 10 LIBERTY AVE AT 7TH ST (CLARK BLDG)          8      route_2       11</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#    service_type full_route_name_id       GEOID</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 1         Local    1 Freeport Road 42003020100</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 2         Local    1 Freeport Road 42003020100</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 3         Local    1 Freeport Road 42003020100</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 4         Local    1 Freeport Road 42003020100</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 5         Local    1 Freeport Road 42003020100</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 6         Local    1 Freeport Road 42003020100</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 7         Local    1 Freeport Road 42003020100</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 8         Local        11 Fineview 42003020100</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 9         Local        11 Fineview 42003020100</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 10        Local        11 Fineview 42003020100</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#                                                NAME total_pop     name</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 1  Census Tract 201, Allegheny County, Pennsylvania      3629 Downtown</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 2  Census Tract 201, Allegheny County, Pennsylvania      3629 Downtown</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 3  Census Tract 201, Allegheny County, Pennsylvania      3629 Downtown</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 4  Census Tract 201, Allegheny County, Pennsylvania      3629 Downtown</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 5  Census Tract 201, Allegheny County, Pennsylvania      3629 Downtown</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 6  Census Tract 201, Allegheny County, Pennsylvania      3629 Downtown</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 7  Census Tract 201, Allegheny County, Pennsylvania      3629 Downtown</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 8  Census Tract 201, Allegheny County, Pennsylvania      3629 Downtown</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 9  Census Tract 201, Allegheny County, Pennsylvania      3629 Downtown</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 10 Census Tract 201, Allegheny County, Pennsylvania      3629 Downtown</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#                  geometry</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 1  POINT (3293481 975066)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 2  POINT (3293586 974931)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 3  POINT (3293638 974904)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 4  POINT (3293846 975073)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 5  POINT (3293943 975161)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 6  POINT (3293761 974994)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 7  POINT (3293856 975107)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 8  POINT (3293481 975066)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 9  POINT (3293586 974931)</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 10 POINT (3293638 974904)</span></span></code></pre>
+<pre class="r"><code class="hljs">df_route_filter &lt;- df_stops_joined_distance %&gt;% 
+  st_drop_geometry() %&gt;% 
+  distinct(route_id, name) %&gt;% 
+  group_by(route_id) %&gt;% 
+  filter(n() &gt;= <span class="hljs-number">2</span>) %&gt;% 
+  ungroup() %&gt;% 
+  distinct(route_id)
+
+df_route_filter</code></pre>
+<pre><code class="hljs shell"><span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># # A tibble: 22 x 1</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#    route_id</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#    &lt;chr&gt;   </span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#  1 28X     </span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#  2 67      </span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#  3 69      </span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#  4 71A     </span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#  5 71B     </span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#  6 71C     </span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#  7 71D     </span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#  8 82      </span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#  9 86      </span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 10 P1      </span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># # … with 12 more rows</span></span></code></pre>
+<pre class="r"><code class="hljs">df_stops_joined_distance &lt;- df_stops_joined_distance %&gt;% 
+  semi_join(df_route_filter, by = c(<span class="hljs-string">"route_id"</span> = <span class="hljs-string">"route_id"</span>)) %&gt;% 
+  left_join(df_service_type)
+
+df_stops_joined_distance &lt;- df_stops_joined_distance %&gt;% 
+  mutate(stop_name_route_id_route_name = str_c(full_route_name_id, str_to_title(stop_name), sep = <span class="hljs-string">" - "</span>))</code></pre>
+<p>To help visualize how the join works, imagine a buffer around each 
+point (transit stop). This shows the stops from 71A with a buffer:</p>
+<pre class="r"><code class="hljs">st_crs(transit_stops)$units</code></pre>
+<pre><code class="hljs shell"><span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># [1] "m"</span></span></code></pre>
+<pre class="r"><code class="hljs">transit_stops %&gt;% 
+  mutate(geometry_buffered = st_buffer(geometry, dist = <span class="hljs-number">700</span>)) %&gt;% 
+  <span class="hljs-comment">#st_transform(crs = 3488) %&gt;% </span>
+  filter(route_id == <span class="hljs-string">"71A"</span>) %&gt;% 
+  ggplot() +
+    geom_sf(data = commute_centroids,
+            color = <span class="hljs-string">"blue"</span>,
+            size = <span class="hljs-number">3</span>) +
+    geom_sf(color = <span class="hljs-string">"red"</span>, size = <span class="hljs-number">1</span>) +
+    geom_sf(aes(geometry = geometry_buffered),
+            fill = <span class="hljs-literal">NA</span>
+            ) +
+    <span class="hljs-comment">#coord_sf(crs = 4326) +</span>
+    theme_minimal()</code></pre>
+<p><img src="featured_files/unnamed-chunk-13-1.png" width="672"></p>
+<p><code>st_is_within_distance</code> identifies which red points are within 700 meters of the blue points.</p>
+<p>This shows the tracts, the tract centroids, and the transit stops within 700 meters of the centroids.</p>
+<pre class="r"><code class="hljs">df_stops_joined_distance %&gt;% 
+  ggplot() +
+    geom_sf(data = commute_tracts) +
+    geom_sf(data = commute_centroids, color = <span class="hljs-string">"red"</span>) +
+    geom_sf() +
+    theme_minimal()</code></pre>
+<p><img src="featured_files/unnamed-chunk-14-1.png" width="672"></p>
+<p>This filters on the transit lines served by the stops that successfully joined against the Downtown and Shadyside centroids:</p>
+<pre class="r"><code class="hljs">commuter_transit_lines &lt;- transit_lines %&gt;% 
+  semi_join(df_route_filter, by = c(<span class="hljs-string">"route_id"</span> = <span class="hljs-string">"route_id"</span>))
+
+commuter_transit_lines</code></pre>
+<pre><code class="hljs shell"><span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># Simple feature collection with 22 features and 4 fields</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># geometry type:  MULTILINESTRING</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># dimension:      XY</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># bbox:           xmin: 3300000 ymin: 970000 xmax: 3300000 ymax: 1000000</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># projected CRS:  NAD83(NSRS2007) / California Albers</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># First 10 features:</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#    route_id              route_name service_type         full_route_name_id</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 1       71A                  Negley Key Corridor                 71A Negley</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 2       71D                Hamilton Key Corridor               71D Hamilton</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 3        P2       East Busway Short        Rapid       P2 East Busway Short</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 4       P78           Oakmont Flyer      Express          P78 Oakmont Flyer</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 5        P1 East Busway - All Stops        Rapid P1 East Busway - All Stops</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 6       71B           Highland Park Key Corridor          71B Highland Park</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 7        69                Trafford        Local                69 Trafford</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 8        86                 Liberty        Local                 86 Liberty</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 9       P68    Braddock Hills Flyer      Express   P68 Braddock Hills Flyer</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 10      P69          Trafford Flyer      Express         P69 Trafford Flyer</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#                          geometry</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 1  MULTILINESTRING ((3293614 9...</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 2  MULTILINESTRING ((3293614 9...</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 3  MULTILINESTRING ((3293856 9...</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 4  MULTILINESTRING ((3294045 9...</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 5  MULTILINESTRING ((3294045 9...</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 6  MULTILINESTRING ((3295547 9...</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 7  MULTILINESTRING ((3310878 9...</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 8  MULTILINESTRING ((3294134 9...</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 9  MULTILINESTRING ((3294049 9...</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 10 MULTILINESTRING ((3294049 9...</span></span></code></pre>
+<p>These are the transit lines that serve the two tracts:</p>
+<pre class="r"><code class="hljs">commute_centroids %&gt;% 
+  ggplot() +
+    geom_sf(size = <span class="hljs-number">3</span>) +
+    geom_sf(data = commuter_transit_lines, aes(color = route_id)) +
+    theme_void()</code></pre>
+<p><img src="featured_files/unnamed-chunk-16-1.png" width="672"></p>
+<p>This sets the bounding box for the final static map:</p>
+<pre class="r"><code class="hljs">commute_zoom &lt;- commute_tracts %&gt;% 
+  st_buffer(dist = <span class="hljs-number">700</span>) %&gt;% 
+  st_bbox()</code></pre>
+<p>This crops the transit lines to only include the parts within the bounding box:</p>
+<pre class="r"><code class="hljs">commuter_transit_lines %&gt;% 
+  st_crop(commute_zoom)</code></pre>
+<pre><code class="hljs shell"><span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># Simple feature collection with 22 features and 4 fields</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># geometry type:  GEOMETRY</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># dimension:      XY</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># bbox:           xmin: 3300000 ymin: 970000 xmax: 3300000 ymax: 980000</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># projected CRS:  NAD83(NSRS2007) / California Albers</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># First 10 features:</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#    route_id              route_name service_type         full_route_name_id</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 1       71A                  Negley Key Corridor                 71A Negley</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 2       71D                Hamilton Key Corridor               71D Hamilton</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 3        P2       East Busway Short        Rapid       P2 East Busway Short</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 4       P78           Oakmont Flyer      Express          P78 Oakmont Flyer</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 5        P1 East Busway - All Stops        Rapid P1 East Busway - All Stops</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 6       71B           Highland Park Key Corridor          71B Highland Park</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 7        69                Trafford        Local                69 Trafford</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 8        86                 Liberty        Local                 86 Liberty</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 9       P68    Braddock Hills Flyer      Express   P68 Braddock Hills Flyer</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 10      P69          Trafford Flyer      Express         P69 Trafford Flyer</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">#                          geometry</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 1  MULTILINESTRING ((3293614 9...</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 2  MULTILINESTRING ((3293614 9...</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 3  MULTILINESTRING ((3293856 9...</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 4  LINESTRING (3294045 975240,...</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 5  MULTILINESTRING ((3294045 9...</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 6  MULTILINESTRING ((3295547 9...</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 7  MULTILINESTRING ((3299435 9...</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 8  MULTILINESTRING ((3294134 9...</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 9  MULTILINESTRING ((3294049 9...</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># 10 MULTILINESTRING ((3294049 9...</span></span></code></pre>
+<p>This plots the Downtown and Shadyside census tracts and the transit lines and stops that serve them:</p>
+<pre class="r"><code class="hljs">p &lt;- commuter_transit_lines %&gt;% 
+  st_crop(commute_zoom) %&gt;% 
+  ggplot() +
+    geom_sf(data = allegheny, fill = <span class="hljs-literal">NA</span>) +
+    geom_sf(data = commute_tracts, aes(fill = name), size = <span class="hljs-number">1</span>, alpha = <span class="hljs-number">.5</span>) +
+    geom_sf_label(data = commute_centroids, aes(label = name)) +
+    geom_sf(aes(color = route_id)) +
+    geom_sf(data = st_jitter(df_stops_joined_distance), aes(color = route_id), shape = <span class="hljs-number">21</span>, size = <span class="hljs-number">3</span>) +
+    geom_sf_label(aes(color = route_id, label = route_id)) +
+    coord_sf(xlim = c(commute_zoom[<span class="hljs-number">1</span>], commute_zoom[<span class="hljs-number">3</span>]),
+             ylim = c(commute_zoom[<span class="hljs-number">2</span>], commute_zoom[<span class="hljs-number">4</span>])) +
+    facet_wrap(~service_type) +
+    guides(color = <span class="hljs-literal">FALSE</span>,
+           fill = <span class="hljs-literal">FALSE</span>) +
+    theme_void() +
+    theme(panel.border = element_rect(color = <span class="hljs-string">"black"</span>, fill = <span class="hljs-literal">NA</span>))
+
+p</code></pre>
+<p><img src="featured_files/unnamed-chunk-19-1.png" width="672"></p>
+<p>You can use this interactive map made with <code>leaflet</code> to explore the transit lines and stops that connect Downtown and Shadyside:</p>
+<pre class="r"><code class="hljs"><span class="hljs-keyword">library</span>(widgetframe)
+<span class="hljs-comment">#transform geometries to crs 4326</span>
+
+allegheny &lt;- st_transform(allegheny, crs = <span class="hljs-number">4326</span>)
+commute_tracts &lt;- st_transform(commute_tracts, crs = <span class="hljs-number">4326</span>)
+commuter_transit_lines &lt;- st_transform(commuter_transit_lines, crs = <span class="hljs-number">4326</span>)
+df_stops_joined_distance &lt;- st_transform(df_stops_joined_distance, crs = <span class="hljs-number">4326</span>)
+commute_tracts &lt;- st_transform(commute_tracts, crs = <span class="hljs-number">4326</span>)
+
+commute_zoom &lt;- commute_tracts %&gt;% 
+  st_buffer(dist = <span class="hljs-number">.01</span>) %&gt;% 
+  st_bbox()
+
+names(commute_zoom) &lt;- <span class="hljs-literal">NULL</span>
+
+<span class="hljs-comment">###leaflet</span>
+transit_lines_palette &lt;- colorFactor(palette = <span class="hljs-string">"Set1"</span>, domain = commuter_transit_lines$full_route_name_id)
+tract_palette &lt;- colorFactor(palette = <span class="hljs-string">"Set1"</span>, domain = commute_tracts$GEOID)
+
+interactive_map &lt;- leaflet() %&gt;% 
+  addProviderTiles(providers$CartoDB.Positron) %&gt;% 
+  addPolygons(data = allegheny,
+              color = <span class="hljs-string">"#444444"</span>,
+              stroke = <span class="hljs-literal">TRUE</span>,
+              fillOpacity = <span class="hljs-number">0</span>,
+              opacity = <span class="hljs-number">1</span>,
+              weight = <span class="hljs-number">2</span>,
+              group = <span class="hljs-string">"Census tracts"</span>) %&gt;%
+  addPolygons(data = commute_tracts,
+              <span class="hljs-comment">#color</span>
+              color = <span class="hljs-literal">NA</span>,
+              <span class="hljs-comment">#fill</span>
+              fillColor = ~tract_palette(GEOID),
+              fillOpacity = <span class="hljs-number">.3</span>,
+              
+              <span class="hljs-comment">#label</span>
+              label = commute_tracts$name,
+              group = <span class="hljs-string">"Census tracts"</span>) %&gt;% 
+  addPolylines(data = commuter_transit_lines,
+              color = ~transit_lines_palette(full_route_name_id),
+              label = commuter_transit_lines$full_route_name_id,
+              
+              <span class="hljs-comment">#highlight</span>
+              highlightOptions = highlightOptions(weight = <span class="hljs-number">10</span>, bringToFront = <span class="hljs-literal">TRUE</span>),
+              group = <span class="hljs-string">"Transit lines and stops"</span>
+               ) %&gt;% 
+  addCircles(data = df_stops_joined_distance,
+             radius = <span class="hljs-number">3</span>,
+             color = ~transit_lines_palette(full_route_name_id),
+             
+             <span class="hljs-comment">#highlight</span>
+             highlightOptions = highlightOptions(weight = <span class="hljs-number">10</span>, bringToFront = <span class="hljs-literal">TRUE</span>),
+             
+             <span class="hljs-comment">#label</span>
+             label = str_to_title(df_stops_joined_distance$stop_name_route_id_route_name),
+             group = <span class="hljs-string">"Transit lines and stops"</span>) %&gt;% 
+  addLayersControl(overlayGroups = c(<span class="hljs-string">"Census tracts"</span>,<span class="hljs-string">"Transit lines and stops"</span>), position = <span class="hljs-string">"topleft"</span>, 
+                   options = layersControlOptions(collapsed = <span class="hljs-literal">FALSE</span>)) %&gt;% 
+  addMiniMap() %&gt;% 
+  fitBounds(lng1 = commute_zoom[[<span class="hljs-number">1</span>]], lat1 = commute_zoom[[<span class="hljs-number">2</span>]], lng2 = commute_zoom[[<span class="hljs-number">3</span>]], lat2 = commute_zoom[[<span class="hljs-number">4</span>]])
+
+frameWidget(interactive_map)</code></pre>
+<div id="htmlwidget-1" style="width:100%;height:480px;" class="widgetframe html-widget html-widget-static-bound"><iframe src="https://ctompkins.netlify.app/post/visualizing-transit-connections-between-pittsburgh-census-tracts/index_files/figure-html//widgets/widget_unnamed-chunk-20.html?initialWidth=720&amp;childId=htmlwidget-1&amp;parentTitle=Visualizing%20Transit%20Connections%20Between%20Pittsburgh%20Census%20Tracts%20%7C%20Conor%20Tompkins&amp;parentUrl=https%3A%2F%2Fctompkins.netlify.app%2Fpost%2Fvisualizing-transit-connections-between-pittsburgh-census-tracts%2F" width="100%" scrolling="no" marginheight="0" frameborder="0" height="400px"></iframe></div>
+<script type="application/json" data-for="htmlwidget-1">{"x":{"url":"/post/visualizing-transit-connections-between-pittsburgh-census-tracts/index_files/figure-html//widgets/widget_unnamed-chunk-20.html","options":{"xdomain":"*","allowfullscreen":false,"lazyload":false}},"evals":[],"jsHooks":[]}</script>
+
+    </div>
+
+    
+
+
+
+
+
+
+<div class="article-tags">
+  
+  <a class="badge badge-light" href="https://ctompkins.netlify.app/tag/r/">R</a>
+  
+  <a class="badge badge-light" href="https://ctompkins.netlify.app/tag/pittsburgh/">Pittsburgh</a>
+  
+  <a class="badge badge-light" href="https://ctompkins.netlify.app/tag/allegheny-county/">Allegheny County</a>
+  
+  <a class="badge badge-light" href="https://ctompkins.netlify.app/tag/transit/">Transit</a>
+  
+  <a class="badge badge-light" href="https://ctompkins.netlify.app/tag/wprdc/">WPRDC</a>
+  
+</div>
+
+
+
+<div class="share-box" aria-hidden="true">
+  <ul class="share">
+    
+      
+      
+      
+        
+      
+      
+      
+      <li>
+        <a href="https://twitter.com/intent/tweet?url=https://ctompkins.netlify.app/post/visualizing-transit-connections-between-pittsburgh-census-tracts/&amp;text=Visualizing%20Transit%20Connections%20Between%20Pittsburgh%20Census%20Tracts" target="_blank" rel="noopener" class="share-btn-twitter">
+          <i class="fab fa-twitter"></i>
+        </a>
+      </li>
+    
+      
+      
+      
+        
+      
+      
+      
+      <li>
+        <a href="https://www.facebook.com/sharer.php?u=https://ctompkins.netlify.app/post/visualizing-transit-connections-between-pittsburgh-census-tracts/&amp;t=Visualizing%20Transit%20Connections%20Between%20Pittsburgh%20Census%20Tracts" target="_blank" rel="noopener" class="share-btn-facebook">
+          <i class="fab fa-facebook"></i>
+        </a>
+      </li>
+    
+      
+      
+      
+        
+      
+      
+      
+      <li>
+        <a href="mailto:?subject=Visualizing%20Transit%20Connections%20Between%20Pittsburgh%20Census%20Tracts&amp;body=https://ctompkins.netlify.app/post/visualizing-transit-connections-between-pittsburgh-census-tracts/" target="_blank" rel="noopener" class="share-btn-email">
+          <i class="fas fa-envelope"></i>
+        </a>
+      </li>
+    
+      
+      
+      
+        
+      
+      
+      
+      <li>
+        <a href="https://www.linkedin.com/shareArticle?url=https://ctompkins.netlify.app/post/visualizing-transit-connections-between-pittsburgh-census-tracts/&amp;title=Visualizing%20Transit%20Connections%20Between%20Pittsburgh%20Census%20Tracts" target="_blank" rel="noopener" class="share-btn-linkedin">
+          <i class="fab fa-linkedin-in"></i>
+        </a>
+      </li>
+    
+      
+      
+      
+        
+      
+      
+      
+      <li>
+        <a href="whatsapp://send?text=Visualizing%20Transit%20Connections%20Between%20Pittsburgh%20Census%20Tracts%20https://ctompkins.netlify.app/post/visualizing-transit-connections-between-pittsburgh-census-tracts/" target="_blank" rel="noopener" class="share-btn-whatsapp">
+          <i class="fab fa-whatsapp"></i>
+        </a>
+      </li>
+    
+      
+      
+      
+        
+      
+      
+      
+      <li>
+        <a href="https://service.weibo.com/share/share.php?url=https://ctompkins.netlify.app/post/visualizing-transit-connections-between-pittsburgh-census-tracts/&amp;title=Visualizing%20Transit%20Connections%20Between%20Pittsburgh%20Census%20Tracts" target="_blank" rel="noopener" class="share-btn-weibo">
+          <i class="fab fa-weibo"></i>
+        </a>
+      </li>
+    
+  </ul>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+    
+    
+
+
+
+
+
+  
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <div class="article-widget content-widget-hr">
+    <h3>Related</h3>
+    <ul>
+      
+      <li><a href="https://ctompkins.netlify.app/post/roughly-calculating-allegheny-county-transit-efficiency/">Roughly Calculating Allegheny County Transit Efficiency</a></li>
+      
+      <li><a href="https://ctompkins.netlify.app/post/how-many-pittsburghers-cross-the-river-to-get-to-work/">How Many Pittsburghers Cross the River to Get to Work</a></li>
+      
+      <li><a href="https://ctompkins.netlify.app/post/healthy_ride_access_pittsburgh/">Bike rental access in Pittsburgh</a></li>
+      
+      <li><a href="https://ctompkins.netlify.app/post/analyzing-commuter-patterns-in-allegheny-county/">Analyzing Commuter Patterns in Allegheny County</a></li>
+      
+      <li><a href="https://ctompkins.netlify.app/post/animating-growth-of-allegheny-county/">Animating Growth of Allegheny County</a></li>
+      
+    </ul>
+  </div>
+  
+
+
+
+
+
+  </div>
+</article>
+
+      
+
+    
+    
+    
+      <script src="featured_files/jquery.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
+      <script src="featured_files/imagesloaded.pkgd.min.js" integrity="sha256-lqvxZrPLtfffUl2G/e7szqSvPBILGbwmsGE1MKlOi0Q=" crossorigin="anonymous"></script>
+      <script src="featured_files/isotope.pkgd.min.js" integrity="sha256-CBrpuqrMhXwcLLUd5tvQ4euBHCdh7wGlDfNz8vbu/iI=" crossorigin="anonymous"></script>
+      <script src="featured_files/jquery.fancybox.min.js" integrity="sha256-yt2kYMy0w8AbtF89WXb2P1rfjcP/HTHLT7097U8Y5b8=" crossorigin="anonymous"></script>
+      <script src="featured_files/instantpage.min.js" integrity="sha512-1+qUtKoh9XZW7j+6LhRMAyOrgSQKenQ4mluTR+cvxXjP1Z54RxZuzstR/H9kgPXQsVB8IW7DMDFUJpzLjvhGSQ==" crossorigin="anonymous"></script>
+
+      
+
+      
+        
+        <script src="featured_files/highlight.min.js" integrity="sha256-eOgo0OtLL4cdq7RdwRUiGKLX9XsIJ7nGhWEKbohmVAQ=" crossorigin="anonymous"></script>
+        
+        <script src="featured_files/r.min.js"></script>
+        
+      
+
+    
+
+    
+    
+      <script src="featured_files/leaflet.js" integrity="sha256-EErZamuLefUnbMBQbsEqu1USa+btR2oIlCpBJbyD4/g=" crossorigin="anonymous"></script>
+    
+
+    
+    
+    <script>const code_highlighting = true;</script>
+    
+
+    
+    
+    <script>const isSiteThemeDark = false;</script>
+    
+
+    
+    
+    
+    
+    
+    
+    <script>
+      const search_config = {"indexURI":"/index.json","minLength":1,"threshold":0.3};
+      const i18n = {"no_results":"No results found","placeholder":"Search...","results":"results found"};
+      const content_type = {
+        'post': "Posts",
+        'project': "Projects",
+        'publication' : "Publications",
+        'talk' : "Talks",
+        'slides' : "Slides"
+        };
+    </script>
+    
+
+    
+    
+
+    
+    
+    <script id="search-hit-fuse-template" type="text/x-template">
+      <div class="search-hit" id="summary-{{key}}">
+      <div class="search-hit-content">
+        <div class="search-hit-name">
+          <a href="{{relpermalink}}">{{title}}</a>
+          <div class="article-metadata search-hit-type">{{type}}</div>
+          <p class="search-hit-description">{{snippet}}</p>
+        </div>
+      </div>
+      </div>
+    </script>
+    
+
+    
+    
+    <script src="featured_files/fuse.min.js" integrity="sha256-VzgmKYmhsGNNN4Ph1kMW+BjoYJM2jV5i4IlFoeZA9XI=" crossorigin="anonymous"></script>
+    <script src="featured_files/jquery.mark.min.js" integrity="sha256-4HLtjeVgH0eIB3aZ9mLYF6E8oU5chNdjU6p6rrXpl9U=" crossorigin="anonymous"></script>
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+      
+    
+    
+    
+    
+    <script src="featured_files/academic.min.72756512af279b10e3e4b09540ed6e9f.js"></script>
+
+    
+
+
+
+
+
+
+  
+  
+  <div class="container">
+    <footer class="site-footer">
+  
+
+  <p class="powered-by">
+    
+  </p>
+
+  
+  
+
+
+
+
+
+
+  <p class="powered-by">
+    
+    Published with
+    <a href="https://sourcethemes.com/academic/" target="_blank" rel="noopener">Academic Website Builder</a>
+    
+
+    
+    <span class="float-right" aria-hidden="true">
+      <a href="#" class="back-to-top">
+        <span class="button_icon">
+          <i class="fas fa-chevron-up fa-2x"></i>
+        </span>
+      </a>
+    </span>
+    
+  </p>
+</footer>
+
+  </div>
+  
+
+  
+<div id="modal" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Cite</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">×</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <pre><code class="tex hljs"></code></pre>
+      </div>
+      <div class="modal-footer">
+        <a class="btn btn-outline-primary my-1 js-copy-cite" href="#" target="_blank">
+          <i class="fas fa-copy"></i> Copy
+        </a>
+        <a class="btn btn-outline-primary my-1 js-download-cite" href="#" target="_blank">
+          <i class="fas fa-download"></i> Download
+        </a>
+        <div id="modal-error"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+</body></html>

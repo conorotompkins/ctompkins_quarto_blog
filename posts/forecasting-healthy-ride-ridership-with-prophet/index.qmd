@@ -1,6 +1,5 @@
 ---
 # Documentation: https://sourcethemes.com/academic/docs/managing-content/
-
 title: "Forecasting Healthy Ride Ridership With Prophet"
 subtitle: ""
 summary: ""
@@ -11,9 +10,6 @@ date: 2019-08-03
 lastmod: 2020-08-24T13:20:16-04:00
 featured: false
 draft: false
-
-# Featured image
-# To use, add an image named `featured.jpg/png` to your page's folder.
 # Focal points: Smart, Center, TopLeft, Top, TopRight, Left, Right, BottomLeft, Bottom, BottomRight.
 image: featured.png
 projects: []
@@ -27,6 +23,7 @@ editor_options:
 This post is about predicting demand for the Healthy Ride bike system in Pittsburgh. I wanted to try out Facebook's `prophet` package and try to do some time series forecasting.
 
 As usual, load the required packages and set up the environment:
+
 ```{r}
 library(tidyverse)
 library(lubridate)
@@ -38,6 +35,7 @@ options(scipen = 999)
 
 theme_set(theme_bw())
 ```
+
 ```{r}
 #| output: false
 
@@ -46,7 +44,8 @@ df <- read_csv("post_data/combined_ride_data.csv") %>%
   count(date)
 ```
 
-This code loads the data and formats the date column so the `prophet` package can interface with it. I use `dir()` to find all the CSV files in  the folder and then `set_names()` and `map_df(read_csv())` to read each of the CSV files into memory.
+This code loads the data and formats the date column so the `prophet` package can interface with it. I use `dir()` to find all the CSV files in the folder and then `set_names()` and `map_df(read_csv())` to read each of the CSV files into memory.
+
 ```{r}
 #| eval: false
 
@@ -71,6 +70,7 @@ df <- data %>%
 The data I will use contains the number of rides per day and also includes the month and year. `prophet` will identify the time series patterns ("seasonality") in the data and identify the "true" pattern
 
 `prophet` has a plug-and-play workflow that is easy to use, but it has more stringent requirements for how the data has to be shaped. The date data has to be named `ds` and the target variable has to be named `y`. I set the floor to zero because there cannot be fewer than 0 rides in a day. `prophet` requires a cap
+
 ```{r}
 max_rides <- df %>% 
   summarize(max_rides = max(n) * 3) %>% 
@@ -95,6 +95,7 @@ glimpse(df)
 ```
 
 This creates the set of holidays I use in the model.
+
 ```{r}
 us_holidays <- prophet::generated_holidays %>% 
   as_tibble() %>% 
@@ -103,11 +104,13 @@ us_holidays <- prophet::generated_holidays %>%
 ```
 
 This code fits a model to the dataset.
+
 ```{r}
 m <- prophet(df, growth = 'logistic', holidays = us_holidays)
 ```
 
 `make_future_dataframe()` creates the dataframe that `prophet` uses to make its forecast. In this case, I have it create a dataframe with 365 days of additional rows to predict onto.
+
 ```{r}
 future <- make_future_dataframe(m, periods = 365, freq = "day") %>% 
   mutate(floor = 0,
@@ -115,27 +118,32 @@ future <- make_future_dataframe(m, periods = 365, freq = "day") %>%
 ```
 
 This code performs the forecast on the future dataset.
+
 ```{r}
 forecast <- predict(m, future) %>% 
   as_tibble()
 ```
 
 The output is a dataframe with the date, the predicted ridership, and the upper and lower bounds of the prediction.
+
 ```{r}
 forecast
 ```
 
 `plot` automatically plots the `forecast` data:
+
 ```{r}
 plot(m, forecast)
 ```
 
 `prophet` also decomposes the various seasonal effects.
+
 ```{r}
 prophet_plot_components(m, forecast)
 ```
 
 We can of course use `ggplot` to manually plot the data.
+
 ```{r fig.height=6, fig.width=12}
 df_aug <- forecast %>% 
   mutate(ds = ymd(ds)) %>% 
@@ -160,6 +168,7 @@ df_aug %>%
 ```
 
 `prophet` also provides functions for cross-validation.
+
 ```{r}
 df_cv <- cross_validation(m, horizon = 30, units = 'days')
 
@@ -176,6 +185,7 @@ performance_metrics(df_cv) %>%
 ```
 
 We can also inspect the impact of holidays on the prediction.
+
 ```{r}
 df_holiday_impact <- forecast %>% 
   clean_names() %>% 
@@ -201,5 +211,5 @@ df_holiday_impact %>%
 
 ## Documentation and references
 
-* https://facebook.github.io/prophet/
-* https://data.wprdc.org/dataset/healthyride-trip-data
+-   https://facebook.github.io/prophet/
+-   https://data.wprdc.org/dataset/healthyride-trip-data

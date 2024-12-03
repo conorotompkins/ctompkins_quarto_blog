@@ -11,6 +11,7 @@ date: 2018-08-06
 lastmod: 2020-09-26
 featured: false
 draft: false
+image: featured.png
 execute: 
   echo: true
   warning: false
@@ -20,6 +21,7 @@ execute:
 This post explores Allegheny County and Pennsylvania through census data. I use the tidycensus and sf packages to collect data from the census API and draw maps with the data.
 
 ## Setup
+
 ```{r}
 library(tidyverse)
 library(tidycensus)
@@ -43,6 +45,7 @@ census_vars <- load_variables(2010, "sf1", cache = TRUE)
 tidycensus provides a wrapper for the U.S. Census API. You can request a wide variety of data, from economic measures to information about demography. The API also includes data about geographic regions.
 
 This code creates a dataframe of some of the variables available through the census API.
+
 ```{r}
 vars <- load_variables(2016, "acs5", cache = TRUE)
 
@@ -50,6 +53,7 @@ vars
 ```
 
 This code requests information about the median income of census tracts in Allegheny County. The "geography" argument sets the level of geographic granularity.
+
 ```{r}
 allegheny <- get_acs(state = "PA", 
                      county = "Allegheny County", 
@@ -63,6 +67,7 @@ head(allegheny)
 ```
 
 This code maps the data onto the census tracts.
+
 ```{r}
 allegheny %>%
   ggplot(aes(fill = estimate, color = estimate)) + 
@@ -75,6 +80,7 @@ allegheny %>%
 ```
 
 This code requests information about the ethnicities within each census tract. Then, it calculates the percentage of the entire population of a tract that each ethnicity makes up.
+
 ```{r}
 racevars <- c(White = "P005003", 
               Black = "P005004", 
@@ -95,6 +101,7 @@ head(allegheny_race)
 ```
 
 This code maps that data. The facet_wrap function creates a map for each ethnicity.
+
 ```{r}
 #allegheny_race <- st_erase(allegheny_race, allegheny_water)
 
@@ -108,6 +115,7 @@ allegheny_race %>%
 ```
 
 You can also request data for an entire state. This code requests the median income for each census tract in Pennsylvania.
+
 ```{r}
 pa <- get_acs(state = "PA",
               geography = "tract", 
@@ -117,6 +125,7 @@ pa <- get_acs(state = "PA",
 
 head(pa)
 ```
+
 ```{r}
 pa %>%
   ggplot(aes(fill = estimate, color = estimate)) + 
@@ -127,6 +136,7 @@ pa %>%
 ```
 
 This code requests ethnicity data for each tract in Pennsylvania.
+
 ```{r}
 racevars <- c(White = "P005003", 
               Black = "P005004", 
@@ -144,6 +154,7 @@ get_decennial(geography = "tract",
 
 head(pa_race)
 ```
+
 ```{r}
 pa_race %>%
   ggplot(aes(fill = value, color = value)) +
@@ -158,7 +169,7 @@ pa_race %>%
 
 Resources used:
 
-* http://strimas.com/r/tidy-sf/
-* https://walkerke.github.io/tidycensus/articles/spatial-data.html
-* https://walkerke.github.io/tidycensus/index.html
-* https://walkerke.github.io/2017/06/comparing-metros/
+-   http://strimas.com/r/tidy-sf/
+-   https://walkerke.github.io/tidycensus/articles/spatial-data.html
+-   https://walkerke.github.io/tidycensus/index.html
+-   https://walkerke.github.io/2017/06/comparing-metros/
