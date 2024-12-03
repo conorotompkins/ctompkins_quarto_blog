@@ -22,6 +22,7 @@ editor_options:
 **This material was presented at [Code & Supply](https://www.codeandsupply.co/) on 2024-11-07**
 
 # Time Series Forecasting in R
+
 ```{r}
 library(fpp3)
 library(readr)
@@ -109,7 +110,7 @@ vs.
 
 -   Knowing more about the future means we can make better decisions today.
 
-  -   Typically related to resource allocation.
+-   Typically related to resource allocation.
 
 ## Forecast horizons
 
@@ -151,9 +152,9 @@ pothole_reports(t+1) ~ pothole_reports(t) + pothole_reports(t-1) + ... + error
 
 Time series models can typically handle autocorrelation in the data.
 
-- `pothole_reports(t)` and `pothole_reports(t-1)` are correlated
+-   `pothole_reports(t)` and `pothole_reports(t-1)` are correlated
 
-- This can cause correlated error in regression models
+-   This can cause correlated error in regression models
 
 ## Forecasting Process
 
@@ -227,7 +228,7 @@ gg_subseries(pothole_df) +
   facet_wrap(vars(month(create_date, label = TRUE)), ncol = 3)
 ```
 
-## Exploratory data analysis 
+## Exploratory data analysis
 
 Time series decomposition
 
@@ -279,7 +280,7 @@ data_train <- pothole_df |>
 
     -   Use `window()` to apply a window for rolling averages
 
-## Model types 
+## Model types
 
 -   TSLM\*: fit a linear model along the `trend()`
 
@@ -296,8 +297,8 @@ data_train <- pothole_df |>
         -   AKA "autoarima"
 
         -   You can also manually set these
-        
-- More available in `{fable}`
+
+-   More available in `{fable}`
 
 \* These models can use exogenous variables to capture additional information
 
@@ -305,11 +306,11 @@ data_train <- pothole_df |>
 
 ARIMA:
 
-- P: number of autoregressive terms
+-   P: number of autoregressive terms
 
-- D: number of differences required to make it stationary
+-   D: number of differences required to make it stationary
 
-- Q: number of lagged forecast errors
+-   Q: number of lagged forecast errors
 
 ## Fit models
 
@@ -336,6 +337,7 @@ Transformations of target variable are automatically reversed in `fable::forecas
 ```{r}
 glimpse(model_df)
 ```
+
 ## Model summary
 
 Inspect model
@@ -378,7 +380,7 @@ pothole_fc <- forecast(model_df, data_test)
 pothole_fc
 ```
 
-## Accuracy 
+## Accuracy
 
 Accuracy metrics
 
@@ -397,6 +399,7 @@ Accuracy metrics
 ## Forecast accuracy
 
 Evaluate forecast accuracy based on full time series
+
 ```{r}
 #| echo: true
 #| cache: true

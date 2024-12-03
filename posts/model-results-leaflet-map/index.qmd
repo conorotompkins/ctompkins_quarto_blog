@@ -9,6 +9,7 @@ date: 2020-08-23T13:50:21-04:00
 lastmod: 2020-08-23T13:50:21-04:00
 featured: true
 draft: false
+image: featured.png
 ---
 
 [Last Friday I posted a classification model](https://ctompkins.netlify.app/post/classifying-pittsburgh-city-boundary/) that attempted to identify which census tracts in Allegheny County fall within the border of the City of Pittsburgh. I used a variety of data from the 2010 US Census via `{tidycensus}`, and I intentionally did not train the model with any geographic data. I am more interested in which census tracts are more "city-like", regardless of their distance from the geographic center of the city.

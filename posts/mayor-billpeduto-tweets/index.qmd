@@ -11,14 +11,17 @@ date: 2018-03-08
 lastmod: 2020-09-27T17:56:18-04:00
 featured: false
 draft: false
+image: featured.png
 execute: 
   echo: true
   warning: false
   message: false
 ---
+
 [Pittsburgh Mayor Bill Peduto uses Twitter](https://twitter.com/billpeduto) to communicate with his constituents, express his political opinions, and comment about Pittsburgh sports. I will use various R packages (mainly the [Tidyverse](https://www.tidyverse.org/), [Tidytext](https://www.tidytextmining.com/), and [rtweet](http://rtweet.info/)) to analyze how the Mayor uses Twitter.
 
 Before getting started, we need to load the packages required for this analysis:
+
 ```{r environment}
 library(tidyverse)
 library(tidytext)
@@ -41,11 +44,13 @@ caption <- "@conor_tompkins"
 ```
 
 First, we will download @billpeduto's recent tweets using rtweet
+
 ```{r download_tweets, eval=FALSE}
 rtweet::tweets_bill <- get_timelines("BillPeduto", n = 3200)
 ```
 
 I have already downloaded the data, so I will load it from my GitHub repo. I will also do some data munging to make the data easier to work with.
+
 ```{r load_data}
 url <- "https://raw.githubusercontent.com/conorotompkins/pittsburgh_twitter/master/data/df_billpeduto.csv"
 
@@ -67,7 +72,9 @@ df_bill[1:5, 1:5] %>%
 ```
 
 ## Exploratory Analysis
+
 This plot shows that the Mayor tweets about 15 times a day, though there is considerable daily variation.
+
 ```{r date_smoothed}
 df_bill %>% 
   count(date) %>%
@@ -83,6 +90,7 @@ df_bill %>%
 ```
 
 The Mayor tweets the most on weekdays; Tuesday has the highest median number of tweets. The weekends see fewer tweets, and Saturday and Sunday are very similar.
+
 ```{r Day of the week}
 df_bill %>% 
   count(wday, date) %>% 
@@ -100,6 +108,7 @@ df_bill %>%
 ```
 
 The Mayor does most of his tweeting around lunchtime and in the late evening.
+
 ```{r hour}
 df_bill %>% 
   count(hour) %>% 
@@ -121,7 +130,9 @@ df_bill %>%
         legend.position = "bottom",
         legend.text = element_text(size = 7))
 ```
+
 This view combines the day of the week and hour variables, and confirms what we observed when looking at the variables independently.
+
 ```{r heatmap}
 df_bill %>% 
   mutate(wday = factor(wday, levels = rev(levels(df_bill$wday)))) %>% 
@@ -144,6 +155,7 @@ df_bill %>%
 ```
 
 This plot shows the percentage of the Mayor's tweets that are regular tweets, retweets, quotes, and replies.
+
 ```{r tweet_types}
 df_bill %>% 
   select(date, month_year, month, week, is_retweet, is_quote, reply_to_screen_name) %>% 
@@ -168,7 +180,9 @@ df_bill_tweet_types_month_year %>%
        caption = caption) +
   theme(axis.text.x = element_text(size = 10))
 ```
+
 This heatmap shows that the Mayor replies to tweets most often in the late evening.
+
 ```{r replies_heatmap}
 df_bill %>% 
   filter(!is.na(reply_to_screen_name), is_quote == FALSE, is_retweet == FALSE) %>% 
@@ -189,7 +203,9 @@ df_bill %>%
 ```
 
 ## Text Analysis
+
 The R package Tidytext makes it very easy to parse text data and pull insights from it. It interfaces very easily with ggraph, which creates network graphs.
+
 ```{r, load_text_analysis_environment}
 set.seed(1234)
 
@@ -197,6 +213,7 @@ df_bill <- read_csv("https://raw.githubusercontent.com/conorotompkins/pittsburgh
 ```
 
 By separating the Mayor's tweets into bigrams (two-word chunks), we can identify which words are used together. This code cuts the tweets into bigrams and counts their occurences. I exclude retweets and quotes from this analysis.
+
 ```{r munge_billpeduto_tweets}
 count_twitter_bigrams <- function(dataset, custom_stopwords) {
   replace_reg <- "https://t.co/[A-Za-z\\d]+|http://[A-Za-z\\d]+|&amp;|&lt;|&gt;|RT|https|'s"
@@ -225,6 +242,7 @@ tweets_bill %>%
 ```
 
 This network graph shows which words the Mayor uses together frequently. "public" + "safety", and "affordable" + "housing" are the main standouts. I think this plot pretty accurately captures the topics the Mayor tweets about.
+
 ```{r, visualize_bigrams, fig.height=12, fig.width=12}
 visualize_bigrams <- function(bigrams, minimum, text_size = 3, title = NULL, subtitle = NULL, caption = NULL) {
   set.seed(2016)
@@ -255,6 +273,7 @@ visualize_bigrams(tweets_bill,
 ```
 
 This code determines which words are correlated with each other:
+
 ```{r calculate_word_correlations}
 word_correlations <- function(dataframe, minimum, custom_stopwords){
   replace_reg <- "https://t.co/[A-Za-z\\d]+|http://[A-Za-z\\d]+|&amp;|&lt;|&gt;|RT|https"
@@ -285,6 +304,7 @@ bill_words <- word_correlations(df_bill, minimum = 10, custom_stopwords = bill_s
 This plot shows which words are correlated highly with each other. Some words are "stemmed" (shortened and/or modified), to capture very similar words. For example, "business" and "businesses" could be stemmed to "busine".
 
 "amazon" and "hq2" are used together overwhelmingly. The "pwsa" + "water" + "decad" combination indicate the [ongoing water quality problems](http://wesa.fm/post/struggling-provide-safe-clean-drinking-water-pennsylvania#stream/0), and the plans to reinvest in the infrastructure. This plot shows how some of the policy issues the Mayor focuses on are connected.
+
 ```{r, visualize_word_correlations, fig.height=12, fig.width=12}
 visualize_word_correlations <- function(dataframe, title, subtitle, caption){
   dataframe %>% 
@@ -308,12 +328,13 @@ visualize_word_correlations(bill_words,
 ```
 
 ## References
-+ https://github.com/mkearney/rtweet
-+ http://rtweet.info/
-+ http://rtweet.info/articles/intro.html
-+ https://stackoverflow.com/questions/47681690/no-twitter-authorization-prompt-when-using-rtweet-package/48275078#48275078
-+ https://stackoverflow.com/questions/47910979/setting-up-rtweet-for-r-in-aws-ubuntu-server
-+ https://github.com/r-lib/httr/issues/156
-+ https://github.com/mkearney/rtweet/issues/75
-+ https://github.com/geoffjentry/twitteR/issues/65
-+ https://github.com/r-lib/httr/blob/master/demo/oauth1-twitter.r
+
+-   https://github.com/mkearney/rtweet
+-   http://rtweet.info/
+-   http://rtweet.info/articles/intro.html
+-   https://stackoverflow.com/questions/47681690/no-twitter-authorization-prompt-when-using-rtweet-package/48275078#48275078
+-   https://stackoverflow.com/questions/47910979/setting-up-rtweet-for-r-in-aws-ubuntu-server
+-   https://github.com/r-lib/httr/issues/156
+-   https://github.com/mkearney/rtweet/issues/75
+-   https://github.com/geoffjentry/twitteR/issues/65
+-   https://github.com/r-lib/httr/blob/master/demo/oauth1-twitter.r

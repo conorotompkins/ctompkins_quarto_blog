@@ -13,6 +13,7 @@ featured: false
 draft: false
 projects: []
 freeze: true
+image: featured.png
 ---
 
 While exploring some of the citizen science bird observation data available through [`ebirdst`](https://cornelllabofornithology.github.io/ebirdst/), I was confused by how to understand the calculation of `ebirdst`'s `abundance` metric.
@@ -47,7 +48,6 @@ species_table <- crossing(location = "Pennsylvania",
 ```{r}
 species_table
 ```
-
 
 ```{r}
 #| cache: true

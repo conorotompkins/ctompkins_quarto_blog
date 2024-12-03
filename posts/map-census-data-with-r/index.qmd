@@ -270,7 +270,6 @@ df_311 <- read_csv("post_data/76fda9d0-69be-4dd5-8108-0de7907fc5a4.csv") |>
   filter(created_on <= "2019-06-01")
 ```
 
-
 ```{r echo=FALSE, message=FALSE}
 df_311 %>% 
   select(request_id:ward) %>% 
@@ -381,7 +380,6 @@ df_overdose <- read_csv("post_data/1c59b26a-1684-4bfb-92f7-205b947530cf.csv") %>
   mutate(incident_zip = str_sub(incident_zip, 1, 5)) |> 
   filter(death_date_and_time <= "2019-06-01")
 ```
-
 
 Then, aggregate the overdose data to the zip code and join the datasets:
 

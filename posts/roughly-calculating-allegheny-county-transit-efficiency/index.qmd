@@ -24,6 +24,7 @@ editor_options:
 As part my work on transit lines in Allegheny County, I am interested in which transit lines are most efficient, in terms of residents and jobs served. This is possible with the Port Authority transit line datasets [hosted on the WPRDC](https://data.wprdc.org/dataset/port-authority-current-transit-routes) and data from the Census.
 
 Load libraries and set up the environment:
+
 ```{r}
 library(tidyverse)
 library(sf)
@@ -39,11 +40,13 @@ theme_set(theme_bw())
 ```
 
 This loads the summarized LODES census tract data ([munging script here](https://github.com/conorotompkins/commuter_route_transit_availability/blob/master/scripts/munge_data.R))
+
 ```{r results = 'hide'}
 df_tract_centroid_summary <- st_read("post_data/shapefiles/tract_centroid_summary/tract_centroid_summary.shp")
 ```
 
 To recap, the distribution of jobs and residents across census tracts is vaguely normal. The main outlier in the "jobs" measure is the census tract for the Golden Triangle (Downtown).
+
 ```{r}
 #| fig-height: 9
 
@@ -76,9 +79,10 @@ df_tract_centroid_summary %>%
 
 This code grabs the shapefile with the transit route stats and stop geometry. This [code](https://github.com/conorotompkins/commuter_route_transit_availability/blob/master/scripts/munge_data.R):
 
-* calculates how many residents and jobs are in each census tract
-* calculates which transit lines stops serve which census tracts
-* summarizes how many residents and jobs a transit line servers
+-   calculates how many residents and jobs are in each census tract
+-   calculates which transit lines stops serve which census tracts
+-   summarizes how many residents and jobs a transit line servers
+
 ```{r results = 'hide'}
 df_route_stats <- st_read("post_data/shapefiles/route_stats/route_stats.shp") %>% 
   rename(route_id = route_d,
@@ -89,11 +93,13 @@ df_route_stats <- st_read("post_data/shapefiles/route_stats/route_stats.shp") %>
          route_length_miles = rt_lng_,
          stops_per_mile = stps_p_)
 ```
+
 ```{r}
 df_route_stats
 ```
 
 This is a basic plot of all the transit stops in the county:
+
 ```{r}
 #| fig-height: 9
 
@@ -104,6 +110,7 @@ df_route_stats %>%
 ```
 
 The immediate question that comes to mind is "how many residents and jobs does a transit line serve?". Keep in mind that more than one transit line can serve a given resident or job. This shows that the "Key Corridor" lines serve the most jobs.
+
 ```{r}
 #| fig-height: 9
 
@@ -118,6 +125,7 @@ df_route_stats %>%
 ```
 
 This graph compares how many residents/jobs a transit line serves to how long the line is. The 28X and P10 are the least efficient in both cases. However, the 28X serves the Pittsburgh International Airport, and that utility is not captured in this analysis.
+
 ```{r}
 #| fig-height: 9
 
@@ -141,6 +149,7 @@ df_route_stats %>%
 ```
 
 This performs a similar comparison, but uses the number of stops per line instead of line distance. The 71/61 lines are very efficient in terms of jobs/stops, and the 59 appears to be the most inefficient.
+
 ```{r}
 #| fig-height: 9
 
@@ -164,6 +173,7 @@ df_route_stats %>%
 ```
 
 In terms of stops per mile, the Express lines are most efficient. The incline lines are least efficient, but that is an artifact of their unique geography.
+
 ```{r}
 #| fig-height: 9
 
@@ -187,6 +197,7 @@ df_route_stats %>%
 ```
 
 This graph attempts to summarize everything by adding residents + jobs and comparing that to stops per mile. The "Express" and "Key Corridor" lines do the best here.
+
 ```{r}
 #| fig-height: 9
 

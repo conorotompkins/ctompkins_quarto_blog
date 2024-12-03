@@ -7,6 +7,7 @@ date: 2020-08-14
 lastmod: 2020-08-14T12:58:17-04:00
 editor_options: 
   chunk_output_type: console
+image: featured.png  
 execute:
   echo: true
   warning: false
@@ -30,6 +31,7 @@ Mt. Oliver is a geographic enclave that is completely surrounded by the City of 
 ### Modeling
 
 This code loads the packages I need, configures some options, and sets the seed.
+
 ```{r}
 #set up environment
 library(tidyverse)
@@ -48,6 +50,7 @@ set.seed(1234)
 ```
 
 I created a small Shiny app that let me select which tracts are inside the city borders. I will go over that in a future post. This loads the tracts from the Census API and pulls the results from the Shiny app.
+
 ```{r}
 #load data about census tracts
 tracts <- get_decennial(year = 2010, state = "PA", county = "Allegheny County", 
@@ -61,6 +64,7 @@ glimpse(city_tracts)
 ```
 
 This reads in the boundary shapefile and graphs it to show which tracts are in the city.
+
 ```{r}
 pgh_official_boundary <- st_read("post_data/Pittsburgh_City_Boundary-shp") %>% 
   mutate(geography = "City boundary") %>% 
@@ -77,7 +81,9 @@ tracts %>%
   geom_sf(data = pgh_official_boundary, color = "white", linetype = 2, alpha = 0) +
   theme_void()
 ```
+
 This reads in the data I will consider for the model. All the data is from the 2010 Census.
+
 ```{r}
 all_data <- read_csv("post_data/combined_census_data_tract.csv", col_types = cols(.default = "c")) %>%
   left_join(city_tracts) %>% 
@@ -91,6 +97,7 @@ glimpse(all_data)
 ```
 
 This plot compares all of the variables against each other. I used this to identify covariance and determine which variables should be excluded.
+
 ```{r eval=FALSE}
 #eda
 pairwise_plot <- all_data %>% 
@@ -99,25 +106,25 @@ pairwise_plot <- all_data %>%
   theme(axis.text = element_text(size = 8))
 ```
 
-![](ggpairs_plot.png)
-After reviewing this graph and considering things like covariance and zero-variance, I will use these variables in the model:
+![](ggpairs_plot.png) After reviewing this graph and considering things like covariance and zero-variance, I will use these variables in the model:
 
-* Housing
-  * Percent of housing units owned outright
-  * Percent of housing units owned with a mortgage
-  * Percent of housing units rented
-* Demographics
-  * Percent of people in the tract that are
-    * White
-    * Black
-* Population density
-* Economic data
-  * Number of workers that live in the tract
-  * Number of jobs in the tract
+-   Housing
+    -   Percent of housing units owned outright
+    -   Percent of housing units owned with a mortgage
+    -   Percent of housing units rented
+-   Demographics
+    -   Percent of people in the tract that are
+        -   White
+        -   Black
+-   Population density
+-   Economic data
+    -   Number of workers that live in the tract
+    -   Number of jobs in the tract
 
 Note that I am intentionally excluding any geographic data about the tracts. I am more interested in how "city-like" a given tract is than how close it is to the geographic center of the city.
 
 This finalizes the data I will use to build the model.
+
 ```{r}
 census_combined <- all_data %>% 
   select(GEOID, type, 
@@ -130,6 +137,7 @@ glimpse(census_combined)
 ```
 
 34% of the tracts are in the city, which is a slightly unbalanced dataset.
+
 ```{r}
 census_combined %>% 
   tabyl(type)
@@ -137,7 +145,8 @@ census_combined %>%
 
 Since the total amount of data available is small, I will bootstrap the data to try to achieve more stable results from the model. [Bootstrapping resamples the data with replacement](https://www.tidymodels.org/learn/statistics/bootstrap/), which creates multiple replicates of the original dataset with some variation due to sampling. I created a meme of my dog Quincy to illustrate the effect: ![](meme.jpg)
 
-I stratify by `type` so that each bootstrap has ~34% `city` tracts. This generates 50 sets of data for the model to work with.
+I stratify by `type` so that each bootstrap has \~34% `city` tracts. This generates 50 sets of data for the model to work with.
+
 ```{r}
 tract_boot <- bootstraps(census_combined, strata = type, times = 50)
 
@@ -145,6 +154,7 @@ tract_boot
 ```
 
 This code chunk prepares the data to be modeled. I define the formula and scale all the numeric variables to have a mean of 0 and standard deviation of 1.
+
 ```{r}
 #recipe
 model_recipe <- recipe(type ~ ., data = census_combined) %>% 
@@ -159,6 +169,7 @@ model_recipe %>%
 ```
 
 This creates the model specifications for the two types of models I will use.
+
 ```{r}
 #logistic regression
 lm_model <- logistic_reg(mode = "classification") %>% 
@@ -170,6 +181,7 @@ ranger_model <- rand_forest(trees = 1000, mode = "classification") %>%
 ```
 
 This sets up a workflow object to fit a logistic regression model against the bootstrap resamples I created earlier.
+
 ```{r cache=TRUE}
 #logistic regression
 lm_workflow <- workflow() %>% 
@@ -184,7 +196,8 @@ lm_res %>%
   collect_metrics()
 ```
 
-The logistic regression gets ~76% accuracy, which is pretty good, but I want to know if a random forest could do better. This creates a workflow to fit a random forest model, and saves the predictions so I can use them later.
+The logistic regression gets \~76% accuracy, which is pretty good, but I want to know if a random forest could do better. This creates a workflow to fit a random forest model, and saves the predictions so I can use them later.
+
 ```{r cache=TRUE}
 #rf
 rf_workflow <- workflow() %>% 
@@ -201,6 +214,7 @@ rf_res %>%
 ```
 
 If you compare the results of the two models, the random forest model does much better than the logistic regression model.
+
 ```{r}
 combined_res <- bind_rows(rf_res, lm_res)
 
@@ -212,6 +226,7 @@ combined_res %>%
 ```
 
 This graph shows that the random forest model's false negative and false positive rates are about the same.
+
 ```{r}
 rf_res %>% 
   collect_predictions() %>% 
@@ -227,6 +242,7 @@ rf_res %>%
 ```
 
 This fits the random forest model against the entire dataset to extract the variable importance metrics.
+
 ```{r}
 #variable importance
 var_imp <- rf_workflow %>% 
@@ -243,6 +259,7 @@ var_imp %>%
 The top 3 variables are the percent of a tract's population that is White, the percent of housing units that are owned with a loan, and the population density. This matches my subjective model of city vs. non-city characteristics. Areas that are low density with majority White demographics where people own their homes are typically outside of the city. This dynamic is probably connected to the [history of segregation and redlining](https://www.wesa.fm/post/pittsburgh-neighborhoods-and-schools-remain-segregated-how-did-it-start#stream/0) in majority African American communities in Pittsburgh.
 
 Since the random forest model was fit against multiple bootstraps, I have multiple predictions per tract. I stratified the bootstraps by `type`, so the `city` and `non_city` tracts were sampled about the same number of times.
+
 ```{r}
 #extract probabilities from bootstrap resamples
 full_predictions <- rf_res %>% 
@@ -262,10 +279,10 @@ I am not solely interested in the top-line accuracy of the model. Since the city
 
 To map the data, I calculate the following metrics per tract:
 
-* the percent of predictions that were correct
-* average city classification %
-* average non-city classification %
-* the number of times the tract was sampled
+-   the percent of predictions that were correct
+-   average city classification %
+-   average non-city classification %
+-   the number of times the tract was sampled
 
 ```{r}
 full_predictions_pct <- full_predictions %>% 
@@ -279,6 +296,7 @@ glimpse(full_predictions_pct)
 ```
 
 This shows the % of correct predictions per tract. The model was very successful with the outlying tracts in the county, but struggled in Mt. Washington/Beechview/Brookline, the Hazelwood/Greenfield area, and Forest Hills towards Monroeville.
+
 ```{r}
 tracts %>% 
   left_join(full_predictions_pct) %>% 
@@ -292,6 +310,7 @@ tracts %>%
 ```
 
 This shows the average % that the model classified a tract as being in the city. The model was very confident that Oakland, Shadyside, and Squirrel Hill are in the city. The model also thought that many communities to the east and communities along the Monongahela River are in the city, specifically McKeesport and West Mifflin.
+
 ```{r}
 tracts %>% 
   left_join(full_predictions_pct) %>% 
@@ -303,17 +322,18 @@ tracts %>%
   labs(fill = "Average city classification %") +
   theme_void()
 ```
+
 To review, I think it would be difficult to create a model that almost perfectly captures the current city border, which is a result of political decisions, court cases, and other non-deterministic phenomena. In addition, white flight and the relative expansion of the suburbs during the collapse of the steel industry reshaped the Pittsburgh metro area. City borders are defined by people and politicians, not a clustering algorithm based on Census data (although that would be interesting). My experience is that many people that don't technically live within the border consider themselves to be Pittsburghers. So what is a border, anyways?
 
 ## References
 
-* https://juliasilge.com/blog/multinomial-volcano-eruptions/
-* http://www.rebeccabarter.com/blog/2020-03-25_machine_learning/#split-into-traintest
-* https://www.brodrigues.co/blog/2018-11-25-tidy_cv/
-* https://agailloty.rbind.io/en/post/tidymodels/
-* https://alison.rbind.io/post/2020-02-27-better-tidymodels/
-* https://hansjoerg.me/2020/02/09/tidymodels-for-machine-learning/
-* https://towardsdatascience.com/modelling-with-tidymodels-and-parsnip-bae2c01c131c
-* https://www.benjaminsorensen.me/post/modeling-with-parsnip-and-tidymodels/
-* https://rviews.rstudio.com/2019/06/19/a-gentle-intro-to-tidymodels/
-* https://en.wikipedia.org/wiki/Allegheny,_Pennsylvania
+-   https://juliasilge.com/blog/multinomial-volcano-eruptions/
+-   http://www.rebeccabarter.com/blog/2020-03-25_machine_learning/#split-into-traintest
+-   https://www.brodrigues.co/blog/2018-11-25-tidy_cv/
+-   https://agailloty.rbind.io/en/post/tidymodels/
+-   https://alison.rbind.io/post/2020-02-27-better-tidymodels/
+-   https://hansjoerg.me/2020/02/09/tidymodels-for-machine-learning/
+-   https://towardsdatascience.com/modelling-with-tidymodels-and-parsnip-bae2c01c131c
+-   https://www.benjaminsorensen.me/post/modeling-with-parsnip-and-tidymodels/
+-   https://rviews.rstudio.com/2019/06/19/a-gentle-intro-to-tidymodels/
+-   https://en.wikipedia.org/wiki/Allegheny,\_Pennsylvania

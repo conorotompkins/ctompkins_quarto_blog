@@ -10,6 +10,7 @@ summary: ''
 authors: [Conor Tompkins]
 lastmod: "`r Sys.time()`"
 featured: no
+image: featured.gif
 
 projects: []
 ---

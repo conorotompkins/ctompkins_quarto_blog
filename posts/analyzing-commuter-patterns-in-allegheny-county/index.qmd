@@ -20,11 +20,12 @@ execute:
 
 Note: high-res images of the main graphs from this post are available [here](https://raw.githubusercontent.com/conorotompkins/lodes/master/output/images/p1.png), [here](https://raw.githubusercontent.com/conorotompkins/lodes/master/output/images/p2.png), [here](https://raw.githubusercontent.com/conorotompkins/lodes/master/output/images/p3.png), and [here](https://raw.githubusercontent.com/conorotompkins/lodes/master/output/images/p4.png).
 
-###
+### 
 
 In this post I will use networks plots to analyze patterns of commuters in Allegheny County. I use the LEHD Origin-Destination Employment Statistics (LODES) [dataset](https://lehd.ces.census.gov/data/) provided by the U.S. Census Bureau. This dataset contains summarized and anonymized estimate data regarding where people live and work. I use this data to map where Allegheny County residents live and work.
 
 In my analysis I use many of the standard tidyverse packages, sf, tidygraph, and ggraph.
+
 ```{r}
 library(tidyverse)
 library(sf)
@@ -40,6 +41,7 @@ options(tigris_use_cache = TRUE)
 ```
 
 The first step is to read in the geographies crosswalk and the census tract geographies.
+
 ```{r}
 geo_crosswalk <- read_csv("post_data/pa_xwalk.csv.gz", col_types = cols(.default = "c"))
 
@@ -59,6 +61,7 @@ rivers <- area_water("PA", "Allegheny", class = "sf")
 ```
 
 This shows the outlines of the tracts used in the analysis.
+
 ```{r}
 allegheny_tracts %>% 
   ggplot() +
@@ -66,11 +69,13 @@ allegheny_tracts %>%
 ```
 
 The crosswalk file contains keys to join a variety of geographies.
+
 ```{r}
 geo_crosswalk
 ```
 
 Next I read in the main LODES data. This is a big file, so it takes a moment.
+
 ```{r}
 df <- read_csv("post_data/pa_od_main_JT00_2015.csv.gz", col_types = cols(.default = "c")) %>% 
   mutate(S000 = as.numeric(S000)) %>% 
@@ -80,6 +85,7 @@ df
 ```
 
 Next I summarize the number of commuters per home-work tract combination. The original file uses census block codes, which are too granular for this analysis. I link the blocks to census tracts and aggregate to that level.
+
 ```{r}
 df_tracts_summarized <- df %>% 
   group_by(h_geocode, w_geocode) %>% 
@@ -105,6 +111,7 @@ df_tracts_summarized <- df_tracts_summarized %>%
 ```
 
 This code removes rows where the commuter lives and works in the same tract.
+
 ```{r}
 df_tracts_summarized <- df_tracts_summarized %>% 
   arrange(h_tract) %>% 
@@ -113,6 +120,7 @@ df_tracts_summarized <- df_tracts_summarized %>%
 ```
 
 This code finds the center of each tract, which I use as the nodes in the network plots.
+
 ```{r}
 allegheny_tracts <- allegheny_tracts %>% 
   arrange(GEOID)
@@ -127,6 +135,7 @@ allegheny_tracts_centroids <- cbind(allegheny_tracts,
 ```
 
 This shows that the centroids correctly appear in the center of each tract.
+
 ```{r}
 allegheny_tracts %>% 
   ggplot() +
@@ -137,6 +146,7 @@ allegheny_tracts %>%
 ## EDA
 
 First, I do some exploratory analysis of the number of commuters in/out per tract. Since we cannot join the census geography dataframe to the LODES data directly, I reverse engineer the process by splitting the data into separate "home" and "work" dataframes, and then joining the census geography dataframe to those dataframes.
+
 ```{r}
 df_home <- df_tracts_summarized %>% 
   rename(tract = h_tract,
@@ -154,6 +164,7 @@ df_work <- df_tracts_summarized %>%
 ```
 
 This checks that there are no duplicate tracts in either dataframe:
+
 ```{r}
 df_home %>% 
   count(tract, sort = TRUE) %>% 
@@ -165,6 +176,7 @@ df_home %>%
 ```
 
 This joins the separate dataframes back to the census geography dataframe:
+
 ```{r}
 allegheny_tracts <- allegheny_tracts %>% 
   left_join(df_home, by = c("GEOID" = "tract")) %>% 
@@ -173,6 +185,7 @@ allegheny_tracts <- allegheny_tracts %>%
 ```
 
 The tract with many more commuters "in" is downtown Pittsburgh.
+
 ```{r}
 allegheny_tracts %>% 
   ggplot(aes(commuters_out, commuters_in, label = NAME)) +
@@ -189,6 +202,7 @@ allegheny_tracts %>%
 ```
 
 This shows which tracts have the most outflow of commuters:
+
 ```{r}
 allegheny_tracts %>% 
   ggplot() +
@@ -198,6 +212,7 @@ allegheny_tracts %>%
 ```
 
 The outflow of commuters tracks with the population of the tract, with some exceptions.
+
 ```{r}
 allegheny_tracts %>% 
   ggplot(aes(commuters_out, total_pop)) +
@@ -206,6 +221,7 @@ allegheny_tracts %>%
 ```
 
 Downtown Pittsburgh dominates in terms of inflow vs. outflow differential.
+
 ```{r}
 allegheny_tracts %>% 
   mutate(diff = commuters_in - commuters_out) %>% 
@@ -220,6 +236,7 @@ allegheny_tracts %>%
 With the exploratory analysis done, I move on to the main task of making a geographic network plot where the nodes are the center of each census tract.
 
 First, I set a minimum threshhold for the number of commuters flowing between two tracts. Then, I transform the `df_tracts_summarized` data into a `tbl_graph` object, which lets it be used for network analysis.
+
 ```{r}
 minimum_commuters <- 100
 
@@ -228,9 +245,11 @@ g <- df_tracts_summarized %>%
 
 g
 ```
+
 The result is a list of two dataframes; one for the nodes, one for the edges.
 
 This filters out the edges that do not meet the minimum threshhold.
+
 ```{r}
 g_main <- g %>% 
   activate(edges) %>% 
@@ -240,6 +259,7 @@ g_main
 ```
 
 This shows the edges with the most commuters:
+
 ```{r}
 g_main %>% 
   activate(edges) %>% 
@@ -247,18 +267,21 @@ g_main %>%
 ```
 
 This code sets the nodes for the graph at the center of each census tract and creates a manual layout that the network plot will use.
+
 ```{r}
 node_pos <- allegheny_tracts_centroids
 
 manual_layout <- create_layout(graph = g_main,
                                layout = node_pos)
 ```
+
 ```{r echo=FALSE}
 manual_layout %>% 
   as_tibble()
 ```
 
 Finally, this sets the parameters for the plot and makes the network graph:
+
 ```{r fig.height=12, fig.width=12}
 legend_title <- str_c("Minimum: ", minimum_commuters, " commuters")
 
@@ -293,6 +316,7 @@ Clearly downtown Pittsburgh attracts the most commuters. This is not surprising,
 ## Set up graph without downtown tract
 
 This code filters out commuters that work downtown. Again, set a threshhold and filter on it.
+
 ```{r}
 minimum_commuters <- 100
 
@@ -304,6 +328,7 @@ g_filtered
 ```
 
 This code goes into the network data and excludes edges that connect to the downtown tract.
+
 ```{r}
 filter_tract <- "42003020100"
 
@@ -319,6 +344,7 @@ g_filtered
 ```
 
 This creates another layout for this plot:
+
 ```{r}
 manual_layout_filtered <- create_layout(graph = g_filtered,
                                         layout = node_pos)
@@ -355,6 +381,7 @@ ggraph(manual_layout_filtered) +
 ## Set up facted graphs
 
 This code creates a faceted plot that focuses on the top 5 tracts in terms of commuter outflow:
+
 ```{r}
 minimum_commuters <- 5
 
@@ -373,12 +400,14 @@ g_facet %>%
   arrange(desc(commuters)) %>% 
   activate(edges)
 ```
+
 ```{r}
 manual_layout_faceted <- create_layout(graph = g_facet,
                                        layout = node_pos)
 manual_layout_faceted %>% 
   as_tibble()
 ```
+
 ```{r fig.height=12, fig.width=12}
 legend_title <- str_c("Minimum: ", minimum_commuters, " commuters")
 
@@ -408,9 +437,11 @@ ggraph(manual_layout_faceted) +
 ```
 
 ## Zoom in on one tract
+
 There also may be tracts of interest outside of the main commuter inflow/outflow tracts. This code creates a framework for filtering on commuters from a selected tract and zooming in on that tract.
 
 Set the threshhold and filter:
+
 ```{r}
 minimum_commuters <- 15
 
@@ -422,6 +453,7 @@ g_filtered
 ```
 
 This code gets the commuter outflow data for one tract and creates `allegheny_tracts_highlight`, which will be used to highlight the tract of interest.
+
 ```{r}
 filter_tract <- "42003473500"
 
@@ -444,16 +476,19 @@ g_filtered
 ```
 
 Set the layout for the graph:
+
 ```{r}
 manual_layout_filtered <- create_layout(graph = g_filtered,
                                         layout = node_pos)
 ```
+
 ```{r echo=FALSE}
 manual_layout_filtered %>% 
   as_tibble()
 ```
 
 This will be used to zoom in on the selected tract:
+
 ```{r}
 zoom_x <- manual_layout_filtered %>% 
   filter(.ggraph.orig_index == selected_node) %>% 
@@ -498,7 +533,8 @@ ggraph(manual_layout_filtered) +
 ```
 
 # References
-* http://www.robertmanduca.com/projects/jobs.html
-* https://lehd.ces.census.gov/data/
-* https://lehd.ces.census.gov/data/lodes/LODES7/LODESTechDoc7.3.pdf
-* https://walkerke.github.io/tidycensus/articles/basic-usage.html
+
+-   http://www.robertmanduca.com/projects/jobs.html
+-   https://lehd.ces.census.gov/data/
+-   https://lehd.ces.census.gov/data/lodes/LODES7/LODESTechDoc7.3.pdf
+-   https://walkerke.github.io/tidycensus/articles/basic-usage.html

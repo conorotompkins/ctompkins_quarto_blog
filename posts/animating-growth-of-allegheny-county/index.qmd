@@ -1,6 +1,5 @@
 ---
 # Documentation: https://sourcethemes.com/academic/docs/managing-content/
-
 title: "Animating Growth of Allegheny County"
 subtitle: ""
 summary: ""
@@ -19,6 +18,7 @@ execute:
 editor_options: 
   chunk_output_type: console
 ---
+
 In this post I will show how to create animated graphs that illustrate the increase in buildings in Allegheny County.
 
 One caveat about the data: it only includes parcels that were sold at some point. If the parcel was not sold, it is not included in this data. For example, a structure that was torn down and replaced **but** was not sold is not included. It is also reasonable to assume that the data quality decreases the older the records are. There may be a large amount of missing data.
@@ -28,6 +28,7 @@ The shapefiles for the parcels come from [Pennsylvania Spatial Data Access](http
 The data about the construction dates comes from the [WPRDC's](http://www.wprdc.org/) [Parcels n'at](http://tools.wprdc.org/parcels-n-at/#) dashboard. To get the relevant data, draw a box around entire county, select the "Year Built" field in the Property Assessments section, and then download the data. It will take a while to download data for the entire county.
 
 Set up the environment:
+
 ```{r}
 library(tidyverse)
 library(janitor)
@@ -45,6 +46,7 @@ my_caption <- "@conor_tompkins - data from @WPRDC"
 ```
 
 This reads in data about the land parcel (lot lines):
+
 ```{r}
 df <- read_csv("post_data/parcel_data.csv", progress = FALSE) %>% 
   clean_names() |> 
@@ -52,6 +54,7 @@ df <- read_csv("post_data/parcel_data.csv", progress = FALSE) %>%
 ```
 
 This reads in the parcel geometry
+
 ```{r}
 file <- "post_data/AlleghenyCounty_Parcels202409/AlleghenyCounty_Parcels202409.shp"
 file
@@ -59,6 +62,7 @@ shapefile <- st_read(file)
 ```
 
 Next we have to clean up the parcel geometry:
+
 ```{r}
 valid_check <- shapefile %>% 
   slice(1:nrow(shapefile)) %>% 
@@ -80,12 +84,14 @@ shapefile <- shapefile %>%
 ```
 
 Then, join the parcel geometry and parcel data:
+
 ```{r}
 parcel_data <- shapefile %>% 
   left_join(df, by = join_by(pin == parid))
 ```
 
 This turns the parcel geometry into `(x, y)` coordinates:
+
 ```{r}
 centroids <- parcel_data %>% 
   st_centroid() %>% 
@@ -95,6 +101,7 @@ centroids <- parcel_data %>%
 ```
 
 We can plot the coordinates to confirm that the locations make sense:
+
 ```{r}
 centroids %>% 
   distinct(x, y) %>% 
@@ -104,7 +111,8 @@ centroids %>%
   coord_equal()
 ```
 
-This plot shows that there is one row where `yearblt_asmt` is zero. That doesn't make sense, so we will exclude it later. 
+This plot shows that there is one row where `yearblt_asmt` is zero. That doesn't make sense, so we will exclude it later.
+
 ```{r}
 df %>% 
   ggplot(aes(yearblt)) +
@@ -117,6 +125,7 @@ df %>%
 ```
 
 This combines the `parcel_data` and `centroid` data:
+
 ```{r}
 parcel_geometry_cleaned <- bind_cols(parcel_data, centroids) %>% 
   select(pin, x, y, yearblt) %>%
@@ -127,6 +136,7 @@ parcel_geometry_cleaned <- bind_cols(parcel_data, centroids) %>%
 ```
 
 This plots the culmulative sum of structures built:
+
 ```{r}
 parcel_cumulative <- parcel_geometry_cleaned %>% 
   select(pin, yearblt) %>% 
@@ -147,6 +157,7 @@ parcel_cumulative
 ```
 
 This creates a graph of the structures built in Allegheny County, colored by the construction year.
+
 ```{r fig.height=12, fig.width=12}
 parcel_geometry_cleaned %>% 
   ggplot(aes(x, y, color = yearblt, group = pin)) +
