@@ -3,7 +3,7 @@
 title: "(re)Modeling the Office"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [R]
 categories: [R]
 date: 2020-06-21
@@ -27,20 +27,20 @@ The goal for this analysis is to determine which characters, directors, and writ
 
 The steps in the analysis are:
 
-* organize the data
-  + split by role (director, writer, and character)
-* clean up the data
-* model the data
-* review model output and performance
+-   organize the data
+    -   split by role (director, writer, and character)
+-   clean up the data
+-   model the data
+-   review model output and performance
 
 I use these variables in the model:
 
-* season
-* was the episode a season premier
-* was the episode a season finale
-* was a given director involved in the episode
-* was a given writer involved in the episode
-* how many lines did each character have in the episode
+-   season
+-   was the episode a season premier
+-   was the episode a season finale
+-   was a given director involved in the episode
+-   was a given writer involved in the episode
+-   how many lines did each character have in the episode
 
 ### Setup
 
@@ -62,7 +62,8 @@ theme_set(theme_bw())
 set.seed(1234)
 ```
 
-The first step is to download the data from the ```{schrute}``` package. The data is organized by season/episode/line, which is useful for analyzing characters, but not writers or directors.
+The first step is to download the data from the `{schrute}` package. The data is organized by season/episode/line, which is useful for analyzing characters, but not writers or directors.
+
 ```{r}
 df <- schrute::theoffice %>% 
   as_tibble() %>% 
@@ -73,7 +74,8 @@ glimpse(df)
 
 ## Basic EDA
 
-The boxplot shows that ```season``` may have an impact on the rating, so I will include that in the model.
+The boxplot shows that `season` may have an impact on the rating, so I will include that in the model.
+
 ```{r}
 df %>% 
   distinct(air_date, season, imdb_rating) %>% 
@@ -86,6 +88,7 @@ df %>%
 ```
 
 This creates a table with IMDB ratings and season premier/finale flags. This will be the table I join the personnel data to.
+
 ```{r}
 df_imdb <- df %>% 
   distinct(season, episode, imdb_rating) %>% 
@@ -101,6 +104,7 @@ glimpse(df_imdb)
 ### Directors
 
 Some episodes have more than one director, so I move them into separate rows.
+
 ```{r}
 df_directors <- df %>% 
   distinct(season, episode, director) %>% 
@@ -108,6 +112,7 @@ df_directors <- df %>%
 ```
 
 The original data contains misspellings of director names, which will cause issues when I filter out less common directors. This code fixes those misspellings.
+
 ```{r}
 df_director_fix <- tibble(director_good = c("Charles McDougall",
                                             "Claire Scanlon",
@@ -129,6 +134,7 @@ df_directors <- df_directors %>%
 ```
 
 This cleans up the director names and selects only directors that were involved in more than 2 episodes.
+
 ```{r}
 df_directors <- df_directors %>%  
   mutate(director = str_remove_all(director, "\\."),
@@ -140,6 +146,7 @@ df_directors <- df_directors %>%
 ```
 
 This pivots the data wide so it can be used with the regression model.
+
 ```{r}
 df_directors <- df_directors %>% 
   mutate(flag = 1) %>% 
@@ -153,6 +160,7 @@ df_directors %>%
 ### Writers
 
 This separates out where more than one writer was involved in an episode, filters on writers that were involved in more than 2 episodes, and pivots the data wide.
+
 ```{r}
 df_writers <- df %>% 
   distinct(season, episode, writer) %>% 
@@ -178,6 +186,7 @@ df_writers %>%
 ### Characters
 
 Some of the characters are named inconsistently, so this fixes the cases I identified.
+
 ```{r}
 df_characters <- df %>% 
   select(season, episode, character) %>% 
@@ -191,6 +200,7 @@ df_characters <- df %>%
 ```
 
 Some of the values contain odd characters that need to be removed. This also counts how many lines a character had in an episode.
+
 ```{r}
 df_characters <- df_characters %>%
   mutate(character = str_replace_all(character, " & ", " and "),
@@ -210,6 +220,7 @@ df_characters <- df_characters %>%
 ```
 
 This selects only the characters that were involved in more than 20 episodes and pivots the data wide. The value in each character column shows how many lines they had in the episode.
+
 ```{r}
 df_top_characters <- df_characters %>% 
   count(character, sort = TRUE) %>% 
@@ -231,7 +242,8 @@ df_characters_main %>%
 
 ## Prepare data for modeling
 
-This combines all the personnel tables and creates an ```episode_id``` variable. I also replace missing values with 0.
+This combines all the personnel tables and creates an `episode_id` variable. I also replace missing values with 0.
+
 ```{r}
 df_office <- df_imdb %>% 
   left_join(df_directors) %>% 
@@ -246,14 +258,16 @@ df_office %>%
   glimpse()
 ```
 
-This splits the data into the training and testing sets that will be used to model the data. I stratify by ```season``` because it may have an effect on ```imdb_rating``` that I want to capture.
+This splits the data into the training and testing sets that will be used to model the data. I stratify by `season` because it may have an effect on `imdb_rating` that I want to capture.
+
 ```{r}
 office_split <- initial_split(df_office, strata = season)
 office_train <- training(office_split)
 office_test <- testing(office_split)
 ```
 
-This creates a ```tidymodels``` recipe that removes zero-variance variables and normalizes the predictor variables.
+This creates a `tidymodels` recipe that removes zero-variance variables and normalizes the predictor variables.
+
 ```{r}
 office_rec <- recipe(imdb_rating ~ ., data = office_train) %>%
   update_role(episode_id, new_role = "ID") %>%
@@ -266,7 +280,8 @@ office_prep <- office_rec %>%
 
 ## Modeling
 
-I will use a linear model with ridge regression to penalize extreme coefficients. I bootstrap the training data and use ```tune()``` to find the optimal value for ```penalty```.
+I will use a linear model with ridge regression to penalize extreme coefficients. I bootstrap the training data and use `tune()` to find the optimal value for `penalty`.
+
 ```{r}
 wf <- workflow() %>%
   add_recipe(office_rec)
@@ -285,6 +300,7 @@ ridge_grid <- tune_grid(
 ```
 
 `lowest_rmse` searches through the bootstrapped models to find the `penalty` that gives the lowest RMSE (root mean squared error). This graph shows that increasing the penalty increases performance, but has diminishing returns.
+
 ```{r}
 lowest_rmse <- ridge_grid %>%
   select_best("rmse")
@@ -304,7 +320,8 @@ ridge_grid %>%
   theme(legend.position = "none")
 ```
 
-This fits the model with the best value for ```penalty```.
+This fits the model with the best value for `penalty`.
+
 ```{r}
 final_ridge <- finalize_workflow(wf %>% add_model(tune_spec), lowest_rmse)
 ```
@@ -312,6 +329,7 @@ final_ridge <- finalize_workflow(wf %>% add_model(tune_spec), lowest_rmse)
 ### Assess model
 
 The model generally overrates episodes with low ratings and underrates episodes with high ratings.
+
 ```{r}
 final_ridge %>% 
   fit(office_train) %>% 
@@ -326,7 +344,8 @@ final_ridge %>%
          y = "Predicted rating")
 ```
 
-Examining the data by season shows that the model predicted ```imdb_rating``` reasonably well for most seasons. It overestimated season 1 and underestimated season 3.
+Examining the data by season shows that the model predicted `imdb_rating` reasonably well for most seasons. It overestimated season 1 and underestimated season 3.
+
 ```{r}
 final_ridge %>% 
   fit(office_train) %>% 
@@ -343,6 +362,7 @@ final_ridge %>%
 ```
 
 This graph shows the variable importance, split by role:
+
 ```{r fig.height=12, fig.width=10}
 df_vi <- final_ridge %>%
   fit(office_train) %>%
@@ -385,12 +405,14 @@ The model has a dim view of Nellie and Robert, who were brought in fill the gap 
 In the "other" variables, the model thinks the show gets lower ratings as the seasons go on. Finales and season premiers are positive influences.
 
 Splitting the model inputs by role means I can compare how impactful a person was across roles. For example, the showrunner Greg Daniels was relatively more important as as writer than a director.
+
 ```{r}
 df_vi %>%  
   filter(person == "Greg Daniels")
 ```
 
 Rainn Wilson was much more important as a cast member than as a director.
+
 ```{r}
 df_vi %>% 
   filter(person == "Dwight" | person == "Rainn Wilson")
@@ -399,6 +421,7 @@ df_vi %>%
 ![](https://media.giphy.com/media/s3d5ugcxFDApG/giphy.gif){fig-align="center"}
 
 Finally, this tests how the model performs on test data that it has not seen. I think this is reasonably good, considering that TV show quality is driven by chemistry between the cast, which is hard to quantify.
+
 ```{r}
 last_fit(final_ridge, office_split) %>%
   collect_metrics()

@@ -2,7 +2,7 @@
 title: "eBirding in Allegheny County"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [R]
 categories: [R]
 date: 2020-04-18

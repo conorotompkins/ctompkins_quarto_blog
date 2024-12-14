@@ -2,7 +2,7 @@
 title: "Clustering Bird Species with Seasonality"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [R]
 categories: [R]
 date: 2020-05-03

@@ -4,9 +4,9 @@
 title: "Car Crashes in Allegheny County"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
-tags: [WPDRC, Allegheny County]
-categories: [WPDRC, Allegheny County]
+author: Conor Tompkins
+tags: [WPRDC, Allegheny County]
+categories: [WPRDC, Allegheny County]
 date: 2018-06-27
 lastmod: 2020-09-27T13:04:37-04:00
 featured: false

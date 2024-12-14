@@ -4,7 +4,7 @@
 title: "Driving Alone vs. Public Transportation in Pittsburgh"
 subtitle: "Mapping commuter modes with bivariate discretized bins"
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: []
 categories: []
 date: 2021-03-29

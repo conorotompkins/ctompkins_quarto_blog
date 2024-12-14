@@ -4,7 +4,7 @@
 title: "Mayor Bill Peduto Tweets"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [Twitter, Pittsburgh, Politics]
 categories: [Twitter, Pittsburgh]
 date: 2018-03-08

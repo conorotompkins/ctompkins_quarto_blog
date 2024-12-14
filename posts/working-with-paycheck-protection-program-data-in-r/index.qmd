@@ -6,7 +6,7 @@ slug: working-with-paycheck-protection-program-data-in-r
 image: preview.png
 categories:
   - R
-  - politics
+  - Politics
 tags:
   - COVID
 execute: 
@@ -21,6 +21,7 @@ In this post, I walk through the process of reading in the data from the Paychec
 **This post was migrated to Quarto in April 2024. The SBA significantly restructured how the data is structured between 2020-2024, so some of the older analyis is no longer applicable.**
 
 Load packages and set up environment:
+
 ```{r}
 library(tidyverse)
 library(vroom)
@@ -40,9 +41,10 @@ options(scipen = 999, digits = 4, tigris_use_cache = TRUE)
 
 The data is available at this site: https://data.sba.gov/dataset/ppp-foia
 
-The data exists in numerous CSV files, separated by state and sometimes loan amount. 
+The data exists in numerous CSV files, separated by state and sometimes loan amount.
 
 This code chunk identifies all the CSV files in the folder, reads them in, and combines them.
+
 ```{r}
 #| eval: false
 path <- "posts/working-with-paycheck-protection-program-data-in-r/post_data/ppp"
@@ -90,6 +92,7 @@ ppp_combined <- vroom("post_data/combined_ppp.csv", delim = ",") %>%
 ```
 
 This changes how the columns are interpreted, and separates the congressional district column into state and district. If the `district` value is blank, I replace it with `NA`.
+
 ```{r}
 #| include: false
 #| eval: false
@@ -110,7 +113,8 @@ This changes how the columns are interpreted, and separates the congressional di
 #                                 TRUE ~ loan_range))
 ```
 
-There are cases where the value in the `state` column doesn't match the state embedded in the congressional district `cd` column. 
+There are cases where the value in the `state` column doesn't match the state embedded in the congressional district `cd` column.
+
 ```{r}
 #preview data where state doesn't match congressional district
 ppp_combined %>% 
@@ -121,6 +125,7 @@ ppp_combined %>%
 ```
 
 There are only 423 rows where this occurs, and it is less than 1% of the dataset.
+
 ```{r}
 #summarize cases where mismatch occurs
 ppp_combined %>% 
@@ -133,6 +138,7 @@ ppp_combined %>%
 ```
 
 I filter out the rows where the state doesn't match the congressional district.
+
 ```{r}
 ppp_combined |> 
   filter(project_state != state_2) |> 
@@ -143,6 +149,7 @@ ppp_combined <- ppp_combined %>%
 ```
 
 This shows that there are some negative values in `loan_amount`. I filter out those values.
+
 ```{r}
 ppp_combined %>% 
   mutate(loan_type = current_approval_amount > 0) %>% 
@@ -153,9 +160,11 @@ ppp_combined <- ppp_combined %>%
 ```
 
 ## Analysis
+
 ### Loan amount
 
-The first step is to split the data into 2 buckets. For loans above $150k, the SBA binned the loan amount instead of reporting the actual value.
+The first step is to split the data into 2 buckets. For loans above \$150k, the SBA binned the loan amount instead of reporting the actual value.
+
 ```{r}
 ppp_under_150 <- ppp_combined %>% 
   filter(!str_detect(file_name, "150k_plus"))
@@ -164,7 +173,8 @@ ppp_over_150 <- ppp_combined %>%
   filter(str_detect(file_name, "150k_plus"))
 ```
 
-Among loans less than 150k, most are less than 21k, and the distribution is very heavily skewed to the right. 
+Among loans less than 150k, most are less than 21k, and the distribution is very heavily skewed to the right.
+
 ```{r}
 quantiles <- ppp_under_150 %>% 
   reframe(quantiles = quantile(current_approval_amount, probs = c(.25, .50, .75)), 
@@ -184,7 +194,8 @@ ppp_under_150 %>%
        color = "Quantile")
 ```
 
-Loans under $150k make up the vast majority of all PPP loans.
+Loans under \$150k make up the vast majority of all PPP loans.
+
 ```{r}
 ppp_combined |> 
   count(loan_range) %>%   
@@ -199,6 +210,7 @@ ppp_combined |>
 ```
 
 Loan approvals peaked in late April 2020 when the program began accepting applications for the second round, and picked up in July. There is extreme weekday-weekend seasonality in the data after April. The "U" shape from May to July generally coincides with the effort to "reopen" economies nationwide.
+
 ```{r}
 ppp_combined %>% 
   count(date_approved) %>% 
@@ -212,6 +224,7 @@ ppp_combined %>%
 ```
 
 This shows that bigger loans tended to be approved earlier in the program, which was a major criticism.
+
 ```{r}
 ppp_combined %>% 
   count(date_approved, loan_range) %>% 
@@ -233,6 +246,7 @@ ppp_combined %>%
 ```
 
 Most states received similar proportions of small and large loans. Territories received more small loans and fewer large loans.
+
 ```{r fig.height=15}
 ppp_combined %>% 
   mutate(loan_range = fct_inorder(loan_range)) %>% 
@@ -257,6 +271,7 @@ ppp_combined %>%
 ### Jobs
 
 Bigger loans tended to retain more jobs.
+
 ```{r fig.height=10, fig.width=10}
 ppp_combined %>% 
   filter(!is.na(jobs_reported)) %>% 
@@ -276,6 +291,7 @@ ppp_combined %>%
 ```
 
 The timeline of `jobs_reported` closely matches the trend of when loans were approved.
+
 ```{r}
 ppp_combined %>% 
   filter(!is.na(jobs_reported)) %>% 
@@ -292,6 +308,7 @@ ppp_combined %>%
 ```
 
 Among loans less than 150k and where the data was reported, the median loan retained 7 jobs per 50k spent. Systemic reporting bias probably makes this number less reliable.
+
 ```{r}
 ppp_combined %>% 
   filter(loan_range == "Under $150k",
@@ -303,6 +320,7 @@ ppp_combined %>%
 ```
 
 In the same loan range, bigger loans generally meant more jobs retained.
+
 ```{r cache=TRUE}
 test <- ppp_combined %>% 
   filter(loan_range == "Under $150k") %>% 
@@ -323,12 +341,14 @@ test %>%
 ### Mapping the data
 
 The dataset identifies which federal congressional district the applicant is from. I use `tigris` to retrieve the shapefiles for the most recent districts.
+
 ```{r include=FALSE}
 congress_districts <- suppressMessages(congressional_districts(cb = TRUE, resolution = "500k", year = 2020)) %>% 
   st_as_sf() %>% 
   clean_names() %>% 
   filter(statefp == 42)
 ```
+
 ```{r eval=FALSE}
 congress_districts <- suppressMessages(congressional_districts(cb = TRUE, resolution = "500k", year = 2020)) %>% 
   st_as_sf() %>% 
@@ -337,6 +357,7 @@ congress_districts <- suppressMessages(congressional_districts(cb = TRUE, resolu
 ```
 
 This counts how many of each `loan_range` a `district` received. Note that there are missing values and what appear to be defunct district IDs in the `district` column.
+
 ```{r fig.height=10}
 ppp_pa_districts_loan_range <- ppp_combined %>% 
   filter(project_state == "PA") %>% 
@@ -357,6 +378,7 @@ ppp_pa_districts_loan_range %>%
 ```
 
 Districts in eastern Pennsylvania near Philadelphia received more loans from the program.
+
 ```{r}
 ppp_pa_districts <- ppp_combined %>% 
   filter(project_state == "PA") %>% 

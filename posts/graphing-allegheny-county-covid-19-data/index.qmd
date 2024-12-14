@@ -3,7 +3,7 @@
 title: "Graphing Allegheny County COVID-19 data"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [R]
 categories: [R, COVID-19]
 date: 2020-07-07
@@ -23,6 +23,7 @@ execute:
 In this post, I review the process I use to make daily graphs from data published by the [Allegheny County Health Department](https://www.alleghenycounty.us/Health-Department/Resources/COVID-19/COVID-19.aspx). I use the [data posted by Franklin Chen](https://github.com/FranklinChen/covid-19-allegheny-county), who scrapes the data from the County's email updates.
 
 First, load the required packages and set up the environment.
+
 ```{r}
 #load libraries
 library(tidyverse)
@@ -37,6 +38,7 @@ options(scipen = 999, digits = 4)
 ```
 
 This reads in the raw data from the [GitHub repository](https://github.com/FranklinChen/covid-19-allegheny-county).
+
 ```{r}
 #| eval: false
 
@@ -48,6 +50,7 @@ df <- read_csv("https://raw.githubusercontent.com/FranklinChen/covid-19-alleghen
 
 glimpse(df)
 ```
+
 ```{r}
 #| include: false
 
@@ -61,6 +64,7 @@ glimpse(df)
 ```
 
 On July 7th, the County added deaths that occurred between April and June, but marked them as reported on July 7th. For the purposes of visualization, I remove those deaths.
+
 ```{r}
 #remove deaths from July 7th
 #The deaths reported today are from the state’s use of the Electronic Data Reporting System (EDRS) and include #deaths from April 5 – June 13, all decedents were 65 or older.
@@ -72,6 +76,7 @@ df <- df %>%
 ```
 
 This calculates new cases, hospitalizations, and deaths.
+
 ```{r}
 df <- df %>% 
   mutate(cases_new = cases - lag(cases),
@@ -79,20 +84,24 @@ df <- df %>%
          deaths_new = deaths - lag(deaths))
 ```
 
-There are instances where the number of cumulative hospitalizations or deaths *decreases*. 
+There are instances where the number of cumulative hospitalizations or deaths *decreases*.
+
 ```{r}
 df %>% 
   mutate(hospitalizations_lag = lag(hospitalizations)) %>% 
   select(date, date, hospitalizations, hospitalizations_lag, hospitalizations_new) %>% 
   filter(hospitalizations_new < 0)
 ```
+
 ```{r}
 df %>% 
   mutate(deaths_lag = lag(deaths)) %>% 
   select(date, date, deaths, deaths_lag, deaths_new) %>% 
   filter(deaths_new < 0)
 ```
+
 In these cases, I remove the values and do not replace them.
+
 ```{r}
 #when new cases/hospitalizations/deaths is negative, replace with NA
 df <- df %>% 
@@ -105,6 +114,7 @@ df <- df %>%
 ```
 
 This calculates rolling 14-day averages for new cases/hospitalizations/deaths.
+
 ```{r fig.height=8, fig.width=12}
 #calculate rolling 14 day averages for cases/hospitalizations/deaths
 df <- df %>% 
@@ -151,7 +161,9 @@ df <- df %>%
 
 glimpse(df)
 ```
+
 To prepare the data for visualization in `ggplot2`, I pivot the rolling averages longer and move them into a separate table.
+
 ```{r}
 #pivot rolling average data longer
 df_rolling <- df %>% 
@@ -164,7 +176,9 @@ df_rolling <- df %>%
 
 glimpse(df_rolling)
 ```
+
 I do the same for the daily data.
+
 ```{r}
 #pivot daily data longer
 df_new <- df %>% 
@@ -177,7 +191,9 @@ df_new <- df %>%
 
 glimpse(df_new)
 ```
+
 In the daily data, I remove rows where the date is *before* the first non-zero value of that metric.
+
 ```{r}
 #identify first non-zero value in each metric.
 ##filter out rows before first non-zero value
@@ -191,6 +207,7 @@ df_new <- df_new %>%
 ```
 
 These graphs show the rolling and daily new data:
+
 ```{r fig.height=6, fig.width=10}
 #preview rolling data
 df_rolling %>% 
@@ -198,6 +215,7 @@ df_rolling %>%
   geom_line() +
   facet_wrap(~metric, ncol = 1, scales = "free_y")
 ```
+
 ```{r fig.height=6, fig.width=10}
 #preview daily data
 df_new %>% 
@@ -207,12 +225,14 @@ df_new %>%
 ```
 
 This finds the most recent date in the data, which I insert into the final graph.
+
 ```{r}
 #find most recent date
 last_updated <- last(df_rolling$date)
 ```
 
 This creates the final graph. Since I pivoted the data longer, I can facet by `metric`, which lets me show cases/hospitalizations/deaths on separate y axes. I insert colored rectanges behind the data to show the stages of state intervention.
+
 ```{r fig.height=8, fig.width=10}
 #make graph
 allegheny_county_timeline <- df_rolling %>% 

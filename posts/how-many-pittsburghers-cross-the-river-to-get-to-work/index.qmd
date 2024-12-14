@@ -3,7 +3,7 @@
 title: "How Many Pittsburghers Cross the River to Get to Work"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [R, Pittsburgh, Allegheny County, Census, WPRDC]
 categories: [R, Pittsburgh, Allegheny County, Census, WPRDC]
 date: 2020-02-09
@@ -23,8 +23,8 @@ execute:
 This post focuses on how many rivers Pittsburghers cross to get to work. I use the U.S. Census Bureau LEHD Origin-Destination Employment Statistics (LODES) [dataset](https://lehd.ces.census.gov/data/) to draw lines between "home" census tracts and "work" census tracts, and then count how many "commuter lines" intersect with the 3 main rivers in Pittsburgh. This calculation is done in straight lines "as the crow flies", not accounting for actual road routes.
 
 ## TLDR
-A plurality of commuters don't cross any rivers, and none cross three.
-![](high_resolution_bar_chart.png)
+
+A plurality of commuters don't cross any rivers, and none cross three. ![](high_resolution_bar_chart.png)
 
 ![](high_resolution_facet_map.png)
 
@@ -32,10 +32,10 @@ Many commuters in the Golden Triangle and neighborhoods to the east don't cross 
 
 ## Data munging and analysis
 
-I use the "pa_od_aux_JT00_2017.csv" file as shown here:
-![](lodes_screenshot.png){width=80% height=80%}
+I use the "pa_od_aux_JT00_2017.csv" file as shown here: ![](lodes_screenshot.png){width="80%" height="80%"}
 
 In my analysis I use many of the standard `{tidyverse}` packages, `{sf}`, `{tidycensus}`, `{tidygraph}`, and `{ggraph}`:
+
 ```{r}
 library(tidyverse)
 library(vroom)
@@ -53,6 +53,7 @@ options(tigris_use_cache = TRUE,
 ```
 
 The first step is to read in the geographies crosswalk:
+
 ```{r}
 geo_crosswalk <- vroom("post_data/pa_xwalk.csv.gz", col_types = cols(.default = "c"))
 
@@ -60,6 +61,7 @@ geo_crosswalk
 ```
 
 This downloads the census tract shapefiles:
+
 ```{r}
 allegheny_tracts <- get_decennial(geography = "tract",
                            variables = c(total_pop = "P001001"),
@@ -73,6 +75,7 @@ allegheny_tracts
 ```
 
 This is the [shapefile](https://data.wprdc.org/dataset/allegheny-county-major-rivers) of the rivers:
+
 ```{r}
 rivers <- st_read("post_data/Allegheny_County_Major_Rivers/Allegheny_County_Major_Rivers.shp") %>% 
   group_by(NAME) %>% 
@@ -83,6 +86,7 @@ rivers
 ```
 
 These are the rivers:
+
 ```{r}
 rivers %>% 
   ggplot() +
@@ -92,6 +96,7 @@ rivers %>%
 ```
 
 This shows the outlines of the tracts used in the analysis.
+
 ```{r}
 allegheny_tracts %>% 
   ggplot() +
@@ -100,6 +105,7 @@ allegheny_tracts %>%
 ```
 
 Next I read in the main LODES data. This is a big file, so it takes a moment.
+
 ```{r}
 df <- vroom("post_data/pa_od_main_JT00_2017.csv.gz", col_types = cols(.default = "c")) %>% 
   mutate(S000 = as.numeric(S000)) %>% 
@@ -109,6 +115,7 @@ df
 ```
 
 Next I summarize the number of commuters per home-work tract combination. The original file uses census block codes, which are too granular for this analysis. I link the blocks to census tracts and aggregate to that level.
+
 ```{r}
 df_tracts_summarized <- df %>% 
   group_by(h_geocode, w_geocode) %>% 
@@ -138,6 +145,7 @@ df_tracts_summarized <- df_tracts_summarized %>%
 ```
 
 This code finds the center of each tract, which I use as the nodes in the network plots:
+
 ```{r}
 allegheny_tracts <- allegheny_tracts %>% 
   arrange(GEOID)
@@ -152,6 +160,7 @@ allegheny_tracts_centroids <- cbind(allegheny_tracts,
 ```
 
 This shows that the centroids correctly appear in the center of each tract:
+
 ```{r}
 allegheny_tracts %>% 
   ggplot() +
@@ -164,6 +173,7 @@ allegheny_tracts %>%
 ```
 
 Here I filter on commuter lines that have at least 25 commuters.
+
 ```{r}
 g <- df_tracts_summarized %>% 
   as_tbl_graph(directed = TRUE) %>% 
@@ -182,6 +192,7 @@ g
 ```
 
 Here I set a manual layout for the `ggraph` object. I use the centroids of the census tracts as the nodes in the network graph.
+
 ```{r}
 node_pos <- allegheny_tracts_centroids
 
@@ -193,6 +204,7 @@ manual_layout %>%
 ```
 
 This graphs the commuter lines on top of the census tracts and rivers:
+
 ```{r}
 ggraph(manual_layout) +
   geom_sf(data = allegheny_tracts, color = "dark grey", fill = NA) +
@@ -219,6 +231,7 @@ ggraph(manual_layout) +
 ```
 
 This calculates the centroids I will use to draw lines later on:
+
 ```{r}
 allegheny_lines <- cbind(allegheny_tracts, st_coordinates(st_centroid(allegheny_tracts))) %>% 
   select(-c(NAME, total_pop)) %>% 
@@ -231,6 +244,7 @@ allegheny_lines %>%
 ```
 
 Here I calculate the edges and nodes for the network graph:
+
 ```{r}
 df_edges <- g %>% 
   activate(edges) %>% 
@@ -247,6 +261,7 @@ df_nodes <- g %>%
 ```
 
 The `df_lines` is pivoted long so there is a "to" and "from" row for each commuter line:
+
 ```{r}
 df_lines <- df_edges %>% 
   mutate(line_id = row_number()) %>% 
@@ -261,6 +276,7 @@ df_lines
 ```
 
 Since some commuter "lines" are really just points that start and end at the same centroid, I separate the commuter "lines" from the "points" for purposes of manipulating the geometries.
+
 ```{r}
 df_line_types <- df_lines %>% 
   pivot_wider(names_from = point_type, values_from = edge_id) %>% 
@@ -285,6 +301,7 @@ df_points <- df_line_types %>%
 ```
 
 This creates the geometries for the lines, points, and rivers. Then I set them all to the same coordinate system with `st_set_crs`.
+
 ```{r}
 df_linestrings <- df_linestrings %>% 
   left_join(df_nodes, by = c("edge_id" = "id")) %>% 
@@ -325,6 +342,7 @@ rivers <- rivers %>%
 ```
 
 Here I calculate which commuter lines intersect with which rivers using `st_intersects`:
+
 ```{r}
 df_linestrings_intersect <- df_linestrings %>% 
   ungroup() %>% 
@@ -348,6 +366,7 @@ df_commuter_rivers <- df_linestrings_intersect %>%
 ```
 
 This shows that the intersection calculation was successful:
+
 ```{r}
 df_commuter_rivers %>% 
   filter(value == TRUE) %>% 
@@ -368,6 +387,7 @@ df_commuter_rivers %>%
 ```
 
 This combines the dataframes with the lines and points, and then summarizes to count how many of the geometries intersected with a river:
+
 ```{r}
 #this was double counting
 df_commuter_rivers_combined <- df_commuter_rivers %>% 
@@ -423,7 +443,6 @@ ggsave(plot = plot_bar, filename = "data/commuter_rivers/images/high_resolution_
          width = 9, height = 9, dpi = 300)
 ```
 
-
 It is always reassuring when your analysis doesn't stray to far from conventional wisdom. Very few Pittsburghers in the dataset cross two rivers to get to work, and none cross three.
 
 ## Mapping commuter patterns
@@ -431,6 +450,7 @@ It is always reassuring when your analysis doesn't stray to far from conventiona
 The next step is to put this data on a map, since it is obviously spatial. The goal is to calculate the percentage of each census tract's "from" commuters that crossed zero, one, two, and 3 rivers.
 
 This prepares the edge data to be used to make a chloropleth map:
+
 ```{r}
 df_lines_chloro <- df_edges %>% 
   mutate(line_id = row_number()) %>% 
@@ -442,9 +462,10 @@ df_lines_chloro
 #   distinct(line_id, commuters) %>%
 #   summarize(commuters = sum(commuters))
 # 184404 total commuters
-```  
+```
 
 The next few steps are largely just coercing the geometry to do what I want it to do. Interested parties can read the code.
+
 ```{r}
 df_line_types_chloro <- df_lines_chloro %>% 
   pivot_wider(names_from = point_type, values_from = edge_id) %>% 
@@ -601,11 +622,13 @@ df_combined <- df_combined %>%
 ```
 
 These are the final steps to create the chloropleth:
+
 ```{r}
 df_combined
 ```
 
 This counts the number of commuters per "from" tract and "count of rivers intersected". Note that there are multiple rows per "from" tract.
+
 ```{r}
 df_chloro_map <- df_combined %>%
   ungroup() %>% 
@@ -624,6 +647,7 @@ df_chloro_map
 ```
 
 The next step is to calculate the percent of a "from" tract's commuters that crossed a given number of rivers:
+
 ```{r}
 df_chloro_map <- df_chloro_map %>% 
   group_by(from) %>% 
@@ -638,6 +662,7 @@ df_chloro_map
 ```
 
 Then I join `df_chloro_map` against the census tract geometry to get a complete list of all the tracts. I use `complete` to add rows for combinations of "from" tracts and `count_rivers_intersected` that did not appear in the data. Those added rows are given `0` for `pct_of_commuters` and `total_commuters`.
+
 ```{r}
 df_chloro_map <- df_chloro_map %>% 
   right_join(allegheny_tracts %>% select(GEOID) %>% st_set_geometry(NULL), by = c("from" = "GEOID")) %>% 
@@ -654,6 +679,7 @@ df_chloro_map <- df_chloro_map %>%
 ```
 
 The final step is to right join againt the census tract data to bring over the geometry.
+
 ```{r}
 df_chloro_map <- df_chloro_map %>% 
   right_join(allegheny_tracts, by = c("from" = "GEOID"))
@@ -681,6 +707,7 @@ df_chloro_map %>%
          caption = "@conor_tompkins") +
     theme_void()
 ```
+
 ```{r eval=FALSE, include=FALSE}
 faceted_map_plot <- df_chloro_map %>% 
   mutate(count_rivers_intersected = str_c("Rivers intersected:", count_rivers_intersected, sep = " ")) %>% 
@@ -708,6 +735,7 @@ faceted_map_plot <- df_chloro_map %>%
 ### Errata
 
 The previous version of the bar chart double counted the commuters. This is the old version:
+
 ```{r}
 df_commuter_rivers_summary <- df_commuter_rivers %>% 
   bind_rows(df_points %>% 
@@ -731,13 +759,11 @@ df_commuter_rivers_summary %>%
     theme_bw()
 ```
 
-A similar but less impactful bug affected the chloropleth chart. For completeness, this is the old verison of that graph:
-![](faceted_graph.png){width=80% height=80%}
-
+A similar but less impactful bug affected the chloropleth chart. For completeness, this is the old verison of that graph: ![](faceted_graph.png){width="80%" height="80%"}
 
 ### References
 
-* https://lehd.ces.census.gov/data/
-* https://lehd.ces.census.gov/data/lodes/LODES7/LODESTechDoc7.4.pdf
-* https://lehd.ces.census.gov/doc/workshop/2017/Presentations/TheaEvans.pdf
-* https://medium.com/@urban_institute/open-accessible-data-on-jobs-and-workers-tract-level-lodes-data-945fcac9e280
+-   https://lehd.ces.census.gov/data/
+-   https://lehd.ces.census.gov/data/lodes/LODES7/LODESTechDoc7.4.pdf
+-   https://lehd.ces.census.gov/doc/workshop/2017/Presentations/TheaEvans.pdf
+-   https://medium.com/@urban_institute/open-accessible-data-on-jobs-and-workers-tract-level-lodes-data-945fcac9e280

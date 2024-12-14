@@ -4,7 +4,7 @@
 title: "Clustering Allegheny County Census Tracts With PCA and k-means"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [R, Census, Allegheny County]
 categories: [R, Census, Allegheny County]
 date: 2018-09-08

@@ -4,7 +4,7 @@
 title: "Shifting political winds"
 subtitle: "Or, drawing arrows on maps"
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [R, Politics]
 categories: [R, Politics]
 date: 2020-11-13T15:18:35-05:00
@@ -13,6 +13,7 @@ featured: false
 draft: false
 image: featured.png
 ---
+
 The purpose of this post is to recreate the "Shift from 2016" arrow map that the New York Times used to show which counties became more Democratic or Republican-leaning from 2016 to 2020. This is a screenshot of the [NYTimes figure](https://www.nytimes.com/interactive/2020/11/03/us/elections/results-president.html?name=styln-transition&region=TOP_BANNER&block=storyline_menu_recirc&action=click&pgtype=LegacyCollection&impression_id=fe1cabd0-2862-11eb-a601-c3124439c207&variant=show):
 
 ```{r}
@@ -126,7 +127,7 @@ ggplot() +
 
 The starting point of the line is the centroid of the county. The length and width of the lines are scaled to the shift in terms of number of votes. The NYTimes figure treats the shift as a binary variable when it rescales to degrees of the angle. In their graph, a Democratic shift is about 45 degrees (diagonal left) and a Republican shift is about 135 degrees (diagonal right). My figure maintains the continuous nature of the shift in %. I use the range 0-180 in degrees to indicate the shift. 0 degrees (all the way left) indicates a 100% shift towards Democrats, 90 degrees (pointing upwards) indicates no change, and 180 degrees (all the way to the right) indicates a 100% shift towards Republicans.
 
-The end point of the line is calculated using the sine and cosine of the margin shift in % (re-scaled to be interpreted as degrees of an angle) multiplied by the margin shift in votes (re-scaled to be interpreted as meters), which is added to the origin point. 
+The end point of the line is calculated using the sine and cosine of the margin shift in % (re-scaled to be interpreted as degrees of an angle) multiplied by the margin shift in votes (re-scaled to be interpreted as meters), which is added to the origin point.
 
 I lower the opacity of the lines in counties where the vote totals did not shift much. I use points instead of lines for counties where there was a very small shift in votes. This prevents overplotting in geographically dense areas with small populations.
 

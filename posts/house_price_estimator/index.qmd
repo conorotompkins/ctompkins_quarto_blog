@@ -2,7 +2,7 @@
 title: "House Price Estimator Dashboard"
 subtitle: ""
 summary: "Use this interactive dashboard to model house prices in Allegheny County, PA"
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: []
 categories: []
 date: 2021-01-28T15:23:43-05:00
@@ -31,15 +31,17 @@ options(scipen = 999, digits = 4)
 
 [Click here to view the full dashboard](https://conorotompkins.shinyapps.io/house_price_app/?_ga=2.94170075.792173544.1627131723-610183357.1620160758)
 
-<iframe height="800" width="1000" frameborder="yes" src=" https://conorotompkins.shinyapps.io/house_price_app/?_ga=2.94170075.792173544.1627131723-610183357.1620160758"> </iframe>
+<iframe height="800" width="1000" frameborder="yes" src=" https://conorotompkins.shinyapps.io/house_price_app/?_ga=2.94170075.792173544.1627131723-610183357.1620160758">
+
+</iframe>
 
 # Model discussion
 
 I trained 3 models against the assessment data:
 
-* Linear model
-* Random Forest
-* Bagged Tree
+-   Linear model
+-   Random Forest
+-   Bagged Tree
 
 I chose the Bagged Tree model because it performed about as well as the Random Forest model, but it predicts against new data much faster. Prediction speed is important because the UI for the dashboard has to update very quickly.
 
@@ -53,6 +55,7 @@ total_records <- read_csv("post_data/bag_full_model_results.csv") %>%
 Total observations: `r comma(total_records)`
 
 ## Training set metrics (75% of total observations)
+
 ```{r}
 #| include: false
 
@@ -60,6 +63,7 @@ train_metrics <- read_csv("post_data/train_metrics.csv")
 ```
 
 I used 10-fold cross-validation to assess model performance against the training set:
+
 ```{r}
 train_metrics %>% 
   select(model_name, id, .metric, .estimate) %>% 
@@ -72,6 +76,7 @@ train_metrics %>%
 ```
 
 ## Test set metrics (25% of total observations)
+
 ```{r}
 #| include: false
 
@@ -91,7 +96,6 @@ model_results <- read_csv("post_data/bag_full_model_results.csv") %>%
          .pred_dollar = 10^.pred,
          .resid = sale_price_adj - .pred_dollar)
 ```
-
 
 ```{r}
 model_results %>% 
@@ -114,6 +118,7 @@ model_results %>%
 ```
 
 The model becomes less effective as the actual sale price increases.
+
 ```{r}
 model_results %>% 
   ggplot(aes(sale_price_adj, .resid)) +
@@ -249,6 +254,7 @@ model_results %>%
 ```
 
 The model is best at predicting the sale price of houses built in the 1940s to 1980s. This is when most of the houses in the county were built.
+
 ```{r}
 model_results %>% 
   group_by(year_built) %>% 

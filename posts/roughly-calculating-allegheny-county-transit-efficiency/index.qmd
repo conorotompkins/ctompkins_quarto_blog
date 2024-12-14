@@ -3,7 +3,7 @@
 title: "Roughly Calculating Allegheny County Transit Efficiency"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [R, WPRDC, Allegheny County, Transit]
 categories: [R, WPRDC, Allegheny County, Transit]
 date: 2020-04-04

@@ -4,7 +4,7 @@
 title: "Analyzing Commuter Patterns in Allegheny County"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [R, Pittsburgh, Allegheny County, Commuters]
 categories: [R, Pittsburgh, Allegheny County, Commuters]
 date: 2019-11-11

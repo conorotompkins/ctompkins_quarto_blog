@@ -4,7 +4,7 @@
 title: "Exploring Allegheny County With Census Data"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [R, Census, Allegheny County]
 categories: [R, Census, Allegheny County]
 date: 2018-08-06

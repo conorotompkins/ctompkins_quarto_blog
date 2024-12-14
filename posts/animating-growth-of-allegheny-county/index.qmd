@@ -3,7 +3,7 @@
 title: "Animating Growth of Allegheny County"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [R, Allegheny County, WPRDC, Housing]
 categories: [R, Allegheny County, WPRDC, Housing]
 date: 2019-03-31

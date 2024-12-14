@@ -2,7 +2,7 @@
 title: "Cleaning Creatively Formatted US Census Bureau Migration Data"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [R]
 categories: [R]
 date: 2020-05-25

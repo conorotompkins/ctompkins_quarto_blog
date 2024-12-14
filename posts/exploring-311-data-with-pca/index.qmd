@@ -4,7 +4,7 @@
 title: "Exploring 311 Data With PCA"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [Census, Pittsburgh, WPRDC]
 categories: [Census, Pittsburgh, WPRDC]
 date: 2018-07-19
