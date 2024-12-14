@@ -1,0 +1,20 @@
+{
+  "hash": "0306a46401409189a91f37bc6e9887bc",
+  "result": {
+    "markdown": "---\ntitle: \"Pittsburgh City Boundary Model Leaflet Map\"\nsubtitle: \"\"\nsummary: \"View this classification model that distinguishes between census tracts that are inside or outside the City of Pittsburgh\"\nauthor: \"Conor Tompkins\"\ntags: [R, Pittsburgh, Allegheny County]\ncategories: [R, Pittsburgh, Allegheny County]\ndate: 2020-08-23T13:50:21-04:00\nlastmod: 2020-08-23T13:50:21-04:00\nfeatured: true\ndraft: false\n---\n\n\n[Last Friday I posted a classification model](https://ctompkins.netlify.app/post/classifying-pittsburgh-city-boundary/) that attempted to identify which census tracts in Allegheny County fall within the border of the City of Pittsburgh. I used a variety of data from the 2010 US Census via `{tidycensus}`, and I intentionally did not train the model with any geographic data. I am more interested in which census tracts are more \"city-like\", regardless of their distance from the geographic center of the city.\n\nAs with most models, I think you can learn the most when you investigate the cases where the model failed. I made an interactive Leaflet map to help me to interrogate the model's results. For each tract it includes the average city classification % and the model's correct classification %, as well as the census data that was used to train the model. Make sure to click the \"View Fullscreen\" button in the top left corner to see more of the map.\n\n\n\n\n::: {.cell}\n\n:::\n\n::: {.cell}\n::: {.cell-output-display}\n```{=html}\n<div id=\"htmlwidget-35f2c02fcb74e6356f13\" style=\"width:100%;height:480px;\" class=\"widgetframe html-widget\"></div>\n<script type=\"application/json\" data-for=\"htmlwidget-35f2c02fcb74e6356f13\">{\"x\":{\"url\":\"index_files/figure-html//widgets/widget_unnamed-chunk-2.html\",\"options\":{\"xdomain\":\"*\",\"allowfullscreen\":true,\"lazyload\":false}},\"evals\":[],\"jsHooks\":[]}</script>\n```\n:::\n:::\n",
+    "supporting": [
+      "index_files"
+    ],
+    "filters": [
+      "rmarkdown/pagebreak.lua"
+    ],
+    "includes": {
+      "include-in-header": [
+        "<script src=\"../../site_libs/htmlwidgets-1.6.4/htmlwidgets.js\"></script>\n<script src=\"../../site_libs/pymjs-1.3.2/pym.v1.js\"></script>\n<script src=\"../../site_libs/widgetframe-binding-0.3.1/widgetframe.js\"></script>\n"
+      ]
+    },
+    "engineDependencies": {},
+    "preserve": {},
+    "postProcess": true
+  }
+}

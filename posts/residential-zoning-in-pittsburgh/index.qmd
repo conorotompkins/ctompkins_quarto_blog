@@ -1,0 +1,160 @@
+---
+# Documentation: https://sourcethemes.com/academic/docs/managing-content/
+title: "Residential Zoning in Pittsburgh"
+subtitle: ""
+summary: ""
+author: Conor Tompkins
+tags: [R, Pittsburgh]
+categories: [R, Pittsburgh]
+date: 2019-06-22
+lastmod: 2020-08-28T09:36:42-04:00
+featured: false
+draft: false
+image: featured.png
+projects: []
+execute:
+  warning: false
+  message: false
+editor_options: 
+  chunk_output_type: console
+---
+
+The [New York Times recently published an article](https://www.nytimes.com/interactive/2019/06/18/upshot/cities-across-america-question-single-family-zoning.html) about zoning in U.S. cities, particularly single-unit detached residential housing. The article did not include Pittsburgh, so I downloaded the [zone shapefile from the WPRDC](https://data.wprdc.org/dataset/zoning1) and made my own map.
+
+This blog quickly goes through the steps to make the map and other graphs about the data.
+
+First, load the required libraries and set up the environment:
+
+```{r}
+library(tidyverse)
+library(sf)
+library(ggmap)
+library(janitor)
+library(hrbrthemes)
+
+options(scipen = 999)
+```
+
+Read in the shapefile with `st_read` and inspect the data with `glimpse`:
+
+```{r}
+shapefile <- st_read("post_data/Zoning-shp/Zoning.shp")
+
+glimpse(shapefile)
+```
+
+We need to munge the data to get it in shape for analysis. This makes some simple TRUE\|FALSE flags for basic zone information and uses `case_when` to create `type`, which represents aggregated zone types.
+
+```{r}
+df <- shapefile %>% 
+  mutate(residential = str_detect(full_zonin, "RESIDENT"),
+         single_unit = str_detect(full_zonin, "SINGLE-UNIT"),
+         attached = str_detect(full_zonin, "ATTACHED"),
+         type = case_when(residential == TRUE & single_unit == TRUE & attached == FALSE ~ "Single-unit detached residential",
+                          residential == TRUE & single_unit == FALSE | attached == TRUE ~ "Other residential",
+                          full_zonin == "EDUCATIONAL/MEDICAL INSTITUTION" ~ "Educational/Medical",
+                          residential == FALSE ~ "Other non-residential"),
+         type = factor(type, levels = c("Single-unit detached residential", 
+                                        "Other residential",
+                                        "Educational/Medical",
+                                        "Other non-residential")),
+         alpha_flag = type == "Single-unit detached residential") |> 
+  rename(area = Shape__Are)
+```
+
+```{r, echo = FALSE}
+df %>% 
+  st_drop_geometry() %>% 
+  glimpse()
+```
+
+This counts the number of rows per full zone description (`full_zonin`) and `type`:
+
+```{r}
+df_zones <- df %>% 
+  count(full_zonin, type, sort = TRUE) %>% 
+  st_drop_geometry()
+```
+
+```{r, echo = FALSE}
+glimpse(df_zones)
+```
+
+Create a basic bar chart to show the distribution of `type`:
+
+```{r fig.height=4, fig.width=9}
+df %>% 
+  st_drop_geometry() %>% 
+  group_by(type, residential) %>% 
+  summarize(area = sum(area)) %>% 
+  ungroup() %>% 
+  mutate(type = fct_reorder(type, area)) %>% 
+  ggplot(aes(type, area / 1000000, fill = residential)) +
+    geom_col() +
+    scale_y_comma() +
+    scale_fill_discrete("Is the zone residential?") +
+    labs(x = "Zone type",
+         y = "Land area in millions of feet") +
+    coord_flip() +
+    theme_ipsum()
+```
+
+Use a bar chart to show the distribution of `full_zonin`:
+
+```{r fig.height=12, fig.width=12}
+df %>% 
+  st_drop_geometry() %>% 
+  group_by(full_zonin, residential) %>% 
+  summarize(area = sum(area)) %>% 
+  ungroup() %>% 
+  mutate(full_zonin = fct_reorder(full_zonin, area)) %>% 
+  ggplot(aes(full_zonin, area / 1000000, fill = residential)) +
+    geom_col() +
+    scale_y_comma() +
+    scale_fill_discrete("Is the zone residential?") +
+    labs(x = "Full zone description",
+         y = "Land area in millions of feet") +
+    coord_flip() +
+    theme_ipsum()
+```
+
+This calculates the total land area zoned for any type of residential housing:
+
+```{r}
+df %>% 
+  st_drop_geometry() %>% 
+  mutate(single_unit_flag = type == "Single-unit detached residential") %>% 
+  filter(residential == TRUE) %>% 
+  summarize(total_area = sum(area))
+```
+
+This calculates the % of residential zoning that is zoned for single-unit detached residential housing units:
+
+```{r}
+df %>% 
+  st_drop_geometry() %>% 
+  filter(residential == TRUE) %>% 
+  mutate(single_unit_flag = (type == "Single-unit detached residential")) %>% 
+  group_by(single_unit_flag) %>% 
+  summarize(zone_area = sum(area)) %>% 
+  mutate(pct_area = zone_area / sum(zone_area))
+```
+
+This creates a map of the zones, fills them by `type`, and overlays it on a GoogleMaps basemap. I also insert the boundaries of the City of Pittsburgh.
+
+```{r fig.height=12, fig.width=12}
+city_boundary <- st_read("post_data/Pittsburgh_City_Boundary-shp/City_Boundary.shp")
+
+ggplot() +
+  geom_sf(data = df %>% filter(type != "Other non-residential"), aes(fill = type), inherit.aes = FALSE, size = .5, alpha = 1, color = NA) +
+  geom_sf(data = city_boundary, inherit.aes = FALSE, alpha = 0, size = 2) +
+  coord_sf(crs = st_crs(4326)) +
+  scale_fill_manual("Zone type",
+                      values = c("#ea60b9", "#4cafc5", "yellow", "light grey")) +
+  labs(title = "56% of residential zoned land area is single-family detached residential",
+         subtitle = "City of Pittsburgh zoning",
+         caption = "@conor_tompkins, data from WPRDC") +
+  theme_void()
+```
+
+I used `scale_fill_manual` to manually set the color palette to match the NYTimes article.

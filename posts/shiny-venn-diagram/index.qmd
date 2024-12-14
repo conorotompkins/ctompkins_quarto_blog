@@ -3,12 +3,13 @@ title: Making a Venn diagram in Shiny
 author: 'Conor Tompkins'
 date: '2022-03-12'
 slug: shiny-venn-diagram
-categories: [shiny]
+categories: [Shiny]
 tags: []
 subtitle: ''
 summary: ''
 lastmod: '2022-03-12T10:34:16-05:00'
 featured: no
+image: featured.png
 projects: []
 editor_options: 
   chunk_output_type: console

@@ -1,0 +1,170 @@
+---
+title: "3RBC Slide Slam 2024"
+author: "Conor Tompkins"
+draft: true
+format:
+  revealjs: default
+editor: visual
+---
+
+## Pennsylvania
+
+Year-round
+
+------------------------------------------------------------------------
+
+White-eyed Vireo (juvenile)
+
+![](images/DSC00565-01.jpg){fig-align="center"}
+
+------------------------------------------------------------------------
+
+White-eyed Vireo
+
+![](images/DSC00649-01.jpg){fig-align="center"}
+
+------------------------------------------------------------------------
+
+Marsh Wren (juvenile)
+
+![](images/DSC00721.jpg){fig-align="center"}
+
+------------------------------------------------------------------------
+
+Merlin (juvenile)
+
+![](images/DSC09394.jpg){fig-align="center"}
+
+------------------------------------------------------------------------
+
+Merlin (juvenile)
+
+![](images/DSC08789.jpg){fig-align="center"}
+
+------------------------------------------------------------------------
+
+Merlin
+
+![](images/DSC09495.jpg){fig-align="center"}
+
+------------------------------------------------------------------------
+
+Kirtland's Warbler
+
+![](images/DSC04531-Enhanced-NR.jpg){fig-align="center"}
+
+------------------------------------------------------------------------
+
+## Colorado
+
+![](images/Screenshot 2024-12-04 at 18.45.50.png){fig-align="center"}
+
+------------------------------------------------------------------------
+
+Western Meadowlark
+
+![](images/DSC02752.jpg){fig-align="center"}
+
+------------------------------------------------------------------------
+
+Western Kingbird
+
+![](images/DSC02852.jpg){fig-align="center"}
+
+------------------------------------------------------------------------
+
+Dark-eyed Junco (Gray-headed)
+
+![](images/DSC04163.jpg){fig-align="center"}
+
+------------------------------------------------------------------------
+
+Pygmy Nuthatch
+
+![](images/DSC04199.jpg){fig-align="center"}
+
+------------------------------------------------------------------------
+
+Red-naped Sapsucker
+
+![](images/DSC05987.jpg){fig-align="center"}
+
+------------------------------------------------------------------------
+
+Williamson's Sapsucker
+
+![](images/DSC06108.jpg){fig-align="center"}
+
+------------------------------------------------------------------------
+
+Mountain Bluebird
+
+![](images/DSC04701.jpg){fig-align="center"}
+
+## Arizona
+
+Phoenix in June is not recommended!
+
+![](images/Screenshot 2024-12-04 at 18.36.56.png){fig-align="center"}
+
+------------------------------------------------------------------------
+
+Curve-billed Thrasher
+
+![](images/DSC07847.jpg){fig-align="center"}
+
+------------------------------------------------------------------------
+
+Great-tailed Grackle
+
+![](images/DSC06881.jpg){fig-align="center"}
+
+------------------------------------------------------------------------
+
+## Cape May, NJ
+
+![](images/Screenshot 2024-12-04 at 18.39.31.png){fig-align="center"}
+
+------------------------------------------------------------------------
+
+Royal Tern
+
+![](images/DSC02420.jpg){fig-align="center"}
+
+------------------------------------------------------------------------
+
+Royal Tern
+
+![](images/DSC02265.jpg){fig-align="center"}
+
+------------------------------------------------------------------------
+
+American Oystercatcher
+
+![](images/DSC02525.jpg){fig-align="center"}
+
+------------------------------------------------------------------------
+
+Semipalmated Sandpiper
+
+![](images/DSC02192.jpg){fig-align="center"}
+
+------------------------------------------------------------------------
+
+Pectoral Sandpiper
+
+![](images/DSC04315.jpg){fig-align="center"}
+
+------------------------------------------------------------------------
+
+Black-bellied Plover
+
+![](images/DSC03180.jpg){fig-align="center"}
+
+------------------------------------------------------------------------
+
+Great Egret with Laughing Gull
+
+![](images/DSC03506.jpg){fig-align="center"}
+
+## Thank you!

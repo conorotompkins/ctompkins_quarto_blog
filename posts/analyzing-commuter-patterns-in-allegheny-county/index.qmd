@@ -1,0 +1,540 @@
+---
+# Documentation: https://sourcethemes.com/academic/docs/managing-content/
+
+title: "Analyzing Commuter Patterns in Allegheny County"
+subtitle: ""
+summary: ""
+author: Conor Tompkins
+tags: [R, Pittsburgh, Allegheny County, Commuters]
+categories: [R, Pittsburgh, Allegheny County, Commuters]
+date: 2019-11-11
+lastmod: 2020-08-24T11:29:31-04:00
+featured: false
+draft: false
+image: featured.png
+execute: 
+  echo: true
+  warning: false
+  message: false
+---
+
+Note: high-res images of the main graphs from this post are available [here](https://raw.githubusercontent.com/conorotompkins/lodes/master/output/images/p1.png), [here](https://raw.githubusercontent.com/conorotompkins/lodes/master/output/images/p2.png), [here](https://raw.githubusercontent.com/conorotompkins/lodes/master/output/images/p3.png), and [here](https://raw.githubusercontent.com/conorotompkins/lodes/master/output/images/p4.png).
+
+### 
+
+In this post I will use networks plots to analyze patterns of commuters in Allegheny County. I use the LEHD Origin-Destination Employment Statistics (LODES) [dataset](https://lehd.ces.census.gov/data/) provided by the U.S. Census Bureau. This dataset contains summarized and anonymized estimate data regarding where people live and work. I use this data to map where Allegheny County residents live and work.
+
+In my analysis I use many of the standard tidyverse packages, sf, tidygraph, and ggraph.
+
+```{r}
+library(tidyverse)
+library(sf)
+library(tigris)
+library(tidycensus)
+library(tidygraph)
+library(ggraph)
+```
+
+```{r include=FALSE}
+Sys.getenv("CENSUS_API_KEY")
+options(tigris_use_cache = TRUE)
+```
+
+The first step is to read in the geographies crosswalk and the census tract geographies.
+
+```{r}
+geo_crosswalk <- read_csv("post_data/pa_xwalk.csv.gz", col_types = cols(.default = "c"))
+
+allegheny_tracts <- get_decennial(geography = "tract",
+                                  variables = c(total_pop = "P001001"),
+                                  state = "PA",
+                                  county = "Allegheny County",
+                                  geometry = TRUE,
+                                  output = "wide",
+                                  year = 2010)
+
+st_erase <- function(x, y) {
+  st_difference(x, st_union(st_combine(y)))
+}
+
+rivers <- area_water("PA", "Allegheny", class = "sf")
+```
+
+This shows the outlines of the tracts used in the analysis.
+
+```{r}
+allegheny_tracts %>% 
+  ggplot() +
+  geom_sf()
+```
+
+The crosswalk file contains keys to join a variety of geographies.
+
+```{r}
+geo_crosswalk
+```
+
+Next I read in the main LODES data. This is a big file, so it takes a moment.
+
+```{r}
+df <- read_csv("post_data/pa_od_main_JT00_2015.csv.gz", col_types = cols(.default = "c")) %>% 
+  mutate(S000 = as.numeric(S000)) %>% 
+  select(h_geocode, w_geocode, S000)
+
+df
+```
+
+Next I summarize the number of commuters per home-work tract combination. The original file uses census block codes, which are too granular for this analysis. I link the blocks to census tracts and aggregate to that level.
+
+```{r}
+df_tracts_summarized <- df %>% 
+  group_by(h_geocode, w_geocode) %>% 
+  summarize(commuters = sum(S000)) %>% 
+  ungroup() %>% 
+  arrange(desc(commuters))
+
+df_tracts_summarized <- df_tracts_summarized %>% 
+  left_join(geo_crosswalk %>% select(tabblk2010, trct), by = c("h_geocode" = "tabblk2010")) %>% 
+  rename(h_tract = trct) %>% 
+  left_join(geo_crosswalk %>% select(tabblk2010, trct), by = c("w_geocode" = "tabblk2010")) %>% 
+  rename(w_tract = trct)
+
+df_tracts_summarized <- df_tracts_summarized %>% 
+  group_by(h_tract, w_tract) %>% 
+  summarize(commuters = sum(commuters)) %>% 
+  ungroup() %>% 
+  arrange(desc(commuters))
+
+df_tracts_summarized <- df_tracts_summarized %>% 
+  semi_join(allegheny_tracts, by = c("h_tract" = "GEOID")) %>% 
+  semi_join(allegheny_tracts, by = c("w_tract" = "GEOID"))
+```
+
+This code removes rows where the commuter lives and works in the same tract.
+
+```{r}
+df_tracts_summarized <- df_tracts_summarized %>% 
+  arrange(h_tract) %>% 
+  na.omit() %>% 
+  filter(!(h_tract == w_tract))
+```
+
+This code finds the center of each tract, which I use as the nodes in the network plots.
+
+```{r}
+allegheny_tracts <- allegheny_tracts %>% 
+  arrange(GEOID)
+
+allegheny_tracts_centroids <- cbind(allegheny_tracts,
+                                    st_coordinates(st_centroid(allegheny_tracts))) %>% 
+  st_set_geometry(NULL) %>% 
+  as_tibble() %>% 
+  rename(x = X,
+         y = Y) %>% 
+  select(GEOID, x, y)
+```
+
+This shows that the centroids correctly appear in the center of each tract.
+
+```{r}
+allegheny_tracts %>% 
+  ggplot() +
+  geom_sf() +
+  geom_point(data = allegheny_tracts_centroids, aes(x, y), size = .2)
+```
+
+## EDA
+
+First, I do some exploratory analysis of the number of commuters in/out per tract. Since we cannot join the census geography dataframe to the LODES data directly, I reverse engineer the process by splitting the data into separate "home" and "work" dataframes, and then joining the census geography dataframe to those dataframes.
+
+```{r}
+df_home <- df_tracts_summarized %>% 
+  rename(tract = h_tract,
+         commuters_out = commuters) %>% 
+  select(-w_tract) %>% 
+  group_by(tract) %>% 
+  summarize(commuters_out = sum(commuters_out))
+
+df_work <- df_tracts_summarized %>% 
+  rename(tract = w_tract,
+         commuters_in = commuters) %>% 
+  select(-h_tract) %>% 
+  group_by(tract) %>% 
+  summarize(commuters_in = sum(commuters_in))
+```
+
+This checks that there are no duplicate tracts in either dataframe:
+
+```{r}
+df_home %>% 
+  count(tract, sort = TRUE) %>% 
+  filter(n > 1)
+
+df_home %>% 
+  count(tract, sort = TRUE) %>% 
+  filter(n > 1)
+```
+
+This joins the separate dataframes back to the census geography dataframe:
+
+```{r}
+allegheny_tracts <- allegheny_tracts %>% 
+  left_join(df_home, by = c("GEOID" = "tract")) %>% 
+  left_join(df_work, by = c("GEOID" = "tract")) %>% 
+  replace_na(list(commuters_in = 0))
+```
+
+The tract with many more commuters "in" is downtown Pittsburgh.
+
+```{r}
+allegheny_tracts %>% 
+  ggplot(aes(commuters_out, commuters_in, label = NAME)) +
+  geom_point() +
+  theme_bw()
+```
+
+```{r}
+allegheny_tracts %>% 
+  ggplot() +
+  geom_sf(aes(fill = commuters_in), color = NA) +
+  scale_fill_viridis_c() +
+  theme_graph()
+```
+
+This shows which tracts have the most outflow of commuters:
+
+```{r}
+allegheny_tracts %>% 
+  ggplot() +
+  geom_sf(aes(fill = commuters_out), color = NA) +
+  scale_fill_viridis_c() +
+  theme_graph()
+```
+
+The outflow of commuters tracks with the population of the tract, with some exceptions.
+
+```{r}
+allegheny_tracts %>% 
+  ggplot(aes(commuters_out, total_pop)) +
+  geom_point() +
+  theme_bw()
+```
+
+Downtown Pittsburgh dominates in terms of inflow vs. outflow differential.
+
+```{r}
+allegheny_tracts %>% 
+  mutate(diff = commuters_in - commuters_out) %>% 
+  ggplot() +
+  geom_sf(aes(fill = diff), color = NA) +
+  scale_fill_viridis_c("Commuters in minus commuters out", direction = 1) +
+  theme_graph()
+```
+
+## Set up main graph
+
+With the exploratory analysis done, I move on to the main task of making a geographic network plot where the nodes are the center of each census tract.
+
+First, I set a minimum threshhold for the number of commuters flowing between two tracts. Then, I transform the `df_tracts_summarized` data into a `tbl_graph` object, which lets it be used for network analysis.
+
+```{r}
+minimum_commuters <- 100
+
+g <- df_tracts_summarized %>% 
+  as_tbl_graph(directed = TRUE)
+
+g
+```
+
+The result is a list of two dataframes; one for the nodes, one for the edges.
+
+This filters out the edges that do not meet the minimum threshhold.
+
+```{r}
+g_main <- g %>% 
+  activate(edges) %>% 
+  filter(commuters > minimum_commuters)
+
+g_main
+```
+
+This shows the edges with the most commuters:
+
+```{r}
+g_main %>% 
+  activate(edges) %>% 
+  arrange(desc(commuters))
+```
+
+This code sets the nodes for the graph at the center of each census tract and creates a manual layout that the network plot will use.
+
+```{r}
+node_pos <- allegheny_tracts_centroids
+
+manual_layout <- create_layout(graph = g_main,
+                               layout = node_pos)
+```
+
+```{r echo=FALSE}
+manual_layout %>% 
+  as_tibble()
+```
+
+Finally, this sets the parameters for the plot and makes the network graph:
+
+```{r fig.height=12, fig.width=12}
+legend_title <- str_c("Minimum: ", minimum_commuters, " commuters")
+
+ggraph(manual_layout) +
+  geom_sf(data = allegheny_tracts, color = "dark grey", fill = NA) +
+  geom_sf(data = rivers, fill = "white", color = NA, alpha = .5) +
+  geom_node_point(alpha = 0) +
+  geom_edge_fan(aes(edge_width = commuters, 
+                    edge_alpha = commuters),
+                arrow = arrow(length = unit(.5, 'lines')), 
+                start_cap = circle(.1, 'lines'),
+                end_cap = circle(.2, 'lines'),
+                color = "white",
+                strength = .5) +
+  scale_edge_width_continuous(legend_title, range = c(.1, 1.5)) +
+  scale_edge_alpha_continuous(legend_title, range = c(.1, .8)) +
+  scale_fill_viridis_c() +
+  labs(x = NULL,
+       y = NULL,
+       title = "Where do people commute from/to for work?",
+       subtitle = "Excludes within-tract commuters",
+       caption = "Based on 2015 US Census LODES dataset | @conor_tompkins") +
+  theme_graph() +
+  theme(legend.background = element_rect(fill = "light grey"),
+        legend.text = element_text(color = "black"),
+        legend.title = element_text(color = "black"),
+        panel.background = element_rect(fill = "black"))
+```
+
+Clearly downtown Pittsburgh attracts the most commuters. This is not surprising, but it obscures other job centers that attract employees.
+
+## Set up graph without downtown tract
+
+This code filters out commuters that work downtown. Again, set a threshhold and filter on it.
+
+```{r}
+minimum_commuters <- 100
+
+g_filtered <- g %>% 
+  activate(edges) %>% 
+  filter(commuters > minimum_commuters)
+
+g_filtered
+```
+
+This code goes into the network data and excludes edges that connect to the downtown tract.
+
+```{r}
+filter_tract <- "42003020100"
+
+selected_node <- manual_layout %>% 
+  filter(name != filter_tract) %>% 
+  pull(.ggraph.orig_index)
+
+g_filtered <- g_filtered %>% 
+  activate(edges) %>% 
+  filter(to %in% selected_node)
+
+g_filtered
+```
+
+This creates another layout for this plot:
+
+```{r}
+manual_layout_filtered <- create_layout(graph = g_filtered,
+                                        layout = node_pos)
+```
+
+```{r fig.height=12, fig.width=12}
+legend_title <- str_c("Minimum: ", minimum_commuters, " commuters")
+
+ggraph(manual_layout_filtered) +
+  geom_sf(data = allegheny_tracts, size = .1, fill = NA, color = "dark grey") +
+  geom_sf(data = rivers, fill = "white", color = NA, alpha = .5) +
+  geom_edge_fan(aes(edge_width = commuters, edge_alpha = commuters
+  ),
+  arrow = arrow(length = unit(.5, 'lines')),
+  start_cap = circle(.1, 'lines'),
+  end_cap = circle(.2, 'lines'),
+  color = "white",
+  strength = .5) +
+  scale_edge_width_continuous(legend_title, range = c(.1, 1.5)) +
+  scale_edge_alpha_continuous(legend_title, range = c(.1, .8)) +
+  scale_fill_viridis_c() +
+  labs(x = NULL,
+       y = NULL,
+       title = "Where do people commute from/to for work?",
+       subtitle = "Excludes within-tract commuters and commuters to downtown tract",
+       caption = "Based on 2015 US Census LODES dataset | @conor_tompkins") +
+  theme_graph() +
+  theme(legend.background = element_rect(fill = "light grey"),
+        legend.text = element_text(color = "black"),
+        legend.title = element_text(color = "black"),
+        panel.background = element_rect(fill = "black"))
+```
+
+## Set up facted graphs
+
+This code creates a faceted plot that focuses on the top 5 tracts in terms of commuter outflow:
+
+```{r}
+minimum_commuters <- 5
+
+top_work_tracts <- df_home %>% 
+  arrange(desc(commuters_out)) %>% 
+  top_n(5, commuters_out) %>% 
+  select(tract)
+
+g_facet <- g %>% 
+  activate(edges) %>% 
+  left_join(manual_layout %>% select(.ggraph.index, name), by = c("from" = ".ggraph.index")) %>% 
+  semi_join(top_work_tracts, by = c("name" = "tract")) %>% 
+  filter(commuters > minimum_commuters)
+
+g_facet %>% 
+  arrange(desc(commuters)) %>% 
+  activate(edges)
+```
+
+```{r}
+manual_layout_faceted <- create_layout(graph = g_facet,
+                                       layout = node_pos)
+manual_layout_faceted %>% 
+  as_tibble()
+```
+
+```{r fig.height=12, fig.width=12}
+legend_title <- str_c("Minimum: ", minimum_commuters, " commuters")
+
+ggraph(manual_layout_faceted) +
+  geom_sf(data = allegheny_tracts, size = .1, fill = NA, color = "dark grey") +
+  geom_sf(data = rivers, fill = "white", color = NA, alpha = .5) +
+  geom_edge_fan(aes(edge_width = commuters, edge_alpha = commuters),
+                arrow = arrow(length = unit(.5, 'lines')),
+                start_cap = circle(.1, 'lines'),
+                end_cap = circle(.2, 'lines'),
+                color = "red",
+                strength = .5) +
+  facet_edges(~name) +
+  scale_edge_width_continuous(legend_title, range = c(.1, 1.5)) +
+  scale_edge_alpha_continuous(legend_title, range = c(.1, 1)) +
+  scale_fill_viridis_c() +
+  labs(x = NULL,
+       y = NULL,
+       title = "Where do people commute from/to for work?",
+       subtitle = "Not including within-tract commuters",
+       caption = "Based on 2015 US Census LODES dataset | @conor_tompkins") +
+  theme_graph() +
+  theme(legend.background = element_rect(fill = "light grey"),
+        legend.text = element_text(color = "black"),
+        legend.title = element_text(color = "black"),
+        panel.background = element_rect(fill = "black"))
+```
+
+## Zoom in on one tract
+
+There also may be tracts of interest outside of the main commuter inflow/outflow tracts. This code creates a framework for filtering on commuters from a selected tract and zooming in on that tract.
+
+Set the threshhold and filter:
+
+```{r}
+minimum_commuters <- 15
+
+g_filtered <- g %>% 
+  activate(edges) %>% 
+  filter(commuters > minimum_commuters)
+
+g_filtered
+```
+
+This code gets the commuter outflow data for one tract and creates `allegheny_tracts_highlight`, which will be used to highlight the tract of interest.
+
+```{r}
+filter_tract <- "42003473500"
+
+allegheny_tracts_highlight <- allegheny_tracts %>% 
+  semi_join(df_tracts_summarized %>% 
+              filter(h_tract == filter_tract), by = c("GEOID" = "w_tract")) %>% 
+  filter(commuters_in > minimum_commuters)
+
+allegheny_tracts_highlight
+
+selected_node <- manual_layout %>% 
+  filter(name == filter_tract) %>% 
+  pull(.ggraph.orig_index)
+
+g_filtered <- g_filtered %>% 
+  activate(edges) %>% 
+  filter(from == selected_node)
+
+g_filtered
+```
+
+Set the layout for the graph:
+
+```{r}
+manual_layout_filtered <- create_layout(graph = g_filtered,
+                                        layout = node_pos)
+```
+
+```{r echo=FALSE}
+manual_layout_filtered %>% 
+  as_tibble()
+```
+
+This will be used to zoom in on the selected tract:
+
+```{r}
+zoom_x <- manual_layout_filtered %>% 
+  filter(.ggraph.orig_index == selected_node) %>% 
+  pull(x)
+
+zoom_y <- manual_layout_filtered %>% 
+  filter(.ggraph.orig_index == selected_node) %>% 
+  pull(y)
+
+zoom_magnitude <- .25
+```
+
+```{r fig.height=12, fig.width=12}
+legend_title <- str_c("Minimum: ", minimum_commuters, " commuters")
+
+ggraph(manual_layout_filtered) +
+  geom_sf(data = allegheny_tracts, size = .1, fill = NA) +
+  geom_sf(data = rivers, fill = "white", color = NA, alpha = .5) +
+  geom_sf(data = allegheny_tracts %>%  filter(GEOID == filter_tract), 
+          fill = "grey") +
+  geom_edge_fan(aes(edge_width = commuters),
+                arrow = arrow(length = unit(.5, 'lines')),
+                start_cap = circle(.1, 'lines'),
+                end_cap = circle(.2, 'lines'),
+                color = "red",
+                strength = .5) +
+  coord_sf(xlim = c(zoom_x - zoom_magnitude, zoom_x + zoom_magnitude), 
+           ylim = c(zoom_y - zoom_magnitude, zoom_y + zoom_magnitude)) +
+  scale_edge_width_continuous(legend_title, range = c(.1, 1.5)) +
+  scale_edge_alpha_continuous(legend_title, range = c(.1, .8)) +
+  scale_fill_viridis_c() +
+  labs(x = NULL,
+       y = NULL,
+       title = "Where do people commute from/to for work?",
+       subtitle = str_c("From tract", filter_tract, sep = " "),
+       caption = "Based on 2015 US Census LODES dataset | @conor_tompkins") +
+  theme_graph() +
+  theme(legend.background = element_rect(fill = "light grey"),
+        legend.text = element_text(color = "black"),
+        legend.title = element_text(color = "black"),
+        panel.background = element_rect(fill = "black"))
+```
+
+# References
+
+-   http://www.robertmanduca.com/projects/jobs.html
+-   https://lehd.ces.census.gov/data/
+-   https://lehd.ces.census.gov/data/lodes/LODES7/LODESTechDoc7.3.pdf
+-   https://walkerke.github.io/tidycensus/articles/basic-usage.html

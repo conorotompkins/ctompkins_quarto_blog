@@ -1,0 +1,769 @@
+---
+# Documentation: https://sourcethemes.com/academic/docs/managing-content/
+title: "How Many Pittsburghers Cross the River to Get to Work"
+subtitle: ""
+summary: ""
+author: Conor Tompkins
+tags: [R, Pittsburgh, Allegheny County, Census, WPRDC]
+categories: [R, Pittsburgh, Allegheny County, Census, WPRDC]
+date: 2020-02-09
+lastmod: 2020-08-12T11:47:20-04:00
+featured: false
+draft: false
+image: featured.png
+projects: []
+editor_options: 
+  chunk_output_type: console
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+This post focuses on how many rivers Pittsburghers cross to get to work. I use the U.S. Census Bureau LEHD Origin-Destination Employment Statistics (LODES) [dataset](https://lehd.ces.census.gov/data/) to draw lines between "home" census tracts and "work" census tracts, and then count how many "commuter lines" intersect with the 3 main rivers in Pittsburgh. This calculation is done in straight lines "as the crow flies", not accounting for actual road routes.
+
+## TLDR
+
+A plurality of commuters don't cross any rivers, and none cross three. ![](high_resolution_bar_chart.png)
+
+![](high_resolution_facet_map.png)
+
+Many commuters in the Golden Triangle and neighborhoods to the east don't cross rivers to get to work. Commuters from the North and South Hills areas usually cross one river. Commuters from Sewickley, Coraopolis, and those that live close to the airport are most likely to cross two rivers.
+
+## Data munging and analysis
+
+I use the "pa_od_aux_JT00_2017.csv" file as shown here: ![](lodes_screenshot.png){width="80%" height="80%"}
+
+In my analysis I use many of the standard `{tidyverse}` packages, `{sf}`, `{tidycensus}`, `{tidygraph}`, and `{ggraph}`:
+
+```{r}
+library(tidyverse)
+library(vroom)
+library(sf)
+library(tigris)
+library(tidycensus)
+library(tidygraph)
+library(ggraph)
+```
+
+```{r include=FALSE}
+Sys.getenv("CENSUS_API_KEY")
+options(tigris_use_cache = TRUE,
+        readr.show_progress = FALSE)
+```
+
+The first step is to read in the geographies crosswalk:
+
+```{r}
+geo_crosswalk <- vroom("post_data/pa_xwalk.csv.gz", col_types = cols(.default = "c"))
+
+geo_crosswalk
+```
+
+This downloads the census tract shapefiles:
+
+```{r}
+allegheny_tracts <- get_decennial(geography = "tract",
+                           variables = c(total_pop = "P001001"),
+                           state = "PA",
+                           county = "Allegheny County",
+                           geometry = TRUE,
+                           output = "wide",
+                           year = 2010)
+
+allegheny_tracts
+```
+
+This is the [shapefile](https://data.wprdc.org/dataset/allegheny-county-major-rivers) of the rivers:
+
+```{r}
+rivers <- st_read("post_data/Allegheny_County_Major_Rivers/Allegheny_County_Major_Rivers.shp") %>% 
+  group_by(NAME) %>% 
+  summarize() %>% 
+  filter(!is.na(NAME))
+
+rivers
+```
+
+These are the rivers:
+
+```{r}
+rivers %>% 
+  ggplot() +
+    geom_sf(aes(color = NAME), show.legend = FALSE) +
+    geom_sf_label(aes(label = NAME, fill = NAME), show.legend = FALSE) +
+    theme_graph()
+```
+
+This shows the outlines of the tracts used in the analysis.
+
+```{r}
+allegheny_tracts %>% 
+  ggplot() +
+    geom_sf() +
+    theme_minimal()
+```
+
+Next I read in the main LODES data. This is a big file, so it takes a moment.
+
+```{r}
+df <- vroom("post_data/pa_od_main_JT00_2017.csv.gz", col_types = cols(.default = "c")) %>% 
+  mutate(S000 = as.numeric(S000)) %>% 
+  select(h_geocode, w_geocode, S000)
+
+df
+```
+
+Next I summarize the number of commuters per home-work tract combination. The original file uses census block codes, which are too granular for this analysis. I link the blocks to census tracts and aggregate to that level.
+
+```{r}
+df_tracts_summarized <- df %>% 
+  group_by(h_geocode, w_geocode) %>% 
+  summarize(commuters = sum(S000)) %>% 
+  ungroup() %>% 
+  arrange(desc(commuters))
+
+df_tracts_summarized <- df_tracts_summarized %>% 
+  left_join(geo_crosswalk %>% select(tabblk2010, trct), by = c("h_geocode" = "tabblk2010")) %>% 
+  rename(h_tract = trct) %>% 
+  left_join(geo_crosswalk %>% select(tabblk2010, trct), by = c("w_geocode" = "tabblk2010")) %>% 
+  rename(w_tract = trct)
+
+df_tracts_summarized <- df_tracts_summarized %>% 
+  group_by(h_tract, w_tract) %>% 
+  summarize(commuters = sum(commuters)) %>% 
+  ungroup() %>% 
+  arrange(desc(commuters))
+
+df_tracts_summarized <- df_tracts_summarized %>% 
+  semi_join(allegheny_tracts, by = c("h_tract" = "GEOID")) %>% 
+  semi_join(allegheny_tracts, by = c("w_tract" = "GEOID"))
+
+# df_tracts_summarized %>% 
+#    summarize(jobs = sum(commuters))
+# 479006 total commuters
+```
+
+This code finds the center of each tract, which I use as the nodes in the network plots:
+
+```{r}
+allegheny_tracts <- allegheny_tracts %>% 
+  arrange(GEOID)
+
+allegheny_tracts_centroids <- cbind(allegheny_tracts,
+                                    st_coordinates(st_centroid(allegheny_tracts))) %>% 
+  st_set_geometry(NULL) %>% 
+  as_tibble() %>% 
+  rename(x = X,
+         y = Y) %>% 
+  select(GEOID, x, y)
+```
+
+This shows that the centroids correctly appear in the center of each tract:
+
+```{r}
+allegheny_tracts %>% 
+  ggplot() +
+    geom_sf() +
+    geom_point(data = allegheny_tracts_centroids, aes(x, y), size = .2) +
+    geom_sf(data = rivers, aes(color = NAME), show.legend = FALSE) +
+    geom_sf_label(data = rivers, aes(color = NAME, label = NAME),
+                  show.legend = FALSE) +
+    theme_void()
+```
+
+Here I filter on commuter lines that have at least 25 commuters.
+
+```{r}
+g <- df_tracts_summarized %>% 
+  as_tbl_graph(directed = TRUE) %>% 
+  activate(edges) %>% 
+  filter(commuters > 25)
+
+g
+
+# df_tracts_summarized %>%
+#   as_tbl_graph(directed = TRUE) %>%
+#   activate(edges) %>%
+#   filter(commuters > 25) %>%
+#   as_tibble() %>%
+#   summarize(jobs = sum(commuters))
+# 184404 total commuters
+```
+
+Here I set a manual layout for the `ggraph` object. I use the centroids of the census tracts as the nodes in the network graph.
+
+```{r}
+node_pos <- allegheny_tracts_centroids
+
+manual_layout <- create_layout(graph = g,
+                               layout = node_pos)
+
+manual_layout %>% 
+  as_tibble()
+```
+
+This graphs the commuter lines on top of the census tracts and rivers:
+
+```{r}
+ggraph(manual_layout) +
+  geom_sf(data = allegheny_tracts, color = "dark grey", fill = NA) +
+  geom_sf(data = rivers, aes(color = NAME), show.legend = FALSE) +
+  geom_edge_fan(aes(edge_width = log10(commuters), 
+                    edge_alpha = log10(commuters)),
+                arrow = arrow(length = unit(.5, 'lines')), 
+                start_cap = circle(.1, 'lines'),
+                end_cap = circle(.2, 'lines'),
+                color = "white",
+                strength = .5) +
+  scale_edge_width_continuous(range = c(.1, 1)) +
+  scale_edge_alpha_continuous(range = c(.01, .4)) +
+  labs(x = NULL,
+       y = NULL,
+       title = "Where do people commute from/to for work?",
+       subtitle = "Excludes within-tract commuters",
+       caption = "Based on 2017 US Census LODES dataset | @conor_tompkins") +
+  theme_graph() +
+  theme(legend.background = element_rect(fill = "black"),
+        legend.text = element_text(color = "white"),
+        legend.title = element_text(color = "white"),
+        panel.background = element_rect(fill = "black"))
+```
+
+This calculates the centroids I will use to draw lines later on:
+
+```{r}
+allegheny_lines <- cbind(allegheny_tracts, st_coordinates(st_centroid(allegheny_tracts))) %>% 
+  select(-c(NAME, total_pop)) %>% 
+  st_drop_geometry()
+
+allegheny_lines %>% 
+  ggplot() +
+    geom_point(aes(X, Y)) +
+    theme_minimal()
+```
+
+Here I calculate the edges and nodes for the network graph:
+
+```{r}
+df_edges <- g %>% 
+  activate(edges) %>% 
+  as_tibble()
+
+# df_edges %>%
+#   summarize(commuters = sum(commuters))
+# 184404 total commuters
+
+df_nodes <- g %>% 
+  activate(nodes) %>% 
+  as_tibble() %>% 
+  mutate(id = row_number())
+```
+
+The `df_lines` is pivoted long so there is a "to" and "from" row for each commuter line:
+
+```{r}
+df_lines <- df_edges %>% 
+  mutate(line_id = row_number()) %>% 
+  pivot_longer(c(from, to), names_to = "point_type", values_to = "edge_id")
+
+df_lines
+
+# df_lines %>%
+#   distinct(line_id, commuters) %>%
+#   summarize(jobs = sum(commuters))
+# 184404 total commuters
+```
+
+Since some commuter "lines" are really just points that start and end at the same centroid, I separate the commuter "lines" from the "points" for purposes of manipulating the geometries.
+
+```{r}
+df_line_types <- df_lines %>% 
+  pivot_wider(names_from = point_type, values_from = edge_id) %>% 
+  mutate(line_type = case_when(from == to ~ "point",
+                               from != to ~ "linestring")) %>% 
+  pivot_longer(cols = c(from, to), names_to = "edge_type", values_to = "edge_id")
+
+df_line_types
+
+# df_line_types %>%
+#   distinct(line_id, commuters) %>%
+#   summarize(commuters = sum(commuters))
+# # 184404 total commuters
+```
+
+```{r}
+df_linestrings <- df_line_types %>% 
+  filter(line_type == "linestring")
+
+df_points <- df_line_types %>% 
+  filter(line_type == "point")
+```
+
+This creates the geometries for the lines, points, and rivers. Then I set them all to the same coordinate system with `st_set_crs`.
+
+```{r}
+df_linestrings <- df_linestrings %>% 
+  left_join(df_nodes, by = c("edge_id" = "id")) %>% 
+  left_join(allegheny_lines, by = c("name" = "GEOID")) %>% 
+  st_as_sf(coords = c("X", "Y")) %>% 
+  group_by(line_id, commuters) %>%
+  summarise() %>% # union points into lines using our created lineid
+  st_cast("LINESTRING") %>% 
+  st_set_crs(4326)
+
+# df_linestrings %>% 
+#   ungroup() %>% 
+#   st_drop_geometry() %>% 
+#   summarize(commuters = sum(commuters))
+
+# 167409 commuters that change tracts
+
+df_points <- df_points %>% 
+  left_join(df_nodes, by = c("edge_id" = "id")) %>% 
+  left_join(allegheny_lines, by = c("name" = "GEOID")) %>% 
+  st_as_sf(coords = c("X", "Y")) %>% 
+  group_by(line_id, commuters) %>%
+  summarise() %>%
+  st_cast("POINT") %>% 
+  st_set_crs(4326)
+
+# df_points %>% 
+#   ungroup() %>% 
+#   st_drop_geometry() %>% 
+#   summarize(commuters = sum(commuters))
+
+# 16995 commuters that stay within a tract
+```
+
+```{r}
+rivers <- rivers %>% 
+  st_set_crs(4326)
+```
+
+Here I calculate which commuter lines intersect with which rivers using `st_intersects`:
+
+```{r}
+df_linestrings_intersect <- df_linestrings %>% 
+  ungroup() %>% 
+  mutate(intersects_ohio = st_intersects(., rivers %>% 
+                                            filter(NAME == "Ohio River")) %>% as.logical(),
+         intersects_allegheny = st_intersects(., rivers %>% 
+                                                filter(NAME == "Allegheny River")) %>% as.logical(),
+         intersects_monongahela = st_intersects(., rivers %>% 
+                                                  filter(NAME == "Monongahela River")) %>% as.logical())
+
+df_commuter_rivers <- df_linestrings_intersect %>% 
+  pivot_longer(c(contains("intersects")), names_to = "river_intersected", values_to = "value") %>% 
+  mutate(value = case_when(is.na(value) ~ FALSE,
+                           !is.na(value) ~ value))
+ 
+# df_commuter_rivers %>%
+#   distinct(line_id, commuters) %>%
+#   summarize(jobs = sum(commuters))
+
+# 167409 commuters that change tracts
+```
+
+This shows that the intersection calculation was successful:
+
+```{r}
+df_commuter_rivers %>% 
+  filter(value == TRUE) %>% 
+  ggplot() +
+    geom_sf(data = allegheny_tracts, color = NA, show.legend = FALSE) +
+    geom_sf(data = rivers, 
+            aes(color = NAME),
+            show.legend = FALSE) +
+    geom_sf(aes(geometry = geometry,
+                size = commuters),
+            show.legend = TRUE) +
+    facet_wrap(~river_intersected,
+               ncol = 1) +
+    guides(color = FALSE,
+           size = FALSE) +
+    theme_graph() +
+    scale_size_continuous(range = c(.1, .5))
+```
+
+This combines the dataframes with the lines and points, and then summarizes to count how many of the geometries intersected with a river:
+
+```{r}
+#this was double counting
+df_commuter_rivers_combined <- df_commuter_rivers %>% 
+  bind_rows(df_points %>% 
+              mutate(value = FALSE))
+
+#use for lookup
+df_lines_that_cross_rivers <- df_commuter_rivers_combined %>% 
+  group_by(line_id) %>% 
+  summarize(rivers_crossed = sum(value)) %>% 
+  ungroup()
+
+#find the distinct line_ids and then summarize 
+df_commuter_rivers_summary <- df_commuter_rivers_combined %>% 
+  distinct(line_id, commuters) %>% 
+  left_join(df_lines_that_cross_rivers) %>% 
+  group_by(rivers_crossed) %>% 
+  summarize(commuters = sum(commuters)) %>% 
+  ungroup()
+  
+
+# df_commuter_rivers_summary %>% 
+#   summarize(commuters = sum(commuters))
+# 184404 total commuters
+
+df_commuter_rivers_summary %>% 
+  ggplot(aes(rivers_crossed, commuters)) +
+    geom_col(color = "black") +
+    geom_text(aes(y = commuters + 5000, label = scales::comma(commuters))) +
+    scale_y_continuous(labels = scales::comma) +
+    labs(title = "Commuter travel patterns",
+         subtitle = "2017 U.S. Census LODES dataset",
+         x = "Rivers crossed",
+         y = "Number of commuters",
+         caption = "@conor_tompkins") +
+    theme_bw()
+```
+
+```{r eval=FALSE, include=FALSE}
+plot_bar <- df_commuter_rivers_summary %>% 
+  ggplot(aes(rivers_crossed, commuters)) +
+    geom_col(color = "black") +
+    geom_text(aes(y = commuters + 5000, label = scales::comma(commuters))) +
+    scale_y_continuous(labels = scales::comma) +
+    labs(title = "Commuter travel patterns",
+         subtitle = "2017 U.S. Census LODES dataset",
+         x = "Rivers crossed",
+         y = "Number of commuters",
+         caption = "@conor_tompkins") +
+    theme_bw()
+
+ggsave(plot = plot_bar, filename = "data/commuter_rivers/images/high_resolution_bar_chart.png", device = "png",
+         width = 9, height = 9, dpi = 300)
+```
+
+It is always reassuring when your analysis doesn't stray to far from conventional wisdom. Very few Pittsburghers in the dataset cross two rivers to get to work, and none cross three.
+
+## Mapping commuter patterns
+
+The next step is to put this data on a map, since it is obviously spatial. The goal is to calculate the percentage of each census tract's "from" commuters that crossed zero, one, two, and 3 rivers.
+
+This prepares the edge data to be used to make a chloropleth map:
+
+```{r}
+df_lines_chloro <- df_edges %>% 
+  mutate(line_id = row_number()) %>% 
+  pivot_longer(c(from, to), names_to = "point_type", values_to = "edge_id")
+
+df_lines_chloro
+
+# df_lines_chloro %>%
+#   distinct(line_id, commuters) %>%
+#   summarize(commuters = sum(commuters))
+# 184404 total commuters
+```
+
+The next few steps are largely just coercing the geometry to do what I want it to do. Interested parties can read the code.
+
+```{r}
+df_line_types_chloro <- df_lines_chloro %>% 
+  pivot_wider(names_from = point_type, values_from = edge_id) %>% 
+  mutate(line_type = case_when(from == to ~ "point",
+                               from != to ~ "linestring")) %>% 
+  pivot_longer(cols = c(from, to), names_to = "edge_type", values_to = "edge_id")
+
+# df_line_types_chloro %>%
+#    distinct(line_id, commuters) %>%
+#    summarize(commuters = sum(commuters))
+#184404 total commuters
+```
+
+```{r}
+df_linestrings_chloro <- df_line_types_chloro %>% 
+  filter(line_type == "linestring")
+
+# df_linestrings_chloro %>%
+#   distinct(line_id, commuters) %>%
+#   summarize(commuters = sum(commuters))
+#167409 commuters that change tracts
+
+df_linestrings_chloro_lookup <- df_linestrings_chloro %>% 
+  select(line_id, edge_type, edge_id) %>% 
+  pivot_wider(names_from = edge_type, values_from = edge_id)
+
+df_points_chloro <- df_line_types %>% 
+  filter(line_type == "point")
+
+# df_points_chloro %>%
+#   distinct(line_id, commuters) %>%
+#   summarize(commuters = sum(commuters))
+#16995 commuters that stay within a tract
+```
+
+```{r}
+df_linestrings_chloro <- df_linestrings_chloro %>% 
+  left_join(df_nodes, by = c("edge_id" = "id")) %>% 
+  left_join(allegheny_lines, by = c("name" = "GEOID")) %>% 
+  st_as_sf(coords = c("X", "Y")) %>% 
+  group_by(line_id, commuters) %>%
+  summarise() %>% # union points into lines using our created lineid
+  st_cast("LINESTRING") %>% 
+  st_set_crs(4326) %>% 
+  left_join(df_linestrings_chloro_lookup, by = c("line_id" = "line_id")) %>% 
+  left_join(df_nodes, by = c("from" = "id")) %>% 
+  left_join(allegheny_lines, by = c("name" = "GEOID"))
+
+# df_linestrings_chloro %>%
+#   ungroup() %>%
+#   st_drop_geometry() %>%
+#   summarize(commuters = sum(commuters))
+#167409 commuters that change tracts
+
+df_points_chloro <- df_points_chloro %>% 
+  left_join(df_nodes, by = c("edge_id" = "id")) %>% 
+  left_join(allegheny_lines, by = c("name" = "GEOID")) %>% 
+  st_as_sf(coords = c("X", "Y")) %>% 
+  group_by(line_id, name, commuters) %>%
+  st_cast("POINT") %>% 
+  st_set_crs(4326)
+
+# df_points_chloro %>%
+#   ungroup() %>%
+#   st_drop_geometry() %>%
+#   distinct(line_id, commuters) %>%
+#   summarize(commuters = sum(commuters))
+#16995 commuters that stay within a tract
+```
+
+```{r}
+df_linestrings_chloro_intersect <- df_linestrings_chloro %>% 
+  ungroup() %>% 
+  mutate(intersects_ohio = st_intersects(., rivers %>% 
+                                            filter(NAME == "Ohio River")) %>% as.logical(),
+         intersects_allegheny = st_intersects(., rivers %>% 
+                                                filter(NAME == "Allegheny River")) %>% as.logical(),
+         intersects_monongahela = st_intersects(., rivers %>% 
+                                                  filter(NAME == "Monongahela River")) %>% as.logical()) %>% 
+  st_set_geometry(NULL) %>% 
+  select(-c(from, to)) %>% 
+  rename(from = name)
+
+# df_linestrings_chloro_intersect %>%
+#   summarize(commuters = sum(commuters))
+#167409 commuters that change tracts
+```
+
+```{r}
+df_linestrings_chloro_intersect <- df_linestrings_chloro_intersect %>% 
+  mutate_at(vars(contains("intersect")), ~case_when(is.na(.) ~ FALSE,
+                           !is.na(.) ~ .)) %>%
+  mutate(no_intersect = case_when(intersects_allegheny == FALSE & intersects_monongahela == FALSE & intersects_ohio == FALSE ~ TRUE,
+                                  TRUE ~ FALSE)) %>% 
+  select(line_id, from, contains("intersect"), commuters) %>% 
+  pivot_longer(contains("intersect"), names_to = "river_intersected", values_to = "value")
+
+# df_linestrings_chloro_intersect %>%
+#   distinct(line_id, commuters) %>%
+#   summarize(commuters = sum(commuters))
+#167409 commuters that change tracts
+```
+
+```{r}
+df_linestrings_chloro_intersect <- df_linestrings_chloro_intersect %>% 
+  mutate(commuters = case_when(value == FALSE ~ 0,
+                               TRUE ~ commuters))
+
+# df_linestrings_chloro_intersect %>%
+#   distinct(line_id, commuters) %>%
+#   summarize(commuters = sum(commuters))
+#167409 commuters that change tracts
+```
+
+```{r}
+df_linestrings_chloro_intersect <- df_linestrings_chloro_intersect %>% 
+  filter(value == TRUE) %>% 
+  group_by(line_id, from, commuters) %>% 
+  summarize(count_rivers_intersected = sum(river_intersected != "no_intersect")) %>% 
+  ungroup()
+
+# df_linestrings_chloro_intersect %>%
+#   summarize(commuters = sum(commuters))
+#167409 commuters that change tracts  
+```
+
+```{r}
+df_points_chloro <- cbind(df_points_chloro, st_coordinates(st_centroid(df_points_chloro))) %>% 
+  st_drop_geometry() %>% 
+  rename(from = name) %>% 
+  distinct(from, line_id, commuters) %>% 
+  mutate(count_rivers_intersected = 0)
+  
+
+# df_points_chloro %>%
+#    summarize(commuters = sum(commuters))
+#16995 commuters that stay within a tract
+```
+
+```{r}
+df_combined <- bind_rows(df_linestrings_chloro_intersect, df_points_chloro)
+
+# df_combined %>%
+#     filter(is.na(from))
+# 
+# df_combined %>%
+#    summarize(commuters = sum(commuters))
+#184404 total commuters
+```
+
+```{r}
+df_combined <- df_combined %>% 
+  arrange(from, desc(count_rivers_intersected), desc(commuters))
+```
+
+These are the final steps to create the chloropleth:
+
+```{r}
+df_combined
+```
+
+This counts the number of commuters per "from" tract and "count of rivers intersected". Note that there are multiple rows per "from" tract.
+
+```{r}
+df_chloro_map <- df_combined %>%
+  ungroup() %>% 
+  group_by(from, count_rivers_intersected) %>% 
+  summarize(total_commuters = sum(commuters)) %>% 
+  ungroup()
+
+df_chloro_map
+
+# df_chloro_map %>%
+#   filter(is.na(count_rivers_intersected))
+# 
+# df_chloro_map %>% 
+#     summarize(commuters = sum(total_commuters))
+#184404 total commuters
+```
+
+The next step is to calculate the percent of a "from" tract's commuters that crossed a given number of rivers:
+
+```{r}
+df_chloro_map <- df_chloro_map %>% 
+  group_by(from) %>% 
+  mutate(pct_of_commuters = total_commuters / sum(total_commuters)) %>% 
+  ungroup()
+
+df_chloro_map
+
+# df_chloro_map %>% 
+#   summarize(commuters = sum(total_commuters))
+#184404 total commuters
+```
+
+Then I join `df_chloro_map` against the census tract geometry to get a complete list of all the tracts. I use `complete` to add rows for combinations of "from" tracts and `count_rivers_intersected` that did not appear in the data. Those added rows are given `0` for `pct_of_commuters` and `total_commuters`.
+
+```{r}
+df_chloro_map <- df_chloro_map %>% 
+  right_join(allegheny_tracts %>% select(GEOID) %>% st_set_geometry(NULL), by = c("from" = "GEOID")) %>% 
+  complete(from, count_rivers_intersected = c(0, 1, 2)) %>%
+  filter(!is.na(count_rivers_intersected)) %>% #exclude tracts brought in from the right_join
+  replace_na(list(pct_of_commuters = 0, total_commuters = 0))
+
+# df_chloro_map %>% 
+#   filter(is.na(count_rivers_intersected))
+# 
+# df_chloro_map %>% 
+#   summarize(commuters = sum(total_commuters, na.rm = TRUE))
+#184404 total commuters
+```
+
+The final step is to right join againt the census tract data to bring over the geometry.
+
+```{r}
+df_chloro_map <- df_chloro_map %>% 
+  right_join(allegheny_tracts, by = c("from" = "GEOID"))
+
+glimpse(df_chloro_map)
+```
+
+```{r}
+df_chloro_map %>% 
+  mutate(count_rivers_intersected = str_c("Rivers intersected:", count_rivers_intersected, sep = " ")) %>% 
+  ggplot() +
+    geom_sf(aes(geometry = geometry,
+                fill = pct_of_commuters),
+            color = NA) +
+    geom_sf(data = rivers,
+            aes(color = NAME),
+            size = 1,
+            show.legend = FALSE) +
+    facet_wrap(~count_rivers_intersected,
+               nrow = 1) +
+    scale_fill_viridis_c("% of commuters",
+                         labels = scales::percent) +
+    labs(title = "Commuter travel patterns",
+         subtitle = "2017 U.S. Census LODES dataset",
+         caption = "@conor_tompkins") +
+    theme_void()
+```
+
+```{r eval=FALSE, include=FALSE}
+faceted_map_plot <- df_chloro_map %>% 
+  mutate(count_rivers_intersected = str_c("Rivers intersected:", count_rivers_intersected, sep = " ")) %>% 
+  ggplot() +
+    geom_sf(aes(geometry = geometry,
+                fill = pct_of_commuters),
+            color = NA) +
+    geom_sf(data = rivers,
+            aes(color = NAME),
+            size = 1,
+            show.legend = FALSE) +
+    facet_wrap(~count_rivers_intersected,
+               nrow = 1) +
+    scale_fill_viridis_c("% of commuters",
+                         labels = scales::percent) +
+    labs(title = "Commuter travel patterns",
+         subtitle = "2017 U.S. Census LODES dataset",
+         caption = "@conor_tompkins") +
+    theme_void()
+
+#ggsave(plot = faceted_map_plot, filename = "data/commuter_rivers/images/high_resolution_facet_map.png", device = "png",
+#         width = 18, height = 12, dpi = 300)
+```
+
+### Errata
+
+The previous version of the bar chart double counted the commuters. This is the old version:
+
+```{r}
+df_commuter_rivers_summary <- df_commuter_rivers %>% 
+  bind_rows(df_points %>% 
+              mutate(value = FALSE)) %>% 
+  group_by(line_id) %>% 
+  summarize(rivers_crossed = sum(value),
+            commuters = sum(commuters))
+
+df_commuter_rivers_summary %>% 
+  st_drop_geometry() %>%
+  group_by(rivers_crossed) %>% 
+  summarize(commuters = sum(commuters)) %>% 
+  ggplot(aes(rivers_crossed, commuters)) +
+    geom_col() +
+    scale_y_continuous(labels = scales::comma) +
+    labs(title = "Commuter travel patterns",
+         subtitle = "2017 U.S. Census LODES dataset",
+         x = "Rivers crossed",
+         y = "Number of commuters",
+         caption = "@conor_tompkins") +
+    theme_bw()
+```
+
+A similar but less impactful bug affected the chloropleth chart. For completeness, this is the old verison of that graph: ![](faceted_graph.png){width="80%" height="80%"}
+
+### References
+
+-   https://lehd.ces.census.gov/data/
+-   https://lehd.ces.census.gov/data/lodes/LODES7/LODESTechDoc7.4.pdf
+-   https://lehd.ces.census.gov/doc/workshop/2017/Presentations/TheaEvans.pdf
+-   https://medium.com/@urban_institute/open-accessible-data-on-jobs-and-workers-tract-level-lodes-data-945fcac9e280

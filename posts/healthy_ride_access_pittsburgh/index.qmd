@@ -3,7 +3,7 @@
 title: "Bike rental access in Pittsburgh"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [R, Pittsburgh, Healthy Ride, WPRDC]
 categories: [R, Pittsburgh, Healthy Ride, WPRDC]
 date: 2020-12-04

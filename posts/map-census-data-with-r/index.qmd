@@ -1,0 +1,477 @@
+---
+# Documentation: https://sourcethemes.com/academic/docs/managing-content/
+title: "Map Census Data With R"
+subtitle: ""
+summary: ""
+author: Conor Tompkins
+tags: [R, Potholes, Census]
+categories: [R, Potholes, Census]
+date: 2019-05-28
+lastmod: 2020-08-28T17:22:20-04:00
+featured: false
+draft: false
+image: featured.png
+projects: []
+execute:
+  warning: false
+  message: false
+editor_options: 
+  chunk_output_type: console
+---
+
+This talk was presented on May 30th, 2019 at [Code For Pittsburgh](https://www.meetup.com/codeforpgh/).
+
+Before we dive in, this presentation assumes that the user has basic familiarity with `tidyverse`, mainly `dplyr`. Knowing how to use `%>%` will be very helpful.
+
+How to install packages:
+
+```{r, eval = FALSE}
+install.packages("package_name")
+```
+
+Get your census API key: https://api.census.gov/data/key_signup.html
+
+Configure environment:
+
+```{r}
+library(tidycensus)
+library(tidyverse)
+library(sf)
+library(tigris)
+library(ggmap)
+library(janitor)
+
+theme_set(theme_bw())
+
+options(tigris_use_cache = TRUE,
+        scipen = 4,
+        digits = 3)
+```
+
+```{r include=FALSE}
+library(kableExtra)
+```
+
+## Packages
+
+### {tidycensus}
+
+[`tidycensus`](https://walkerke.github.io/tidycensus/) gives access to the Census API and makes it easy to plot data on a map.
+
+Data
+
+-   Demographics
+    -   Decennial Census
+    -   American Community Survey (ACS)
+    -   error estimates
+-   Geometries
+    -   country
+    -   county
+    -   zip code
+    -   blocks
+    -   tracts
+    -   and more
+
+### {sf}
+
+[simple features](https://r-spatial.github.io/sf/articles/sf1.html) makes it easy to work with polygon data in R. It uses the familiar `tidyverse` framework: everything is a tibble, and it uses `%>%`.
+
+`ggplot2::geom_sf()` makes it easy to plot `sf` polygons.
+
+`sf` can also do spatial calculations such as `st_contains`, `st_intersects`, and `st_boundary`.
+
+### {ggmap}
+
+Uses [Google Maps API](https://cloud.google.com/maps-platform/) to get basemaps. The API now requires a credit card, but it has a fairly generous "free" tier.
+
+## Using {tidycensus}
+
+```{r eval = FALSE}
+census_api_key("your_key_here")
+```
+
+This loads the variables from the Decennial Census in 2010:
+
+```{r}
+variables_dec <- load_variables(year = 2010, dataset = "sf1", cache = TRUE)
+```
+
+```{r echo=FALSE}
+variables_dec
+```
+
+This loads the ACS variables for 2017:
+
+```{r}
+variables_acs <- load_variables(year = 2017, dataset = "acs5", cache = TRUE)
+```
+
+```{r echo=FALSE}
+variables_acs
+```
+
+### Map total population in the U.S.
+
+Use `View()` to browse the variables
+
+```{r eval = FALSE}
+variables_dec %>% 
+  filter(str_detect(concept, "POPULATION")) %>% 
+  View()
+```
+
+`P001001` has the data we are looking for.
+
+Query the total population of the continental U.S. states:
+
+```{r}
+states <- get_decennial(geography = "state",
+                        variables = c(total_pop = "P001001"),
+                        geometry = TRUE,
+                        output = "wide",
+                        year = 2010)
+```
+
+The `states` tibble contains the census data and the polygons for the geometries.
+
+```{r echo=FALSE}
+states
+```
+
+Make a bar graph with the data:
+
+```{r}
+states %>% 
+  mutate(NAME = fct_reorder(NAME, total_pop)) %>% 
+  ggplot(aes(NAME, total_pop)) +
+    geom_col() +
+    coord_flip()
+```
+
+Plot the same data on a map:
+
+```{r}
+states %>% 
+  filter(NAME != "Alaska",
+         NAME != "Hawaii",
+         !str_detect(NAME, "Puerto")) %>% 
+  ggplot(aes(fill = total_pop)) +
+    geom_sf() +
+    scale_fill_viridis_c("Total Population")
+```
+
+Pull the total population of each county in PA and plot it:
+
+```{r}
+pennsylvania <- get_decennial(geography = "county",
+                              variables = c(total_pop = "P001001"),
+                              state = "PA",
+                              geometry = TRUE,
+                              output = "wide",
+                              year = 2010)
+pennsylvania %>% 
+  ggplot(aes(fill = total_pop)) +
+    geom_sf() +
+    scale_fill_viridis_c()
+```
+
+`ggplot2` intelligently handles cases when we don't have data for a certain polygon:
+
+```{r}
+pennsylvania %>% 
+  mutate(total_pop = case_when(NAME == "Allegheny County, Pennsylvania" ~ NA_real_,
+                               NAME != "Allegheny County, Pennsylvania" ~ total_pop)) %>% 
+  ggplot(aes(fill = total_pop)) +
+    geom_sf() +
+    scale_fill_viridis_c()
+```
+
+We can stack multiple polygons in the same graph to highlight Allegheny County:
+
+```{r}
+allegheny <- pennsylvania %>% 
+  filter(str_detect(NAME, "Allegheny"))
+
+pennsylvania %>% 
+  ggplot() +
+    geom_sf(aes(fill = total_pop)) +
+    geom_sf(data = allegheny, color = "white", linetype = 2, size = 1, alpha = 0) +
+    scale_fill_viridis_c()
+```
+
+We can also use `tidycensus` to download demographic data for census tracts.
+
+Set the variables we want to use first:
+
+```{r}
+racevars <- c(White = "P005003", 
+              Black = "P005004", 
+              Asian = "P005006", 
+              Hispanic = "P004003")
+#note that this data is long, not wide
+allegheny_tracts <- get_decennial(geography = "tract", 
+                                  variables = racevars, 
+                                  state = "PA", 
+                                  county = "Allegheny County", 
+                                  geometry = TRUE,
+                                  summary_var = "P001001",
+                                  year = 2010) 
+```
+
+Calculate as a percentage of tract population:
+
+```{r}
+allegheny_tracts <- allegheny_tracts %>% 
+  mutate(pct = 100 * value / summary_value)
+```
+
+Facet by `variable` and map the data:
+
+```{r}
+allegheny_tracts %>% 
+  ggplot(aes(fill = pct)) +
+    geom_sf(color = NA) +
+    facet_wrap(~variable) +
+    scale_fill_viridis_c()
+```
+
+We can overlay the boundaries of Pittsburgh over the same graph.
+
+Download the [boundary shapefile](https://catalog.data.gov/dataset/pittsburgh-city-boundary-cbe8f) and use `sf::st_read` to read it into R:
+
+```{r}
+city_pgh <- st_read("post_data/Pittsburgh_City_Boundary-shp/City_Boundary.shp")
+
+allegheny_tracts %>% 
+  ggplot() +
+    geom_sf(aes(fill = pct), color = NA) +
+    geom_sf(data = city_pgh, color = "white", linetype = 2, size = 1, alpha = 0) +
+    facet_wrap(~variable) + 
+    scale_fill_viridis_c()
+```
+
+### Working with other data
+
+#### WPRDC 311 data and city wards
+
+We can also download the shapefile for the [City of Pittsburgh wards](https://catalog.data.gov/dataset/pittsburgh-wards). The [311 dataset](https://data.wprdc.org/dataset/311-data/resource/76fda9d0-69be-4dd5-8108-0de7907fc5a4) is tagged with the ward the request originated from, so we can use that to aggregate and map the total number of 311 requests per ward.
+
+```{r}
+#| eval: false
+df_311 <- read_csv("https://data.wprdc.org/datastore/dump/76fda9d0-69be-4dd5-8108-0de7907fc5a4") %>% 
+  clean_names()
+```
+
+```{r}
+#| output: false
+#| echo: false
+df_311 <- read_csv("post_data/76fda9d0-69be-4dd5-8108-0de7907fc5a4.csv") |> 
+  clean_names() |> 
+  filter(created_on <= "2019-06-01")
+```
+
+```{r echo=FALSE, message=FALSE}
+df_311 %>% 
+  select(request_id:ward) %>% 
+  head(10) %>% 
+  kable() %>% 
+  kable_styling()
+```
+
+```{r include=FALSE}
+wards <- st_read("post_data/wards/Wards.shp") %>% 
+  clean_names() |> 
+  group_by(ward) |> 
+  summarize()
+```
+
+```{r echo=FALSE}
+wards
+```
+
+Plot the ward polygons:
+
+```{r}
+wards %>% 
+  ggplot() +
+  geom_sf()
+```
+
+Calculate the center of each ward. We will use this to label the wards on the map:
+
+```{r}
+ward_labels <- wards %>% 
+  st_centroid() %>% 
+  st_coordinates() %>%
+  as_tibble() %>%
+  clean_names() %>%
+  mutate(ward = wards$ward)
+
+ward_labels_transformed <- wards %>% 
+  st_transform(4326) |> 
+  st_centroid() %>% 
+  st_coordinates() %>%
+  as_tibble() %>%
+  clean_names() %>%
+  mutate(ward = wards$ward)
+```
+
+```{r echo=FALSE}
+ward_labels %>% 
+  head(5) %>%
+  kable() %>% 
+  kable_styling()
+```
+
+Count the number of requests per ward:
+
+```{r}
+df_311_count <- df_311 %>% 
+  count(ward, sort = TRUE)
+```
+
+Use `left_join` to join the count data with the coordinates:
+
+```{r}
+ward_311 <- wards %>% 
+  left_join(df_311_count) %>%
+  mutate(ward_label = ward_labels$ward)
+```
+
+```{r echo=FALSE}
+ward_311
+```
+
+Plot the data:
+
+```{r}
+ward_311 %>% 
+  ggplot() +
+    geom_sf(aes(fill = n), color = NA) +
+    geom_label(data = ward_labels, aes(x, y, label = ward), size = 3, inherit.aes = FALSE) +
+    scale_fill_viridis_c("Number of 311 requests")
+```
+
+#### WPRDC overdose data
+
+We can use the census data to adjust other data for per capita rates. For example, the WPRDC's [overdose data](https://data.wprdc.org/dataset/allegheny-county-fatal-accidental-overdoses) has the zip code that the overdose occurred in.
+
+First, download the overdose dataset and pull the population data for each zip code:
+
+```{r}
+#| eval: false
+df_overdose <- read_csv("https://data.wprdc.org/datastore/dump/1c59b26a-1684-4bfb-92f7-205b947530cf") %>% 
+  clean_names() %>% 
+  mutate(incident_zip = str_sub(incident_zip, 1, 5))
+```
+
+```{r}
+all_zips <- get_acs(geography = "zip code tabulation area",
+                    variables = c(total_pop = "B01003_001"),
+                    geometry = TRUE,
+                    output = "wide",
+                    year = 2018)
+```
+
+```{r}
+#| output: false
+df_overdose <- read_csv("post_data/1c59b26a-1684-4bfb-92f7-205b947530cf.csv") %>% 
+  clean_names() %>% 
+  mutate(incident_zip = str_sub(incident_zip, 1, 5)) |> 
+  filter(death_date_and_time <= "2019-06-01")
+```
+
+Then, aggregate the overdose data to the zip code and join the datasets:
+
+```{r}
+df_overdose <- df_overdose %>% 
+  count(incident_zip, sort = TRUE)
+
+attempt1 <- all_zips %>%
+  semi_join(df_overdose, by = c("GEOID" = "incident_zip")) %>% 
+  left_join(df_overdose, by = c("GEOID" = "incident_zip"))
+
+attempt1 %>% 
+  ggplot() +
+    geom_sf()
+```
+
+Unfortunately the data is kind of messy and includes zip codes that aren't in Allegheny County.
+
+We can use `st_intersection` to exclude all of the zip code polygons that do not fall within the `allegheny` county tibble we made earlier:
+
+```{r}
+allegheny %>% 
+  ggplot() +
+    geom_sf()
+```
+
+Then, join the aggregated overdose data with `left_join`:
+
+```{r}
+df_allegheny_overdose <- st_intersection(allegheny, all_zips) %>% 
+  left_join(df_overdose, by = c("GEOID.1" = "incident_zip"))
+```
+
+Now we can calculate the per 1,000 overdose rate and plot the data:
+
+```{r}
+df_allegheny_overdose %>% 
+  filter(total_popE >= 400) %>% 
+  mutate(overdoses_per_capita = n / total_popE * 1000) %>% 
+  ggplot(aes(fill = overdoses_per_capita)) +
+    geom_sf(color = NA) +
+    scale_fill_viridis_c()
+```
+
+### {ggmap} basemaps
+
+We can use `ggmap` to request a basemap from the Google Maps API. Get your API key [here](https://cloud.google.com/maps-platform/)
+
+```{r eval=FALSE}
+register_google(key = "Your key here")
+```
+
+```{r}
+pgh_map <- get_map(location = c(lat = 40.445315, lon = -79.977104), zoom = 12)
+
+ggmap(pgh_map)
+```
+
+There are multiple basemap styles available:
+
+```{r}
+get_map(location = c(lat = 40.445315, lon = -79.977104), zoom = 12, maptype = "satellite", source = "google") %>% 
+  ggmap()
+```
+
+```{r}
+get_map(location = c(lat = 40.445315, lon = -79.977104), zoom = 12, maptype = "roadmap", source = "google") %>% 
+  ggmap()
+```
+
+Combining maps from different systems requires us to use the same map projection. Google uses `4326`. Use `coord_sf` to set the projection:
+
+```{r}
+ward_labels_sf <- ward_labels
+
+ggmap(pgh_map) +
+  geom_sf(data = ward_311, aes(fill = n), inherit.aes = FALSE, color = NA, alpha = .7) +
+  geom_label(data = ward_labels_transformed, aes(x, y, label = ward), size = 3) +
+  coord_sf(crs = st_crs(4326)) +
+  scale_fill_viridis_c("Number of 311 requests")
+```
+
+## Links
+
+-   https://walkerke.github.io/tidycensus/articles/basic-usage.html
+-   https://walkerke.github.io/tidycensus/reference/get_acs.html
+-   https://walkerke.github.io/tidycensus/articles/spatial-data.html
+-   https://walkerke.github.io/tidycensus/articles/other-datasets.html
+-   https://cengel.github.io/R-spatial/mapping.html
+-   https://www.r-spatial.org/r/2018/10/25/ggplot2-sf.html
+-   https://www.r-spatial.org/r/2018/10/25/ggplot2-sf-2.html
+-   https://www.r-spatial.org/r/2018/10/25/ggplot2-sf-3.html
+-   google maps API key: https://cloud.google.com/maps-platform/
+-   https://lucidmanager.org/geocoding-with-ggmap/
+-   https://github.com/rstudio/cheatsheets/blob/master/sf.pdf

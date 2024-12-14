@@ -1,24 +1,18 @@
 ---
 title: Suburbanization of Allegheny County
-author: R package build
 date: '2022-04-18'
 slug: suburbanization-of-allegheny-county
-categories: []
+categories: [Allegheny County]
 tags: []
 subtitle: ''
 summary: ''
-authors: [Conor Tompkins]
+author: Conor Tompkins
 lastmod: "`r Sys.time()`"
 featured: no
+image: featured.gif
 
 projects: []
 ---
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE,
-                      message = FALSE,
-                      warning = FALSE)
-```
 
 This March, researchers at the University of Georgia and Florida State University [released](https://twitter.com/snmarkley/status/1502234165521092610) the [HHUUD10 dataset](https://osf.io/fzv5e/), which contains estimates of the number of housing units for decennial census years 1940-2010 and 2019. A "housing unit" could be a studio apartment or 5 bedroom single-family home. The data uses 2010 census tracts, which allows for historical comparison of housing trends across constant geometry. The [full paper](https://www.nature.com/articles/s41597-022-01184-x) explains the approach.
 
