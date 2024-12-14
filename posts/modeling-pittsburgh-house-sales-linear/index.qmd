@@ -3,7 +3,7 @@
 title: "Modeling Pittsburgh House Sales Linear"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [R, Housing, Allegheny County]
 categories: [R, Housing, Allegheny County]
 date: 2019-01-13

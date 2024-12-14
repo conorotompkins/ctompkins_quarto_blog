@@ -3,7 +3,7 @@
 title: "Premier League 538 SPI Ratings"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [R, Pittsburgh, "538", Soccer]
 categories: [R, Pittsburgh, "538", Soccer]
 date: 2019-04-07

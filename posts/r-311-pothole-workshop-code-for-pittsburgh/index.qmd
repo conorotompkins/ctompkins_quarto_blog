@@ -4,7 +4,7 @@
 title: "R 311 Pothole Workshop Code for Pittsburgh"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [WPRDC, Pittsburgh, Potholes, Code for Pittsburgh]
 categories: [WPRDC, Pittsburgh, Potholes, Code for Pittsburgh]
 date: 2018-04-18

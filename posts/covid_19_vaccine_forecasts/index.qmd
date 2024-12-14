@@ -4,7 +4,7 @@
 title: "COVID-19 vaccine forecast and pastcasts"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: []
 categories: []
 date: 2021-04-22

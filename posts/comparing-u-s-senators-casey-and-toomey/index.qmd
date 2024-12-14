@@ -4,7 +4,7 @@
 title: "Comparing US Senators Casey and Toomey"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [Politics, Pennsylvania]
 categories: []
 date: 2018-03-12

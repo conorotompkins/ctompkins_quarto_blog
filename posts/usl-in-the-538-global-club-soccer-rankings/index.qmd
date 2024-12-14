@@ -4,7 +4,7 @@
 title: "USL in the 538 Global Club Soccer Rankings"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [R, USL, Riverhounds]
 categories: [R, USL, Riverhounds]
 date: 2018-08-14
@@ -16,6 +16,7 @@ execute:
   warning: false
   message: false
 ---
+
 *This post was originally run with data from August 2018. 538 does not provide historical rankings, so I had to rerun the code with June 2023 data when I migrated my blog.*
 
 538 recently added the United Soccer League to their [Soccer Power Index ratings](https://projects.fivethirtyeight.com/global-club-soccer-rankings/). I'm a Riverhounds fan, so I wanted to see how the team compared to teams from leagues around the world.
@@ -73,6 +74,7 @@ df %>%
 ```
 
 This shows the offensive and defensive ratings of each USL team. The Riverhounds are squarely in the #LilleyBall quadrant.
+
 ```{r fig.height=12, fig.width=12}
 df %>% 
   filter(league == "United Soccer League") %>% 

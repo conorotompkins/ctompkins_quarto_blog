@@ -4,7 +4,7 @@
 title: "Visualizing Transit Connections Between Pittsburgh Census Tracts"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [R, Pittsburgh, Allegheny County, Transit, WPRDC]
 categories: [R, Pittsburgh, Allegheny County, Transit, WPRDC]
 date: 2020-03-01
@@ -47,6 +47,7 @@ options(tigris_use_cache = TRUE,
 ```
 
 This code loads the transit line data from the [WPRDC](). I create the `full_route_name_id` column and set the coordinate reference system to `4326`.
+
 ```{r}
 ##load transit data
 transit_lines <- st_read("post_data/shapefiles/transit_lines/PAAC_Routes_1909.shp") %>%
@@ -62,6 +63,7 @@ transit_lines
 ```
 
 This is what the transit lines look like on a basic map:
+
 ```{r}
 transit_lines %>% 
   ggplot(aes(color = route_id)) + 
@@ -71,6 +73,7 @@ transit_lines %>%
 ```
 
 This creates a table of `route_id` and `service_type` that I will join against later.
+
 ```{r}
 df_service_type <- transit_lines %>% 
   distinct(service_type, route_id, full_route_name_id) %>% 
@@ -78,6 +81,7 @@ df_service_type <- transit_lines %>%
 ```
 
 This code loads the transit stop shapefile from the [WPRDC](https://data.wprdc.org/dataset/port-authority-of-allegheny-county-transit-stops):
+
 ```{r}
 transit_stops <- st_read("post_data/shapefiles/transit_stops/PAAC_Stops_1909.shp") %>%
   st_transform(3488) %>% 
@@ -90,6 +94,7 @@ transit_stops
 ```
 
 Much of the important data is stored in the `routes_served` column. This code pivots the data longer to make it easier to work with.
+
 ```{r}
 #identify maximum number of routes served by a stop
 max_routes_served <- transit_stops %>% 
@@ -127,6 +132,7 @@ transit_stops <- transit_stops %>%
 ```
 
 This code loads the census tract data via `{tidycensus}`. I choose the census tracts `42003020100` (Downtown) and `42003070300` (Shadyside).
+
 ```{r}
 #load tract data
 allegheny_tracts <- get_decennial(geography = "tract",
@@ -163,8 +169,8 @@ commute_centroids <- allegheny_tracts_centroid %>%
   filter(!is.na(name))
 ```
 
-
 This code uses `st_is_within_distance` to find the transit stops that are within 700 meters of the center of the Downtown AND Shadyside census tracts.
+
 ```{r}
 df_stops_joined_distance <- transit_stops %>% 
   st_join(commute_centroids, st_is_within_distance, dist = 700, left = TRUE) %>% 
@@ -196,6 +202,7 @@ df_stops_joined_distance <- df_stops_joined_distance %>%
 ```
 
 To help visualize how the join works, imagine a buffer around each point (transit stop). This shows the stops from 71A with a buffer:
+
 ```{r}
 st_crs(transit_stops)$units
 
@@ -218,6 +225,7 @@ transit_stops %>%
 `st_is_within_distance` identifies which red points are within 700 meters of the blue points.
 
 This shows the tracts, the tract centroids, and the transit stops within 700 meters of the centroids.
+
 ```{r}
 df_stops_joined_distance %>% 
   ggplot() +
@@ -228,6 +236,7 @@ df_stops_joined_distance %>%
 ```
 
 This filters on the transit lines served by the stops that successfully joined against the Downtown and Shadyside centroids:
+
 ```{r}
 commuter_transit_lines <- transit_lines %>% 
   semi_join(df_route_filter, by = c("route_id" = "route_id"))
@@ -236,6 +245,7 @@ commuter_transit_lines
 ```
 
 These are the transit lines that serve the two tracts:
+
 ```{r}
 commute_centroids %>% 
   ggplot() +
@@ -245,6 +255,7 @@ commute_centroids %>%
 ```
 
 This sets the bounding box for the final static map:
+
 ```{r}
 commute_zoom <- commute_tracts %>% 
   st_buffer(dist = 700) %>% 
@@ -252,12 +263,14 @@ commute_zoom <- commute_tracts %>%
 ```
 
 This crops the transit lines to only include the parts within the bounding box:
+
 ```{r}
 commuter_transit_lines %>% 
   st_crop(commute_zoom)
 ```
 
 This plots the Downtown and Shadyside census tracts and the transit lines and stops that serve them:
+
 ```{r}
 p <- commuter_transit_lines %>% 
   st_crop(commute_zoom) %>% 
@@ -280,6 +293,7 @@ p
 ```
 
 You can use this interactive map made with `leaflet` to explore the transit lines and stops that connect Downtown and Shadyside:
+
 ```{r}
 library(widgetframe)
 #transform geometries to crs 4326

@@ -1,6 +1,6 @@
 ---
 title: "Graphing volatile home values in U.S. metro areas"
-authors: "Conor Tompkins"
+author: Conor Tompkins
 tags: [Housing, Zillow]
 categories: [Housing, Zillow]
 date: 2020-10-21
@@ -23,6 +23,7 @@ preview_only: false
 #   Otherwise, set `projects = []`.
 projects: []
 ---
+
 Zillow publishes a variety of cool data that I haven't explored much yet. The first dataset that caught my eye was the Zillow Home Value Index (ZHVI). Zillow describes it as the "smoothed, seasonally adjusted measure of the typical home value and market changes across a given region and housing type". In this post I will make a quick `gganimate` plot of the ZHVI of various metro areas in the U.S.
 
 **The code for this post was re-ran in 2024. The data was filtered to match the date of the original post.**
@@ -42,13 +43,16 @@ theme_set(theme_ipsum())
 ```
 
 The first thing I noticed about the data is that it is *aggressively* wide. There is a column for each year-month in the dataset. 293 columns is a lot to work with.
+
 ```{r}
 #download housing data from https://www.zillow.com/research/data/
 zillow_house_value <- read_csv("post_data/Metro_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv")
 
 dim(zillow_house_value)
 ```
+
 To make the data more tidy, I use a regex to identify the columns that have a date in the name and pivot those longer. Now each row represents the ZHVI for a given region area on a given year-month.
+
 ```{r}
 zillow_house_value <- zillow_house_value %>% 
   pivot_longer(cols = matches("\\d{4}-\\d{2}-\\d{2}"),
@@ -61,13 +65,15 @@ glimpse(zillow_house_value)
 ```
 
 Once the data is tidy, it is easy to plot with `ggplot2`. In this graph, each line represents one metro area.
+
 ```{r}
 zillow_house_value %>% 
   ggplot(aes(date, zhvi, group = region_name)) +
   geom_line(alpha = .1, size = .5)
 ```
 
-What struck me is that while most metro areas in the dataset start with ZHVI < $300,000, many increase to 3x that, with many wild swings along the way due to housing bubbles, economic crashes, and housing scarcity. I will rank the metro areas by volatility (standard deviation of ZHVI) and use `ggplot2` and `gganimate` to highlight the most volatile metro areas.
+What struck me is that while most metro areas in the dataset start with ZHVI \< \$300,000, many increase to 3x that, with many wild swings along the way due to housing bubbles, economic crashes, and housing scarcity. I will rank the metro areas by volatility (standard deviation of ZHVI) and use `ggplot2` and `gganimate` to highlight the most volatile metro areas.
+
 ```{r}
 #find most volatile regions
 df_top_regions <- zillow_house_value %>% 

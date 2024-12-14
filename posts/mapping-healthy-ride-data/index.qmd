@@ -4,7 +4,7 @@
 title: "Mapping Healthy Ride Data"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [Pittsburgh, Healthy Ride]
 categories: [Pittsburgh, Healthy Ride]
 date: 2017-11-12
@@ -17,11 +17,13 @@ execute:
   warning: false
   message: false
 ---
+
 This post is about mapping the Healthy Ride dataset in R.
 
 This is my third post about the Healthy Ride bike service in Pittsburgh. You can find the [first post](https://ctompkins.netlify.com/2017/10/18/exploring-healthy-ride-pittsburgh-data/) and [second post](http://ctompkins.netlify.com/2017/11/05/healthy-ride-network-analysis/) on my blog.
 
 First, load the R packages we will be using:
+
 ```{r load_packages, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(ggmap)
@@ -34,11 +36,13 @@ library(kableExtra)
 ```
 
 Then load the data from the [WPRDC](https://data.wprdc.org/organization/healthy-ride) (hosted on [my GitHub page](https://github.com/conorotompkins)):
+
 ```{r load data, message=FALSE, warning=FALSE}
 data <- read_csv("https://raw.githubusercontent.com/conorotompkins/healthy_ride/master/data/data.csv")
 ```
 
 Again, we need to format the data and the column names to make them more useful for analysis. Since this is a repeat of the script from the last post, I will just do it all in one go:
+
 ```{r munge_data, message=FALSE, warning=FALSE}
 colnames(data) <- tolower(colnames(data))
 colnames(data) <- gsub(" ", "_", colnames(data))
@@ -87,6 +91,7 @@ data_long[1:10, 1:5] %>%
 ```
 
 Importantly, we will be excluding trips where the rider started and ended their trip at the same station. The data lacks the granularity to analyze rider location beyond the points where they began and ended their trip.
+
 ```{r filter_data}
 data_long <- data_long %>% 
   spread(station_name_type, station_name) %>% 
@@ -99,6 +104,7 @@ data_long[1:10, 1:5] %>%
 ```
 
 We also need to load the CSV with the longitude and latitude for the Healthy Ride stations
+
 ```{r load_station_location, message=FALSE, warning=FALSE}
 data_station_locations <- read_csv("https://raw.githubusercontent.com/conorotompkins/healthy_ride/master/data/stations/station_locations.csv")
 ```
@@ -118,6 +124,7 @@ df_station_totals %>%
 ```
 
 Where are the Healthy Ride Stations?
+
 ```{r _first_map, message=FALSE, warning=FALSE}
 pgh_map <- get_map(c(lon = -79.973859, lat = 40.447095), zoom = 13)
 pgh_map <- ggmap(pgh_map)
@@ -132,6 +139,7 @@ pgh_map +
 ```
 
 Next, join the two dataframes:
+
 ```{r create_location_df, message=FALSE}
 df_long <- data_long %>% 
   select(station_name, station_name_type) %>% 
@@ -148,6 +156,7 @@ df_long %>%
 ```
 
 Do some stations function more as starting points or ending points for trips?
+
 ```{r from_to_map, message=FALSE, warning=FALSE}
 pgh_map +
   geom_point(data = df_long, aes(longitude, latitude, size = number_of_trips, color = station_name_type),
@@ -163,6 +172,7 @@ pgh_map +
 No differences are discernible in this view.
 
 A scatter plot shows the differences more effectively:
+
 ```{r scatter_plot, message=FALSE, warning=FALSE}
 df_from_to <- df_long %>%
   spread(station_name_type, number_of_trips) %>% 
@@ -186,6 +196,7 @@ df_from_to %>%
 ```
 
 What are the top 10 stations in terms of absolute difference between departures and arrivals?
+
 ```{r abs_difference}
 df_from_to %>% 
   ungroup() %>% 
@@ -198,6 +209,7 @@ df_from_to %>%
 Let's map the connections between stations by drawing lines between the stations.
 
 First, widen the data:
+
 ```{r widen_data}
 df_wide <- data_long %>%
   spread(station_name_type, station_name) %>% 
@@ -221,6 +233,7 @@ df_wide %>%
 ```
 
 Then, layer the data over the map:
+
 ```{r to_from_map, message=FALSE, warning=FALSE}
 pgh_map +
   geom_segment(data = df_wide, aes(x = from_longitude, xend = to_longitude, 
@@ -235,6 +248,7 @@ pgh_map +
 ```
 
 We can also facet by the from_station_name variable to see where trips originating from certain stations end at. This plot shows the top 6 stations in terms of trips that began from that station:
+
 ```{r top_from_stations_map, message=FALSE, warning=FALSE}
 top_from_stations <- df_wide %>% 
   group_by(from_station_name) %>% 
@@ -264,6 +278,7 @@ pgh_map +
 ```
 
 We can use the same method to examine the top stations in terms of absolute difference between departing and arriving rides:
+
 ```{r top_diff_stations_map, message=FALSE, warning=FALSE}
 top_diff_stations <- df_from_to %>% 
   arrange(desc(differential)) %>% 
@@ -293,6 +308,7 @@ pgh_map +
 ```
 
 There does not appear to be a stark difference in the way the network behaves on weekdays vs. weekends:
+
 ```{r to_from_wday_map, message=FALSE, warning=FALSE}
 df_wide_day <- data_long %>% 
   spread(station_name_type, station_name) %>% 
@@ -321,6 +337,7 @@ pgh_map +
 ```
 
 There are clear differences in the number of rides across different times of day, but the geographic pattern of departures and arrivals does not appear to change:
+
 ```{r to_from_tod_map, message=FALSE, warning=FALSE}
 df_wide_tod <- data_long %>% 
   spread(station_name_type, station_name) %>% 

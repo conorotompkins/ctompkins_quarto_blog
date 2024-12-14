@@ -4,7 +4,7 @@
 title: "Graphing Seasonality in Ebird Bird Sightings"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [R, eBird]
 categories: [R, eBird]
 date: 2020-03-31

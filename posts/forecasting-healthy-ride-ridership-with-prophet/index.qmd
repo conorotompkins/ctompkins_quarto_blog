@@ -3,7 +3,7 @@
 title: "Forecasting Healthy Ride Ridership With Prophet"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [R, Pittsburgh, Healthy Ride]
 categories: [R, Pittsburgh, Healthy Ride]
 date: 2019-08-03

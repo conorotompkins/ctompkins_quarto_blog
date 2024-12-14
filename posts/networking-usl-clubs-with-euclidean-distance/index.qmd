@@ -4,7 +4,7 @@
 title: "Networking USL Club Similarity With Euclidean Distance"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [R, Soccer, '538']
 categories: [R, Soccer, '538']
 date: 2018-09-14

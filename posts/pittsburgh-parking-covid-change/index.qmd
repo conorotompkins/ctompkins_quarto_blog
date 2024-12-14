@@ -3,7 +3,7 @@
 title: "Effect of COVID-19 on Pittsburgh parking transactions"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [Pittsburgh, Parking, COVID-19]
 categories: [Pittsburgh, Parking, COVID-19]
 date: 2020-10-05

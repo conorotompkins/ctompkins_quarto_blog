@@ -3,7 +3,7 @@
 title: "Map Census Data With R"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [R, Potholes, Census]
 categories: [R, Potholes, Census]
 date: 2019-05-28

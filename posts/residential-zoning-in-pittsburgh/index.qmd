@@ -3,7 +3,7 @@
 title: "Residential Zoning in Pittsburgh"
 subtitle: ""
 summary: ""
-authors: [Conor Tompkins]
+author: Conor Tompkins
 tags: [R, Pittsburgh]
 categories: [R, Pittsburgh]
 date: 2019-06-22
@@ -24,6 +24,7 @@ The [New York Times recently published an article](https://www.nytimes.com/inter
 This blog quickly goes through the steps to make the map and other graphs about the data.
 
 First, load the required libraries and set up the environment:
+
 ```{r}
 library(tidyverse)
 library(sf)
@@ -35,13 +36,15 @@ options(scipen = 999)
 ```
 
 Read in the shapefile with `st_read` and inspect the data with `glimpse`:
+
 ```{r}
 shapefile <- st_read("post_data/Zoning-shp/Zoning.shp")
 
 glimpse(shapefile)
 ```
 
-We need to munge the data to get it in shape for analysis. This makes some simple TRUE|FALSE flags for basic zone information and uses `case_when` to create `type`, which represents aggregated zone types.
+We need to munge the data to get it in shape for analysis. This makes some simple TRUE\|FALSE flags for basic zone information and uses `case_when` to create `type`, which represents aggregated zone types.
+
 ```{r}
 df <- shapefile %>% 
   mutate(residential = str_detect(full_zonin, "RESIDENT"),
@@ -66,6 +69,7 @@ df %>%
 ```
 
 This counts the number of rows per full zone description (`full_zonin`) and `type`:
+
 ```{r}
 df_zones <- df %>% 
   count(full_zonin, type, sort = TRUE) %>% 
@@ -77,6 +81,7 @@ glimpse(df_zones)
 ```
 
 Create a basic bar chart to show the distribution of `type`:
+
 ```{r fig.height=4, fig.width=9}
 df %>% 
   st_drop_geometry() %>% 
@@ -95,6 +100,7 @@ df %>%
 ```
 
 Use a bar chart to show the distribution of `full_zonin`:
+
 ```{r fig.height=12, fig.width=12}
 df %>% 
   st_drop_geometry() %>% 
@@ -113,6 +119,7 @@ df %>%
 ```
 
 This calculates the total land area zoned for any type of residential housing:
+
 ```{r}
 df %>% 
   st_drop_geometry() %>% 
@@ -122,6 +129,7 @@ df %>%
 ```
 
 This calculates the % of residential zoning that is zoned for single-unit detached residential housing units:
+
 ```{r}
 df %>% 
   st_drop_geometry() %>% 
@@ -133,6 +141,7 @@ df %>%
 ```
 
 This creates a map of the zones, fills them by `type`, and overlays it on a GoogleMaps basemap. I also insert the boundaries of the City of Pittsburgh.
+
 ```{r fig.height=12, fig.width=12}
 city_boundary <- st_read("post_data/Pittsburgh_City_Boundary-shp/City_Boundary.shp")
 
