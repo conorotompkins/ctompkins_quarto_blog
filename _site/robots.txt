@@ -1,1 +1,1 @@
-Sitemap: https://super-truffle-d8fdd2.netlify.app/sitemap.xml
+Sitemap: https://ctompkins.netlify.app/sitemap.xml
