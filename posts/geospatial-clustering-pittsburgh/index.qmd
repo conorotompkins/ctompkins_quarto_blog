@@ -10,6 +10,7 @@ editor_options:
 #https://geodacenter.github.io/rgeoda/articles/rgeoda_tutorial.html#spatial-clustering
 #try adding us highways as overlay https://catalog.data.gov/dataset/tiger-line-shapefile-2019-nation-u-s-primary-roads-national-shapefile
 
+#devtools::install_github("geodacenter/rgeoda")
 
 library(tidyverse)
 library(sf)
@@ -22,9 +23,11 @@ library(tictoc)
 library(patchwork)
 library(mapview)
 library(leafpop)
+library(broom)
 ```
 
 ```{r}
+#| cache: true
 options(tigris_use_cache = TRUE,
         scipen = 999,
         digits = 4)
@@ -34,7 +37,7 @@ set.seed(1234)
 census_vars <- load_variables(2020, "pl", cache = TRUE)
 
 #View(census_vars)
-
+#need to add Native American
 racevars <- c(White = "P2_005N", 
               Black = "P2_006N", 
               Asian = "P2_008N", 
@@ -57,7 +60,7 @@ census_data <- get_decennial(
 
 glimpse(census_data)
 
-pa_tracts <- census_data |> 
+census_tracts <- census_data |> 
   # mutate(NAME = case_when(NAME == "Newport County, Rhode Island" ~ "Washington + Newport County, Rhode Island",
   #                         NAME == "Washington County, Rhode Island" ~ "Washington + Newport County, Rhode Island",
   #                         TRUE ~ NAME)) |> 
@@ -67,29 +70,25 @@ pa_tracts <- census_data |>
   summarize(value = sum(value)) |> 
   ungroup() |> 
   ms_simplify(keep = .01, keep_shapes = TRUE)
+```
 
-pa_tracts |> 
+```{r}
+census_tracts |> 
   filter(variable == "Black") |> 
   ggplot() +
   geom_sf(aes(fill = value), lwd = 0) +
   scale_fill_viridis_c()
 
-pa_tracts |> 
+census_tracts |> 
   filter(variable == "Total") |> 
   leaflet() |> 
   addPolygons(weight = 0.1)
-
-pa_tracts |> 
-  group_by(variable) |> 
-  mutate(value = scale(value) |> as.vector()) |> 
-  ggplot() +
-  geom_sf(aes(fill = value), lwd = 0) +
-  scale_fill_viridis_c() +
-  facet_wrap(vars(variable))
 ```
 
 ```{r}
-target_state <- pa_tracts |> 
+#| eval: false
+#test aggregating counties
+target_state <- census_tracts |> 
   filter(str_detect(NAME, "Mich|Wis")) |> 
   mutate(NAME = case_when(str_detect(NAME, "Barnstable|Dukes|Nantucket") ~ "Barnstable + Dukes + Nantucket Counties, Massachusetts",
                            TRUE ~ NAME)) |> 
@@ -102,52 +101,70 @@ target_state |>
 ```
 
 ```{r}
-pa_tracts_wide <- pa_tracts |> 
-  pivot_wider(names_from = variable, values_from = value)
+census_tracts_wide <- census_tracts |> 
+  pivot_wider(names_from = variable, values_from = value) |> 
+  rename_with(str_to_lower, -c(NAME, geometry)) |> 
+  mutate(across(-c(NAME, geometry, total), ~.x / total, .names = "pct_{.col}")) |> 
+  rowwise() |> 
+  mutate(pct_total = sum(c_across(contains("pct"))))
 
-glimpse(pa_tracts_wide)
+glimpse(census_tracts_wide)
+
+census_tracts_wide |> 
+  ggplot(aes(pct_total)) +
+  geom_histogram()
 ```
 
 ```{r}
-pa_tracts_wide |> 
-  write_sf("posts/geospatial-clustering-pittsburgh/post_data/pa_tracts/pa_tracts.shp")
+census_tracts_wide |> 
+  select(contains("pct")) |> 
+  pivot_longer(cols = contains("pct"), names_to = "variable", values_to = "value") |> 
+  ggplot() +
+  geom_sf(aes(fill = value), lwd = 0) +
+  scale_fill_viridis_c() +
+  facet_wrap(vars(variable))
 ```
 
 ```{r}
-pa_tracts_wide_geo <- geoda_open("posts/geospatial-clustering-pittsburgh/post_data/pa_tracts/pa_tracts.shp")
+census_tracts_wide |> 
+  write_sf("posts/geospatial-clustering-pittsburgh/post_data/census_tracts/census_tracts_wide.shp")
+```
+
+```{r}
+census_tracts_wide_geo <- geoda_open("posts/geospatial-clustering-pittsburgh/post_data/census_tracts/census_tracts_wide.shp")
 
 #this crashes sometimes. investigate cause. could be caused by tracts that have no neighbors?
-w_rook <- rook_weights(pa_tracts_wide)
+w_rook <- rook_weights(census_tracts_wide)
 
 w_rook
 
-w_queen <- queen_weights(pa_tracts_wide)
+w_queen <- queen_weights(census_tracts_wide)
 
 w_rook
 
-dist_thres <- min_distthreshold(pa_tracts_wide)
+dist_thres <- min_distthreshold(census_tracts_wide)
 
-w_dist <- distance_weights(pa_tracts_wide, dist_thres, power=1.0,  is_inverse=FALSE, is_arc=FALSE, is_mile=TRUE)
+w_dist <- distance_weights(census_tracts_wide, dist_thres, power=1.0,  is_inverse=FALSE, is_arc=FALSE, is_mile=TRUE)
 
 w_dist
 ```
 
 ```{r}
-pa_tracts_wide |> 
-  ggplot(aes(Total)) +
+census_tracts_wide |> 
+  ggplot(aes(total)) +
   geom_histogram()
 
-cluster_df <- pa_tracts_wide |> 
-  select(White:Total) |> 
+cluster_df <- census_tracts_wide |> 
+  select(geometry, total, contains("pct")) |> 
   st_drop_geometry()
 
-bound_vals <- pa_tracts_wide['Total']
+bound_vals <- census_tracts_wide['total']
 
-#minimum group population is 10% of total population
-min_bound <- pa_tracts_wide |> 
+#minimum group population is 8% of total population
+min_bound <- census_tracts_wide |> 
   st_drop_geometry() |> 
-  summarize(Total = sum(Total)) |> 
-  mutate(min_bound = Total * .08) |> 
+  summarize(total = sum(total)) |> 
+  mutate(min_bound = total * .08) |> 
   pull(min_bound)
 
 tic()
@@ -155,10 +172,11 @@ maxp_clusters_greedy <- maxp_greedy(w_rook, cluster_df, bound_vals, min_bound, s
 maxp_clusters_greedy
 toc()
 
-# tic()
-# maxp_clusters_tabu <- maxp_tabu(w_rook, cluster_df, bound_vals, min_bound, tabu_length=10, conv_tabu=10)
-# maxp_clusters_tabu
-# toc()
+tic()
+maxp_clusters_tabu <- maxp_tabu(w_rook, cluster_df, bound_vals, min_bound, tabu_length=10, conv_tabu=10)
+
+maxp_clusters_tabu
+toc()
 
 # tic()
 # maxp_clusters_sa <- maxp_sa(w_rook, cluster_df, bound_vals, min_bound, cooling_rate=0.85, sa_maxit=1)
@@ -166,32 +184,65 @@ toc()
 ```
 
 ```{r}
-pa_clusters <- pa_tracts_wide |> 
-  mutate(cluster_greedy = as.character(maxp_clusters_greedy$Clusters))#,
-         #cluster_tabu = as.character(maxp_clusters_tabu$Clusters)
+cluster_performance <- list(greedy = maxp_clusters_greedy,
+                            tabu = maxp_clusters_tabu)
 
-pa_clusters |> 
+cluster_performance |> 
+  map_dbl(5) |> 
+  enframe()
+```
+
+```{r}
+tract_clusters <- census_tracts_wide |> 
+  mutate(cluster_greedy = as.character(maxp_clusters_greedy$Clusters),
+         cluster_tabu = as.character(maxp_clusters_tabu$Clusters))
+
+tract_clusters |> 
   st_drop_geometry() |> 
   count(cluster_greedy, sort = TRUE)
 
-cluster_compare <- pa_clusters |> 
+cluster_compare <- tract_clusters |> 
   pivot_longer(cols = contains("cluster"), names_to = "cluster_type", values_to = "cluster")
 
-pa_tracts |> 
+census_tracts |> 
   summarize() |> 
   ggplot() +
   geom_sf()
+```
 
+```{r}
 map_greedy <- cluster_compare |> 
   filter(cluster_type == "cluster_greedy") |> 
   group_by(cluster, cluster_type) |> 
   summarize() |> 
   ggplot() +
-  geom_sf(data = summarize(pa_tracts), fill = NA) +
-  geom_sf(aes(fill = cluster)) +
+  geom_sf(data = summarize(census_tracts), fill = NA) +
+  geom_sf(aes(fill = cluster), color = NA) +
   guides(fill = "none") +
   facet_wrap(vars(cluster_type))
 
+map_greedy
+```
+
+```{r}
+map_tabu <- cluster_compare |> 
+  filter(cluster_type == "cluster_tabu") |> 
+  group_by(cluster, cluster_type) |> 
+  summarize() |> 
+  ggplot() +
+  geom_sf(data = summarize(census_tracts), fill = NA) +
+  geom_sf(aes(fill = cluster), color = NA) +
+  guides(fill = "none") +
+  facet_wrap(vars(cluster_type))
+
+map_tabu
+
+map_tabu +
+  facet_wrap(vars(cluster)) +
+  theme_void()
+```
+
+```{r}
 map_greedy
 
 map_greedy +
@@ -200,14 +251,14 @@ map_greedy +
 ```
 
 ```{r}
-fill_pal <- colorFactor(palette = "Paired", domain = pa_clusters$cluster_greedy)
+fill_pal <- colorFactor(palette = "Paired", domain = tract_clusters$cluster_greedy)
 
 labels <- sprintf(
-  "<strong>%s</strong><br/>Cluster: %s<br/>White: %f<br/>Black: %f<br/>Asian: %f<br/>Hispanic: %f<br/>Total: %f",
-  pa_clusters$NAME, pa_clusters$cluster_greedy, pa_clusters$White, pa_clusters$Black, pa_clusters$Asian, pa_clusters$Hispanic, pa_clusters$Total
+  "<strong>%s</strong><br/>Cluster: %s<br/>White: %#.2f%%<br/>Black: %#.2f%%<br/>Asian: %#.2f%%<br/>Hispanic: %#.2f%%<br/>Total: %f",
+  tract_clusters$NAME, tract_clusters$cluster_greedy, tract_clusters$pct_white, tract_clusters$pct_black, tract_clusters$pct_asian, tract_clusters$pct_hispanic, tract_clusters$total
 ) %>% lapply(htmltools::HTML)
 
-pa_clusters |> 
+tract_clusters |> 
   leaflet() |> 
   addProviderTiles(providers$CartoDB.Positron) |> 
   addPolygons(fillColor = ~fill_pal(cluster_greedy),
@@ -222,16 +273,83 @@ pa_clusters |>
 ```
 
 ```{r}
-pa_clusters |> 
-  #st_drop_geometry() |> 
-  #select(NAME, Asian:cluster_greedy) |> 
-  pivot_longer(cols = Asian:White, names_to = "variable", values_to = "value") |> 
-  group_by(variable) |> 
-  mutate(pct_of_total = value / sum(value)) |> 
-  ungroup() |> 
-  ggplot() +
-  geom_sf(data = pa_clusters, lwd = 0) +
-  geom_sf(aes(fill = pct_of_total), lwd = 0) +
-  facet_wrap(vars(variable)) +
-  scale_fill_viridis_c()
+ac_geo <- census_tracts |> 
+  filter(NAME == "Allegheny County, Pennsylvania") |> 
+  distinct(NAME, geometry)
+
+map_greedy +
+  geom_sf(data = ac_geo, lwd = .5, color = "black", fill = NA)
+```
+
+```{r}
+cluster_pca <- tract_clusters |> 
+  st_drop_geometry() |> 
+  summarize(across(c(contains("pct"), total), mean),
+            .by = cluster_greedy)
+
+cluster_pca |> 
+  pivot_longer(-c(cluster_greedy, total)) |> 
+  ggplot(aes(total, value, label = cluster_greedy)) +
+  geom_label() +
+  facet_wrap(vars(name), scales = "free") +
+  theme_bw()
+```
+
+```{r}
+pca_fit <- cluster_pca |> 
+  select(where(is.numeric)) |> 
+  prcomp(scale = TRUE)
+
+# define arrow style for plotting
+arrow_style <- arrow(
+  angle = 20, ends = "first", type = "closed", length = grid::unit(8, "pt")
+)
+
+# plot rotation matrix
+pca_fit %>%
+  tidy(matrix = "rotation") %>%
+  pivot_wider(names_from = "PC", names_prefix = "PC", values_from = "value") %>%
+  ggplot(aes(PC1, PC2)) +
+  geom_segment(xend = 0, yend = 0, arrow = arrow_style) +
+  geom_text(
+    aes(label = column),
+    hjust = 1, nudge_x = -0.02, 
+    color = "#904C2F"
+  ) +
+  coord_fixed() + # fix aspect ratio to 1:1
+  scale_x_continuous(expand = expansion(mult = .4)) +
+  scale_y_continuous(expand = expansion(mult = .2)) +
+  theme_bw()
+```
+
+```{r}
+pca_fit %>%
+  tidy(matrix = "eigenvalues") %>%
+  ggplot(aes(PC, percent)) +
+  geom_col(fill = "#56B4E9", alpha = 0.8) +
+  scale_y_continuous(
+    labels = scales::percent_format(),
+    expand = expansion(mult = c(0, 0.01))
+  ) +
+  theme_bw()
+```
+
+```{r}
+pca_fit |> 
+  augment(cluster_pca) |> 
+  ggplot(aes(x = .fittedPC1, y = .fittedPC2, label = cluster_greedy)) +
+  geom_label() +
+  theme_bw()
+
+pca_fit |> 
+  augment(cluster_pca) |> 
+  ggplot(aes(x = .fittedPC1, y = .fittedPC3, label = cluster_greedy)) +
+  geom_label() +
+  theme_bw()
+
+pca_fit |> 
+  augment(cluster_pca) |> 
+  ggplot(aes(x = .fittedPC2, y = .fittedPC3, label = cluster_greedy)) +
+  geom_label() +
+  theme_bw()
 ```
