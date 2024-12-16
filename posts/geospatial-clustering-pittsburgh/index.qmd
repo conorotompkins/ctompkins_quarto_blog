@@ -36,13 +36,16 @@ set.seed(1234)
 
 census_vars <- load_variables(2020, "pl", cache = TRUE)
 
-#View(census_vars)
+view(census_vars)
 #need to add Native American
-racevars <- c(White = "P2_005N", 
-              Black = "P2_006N", 
-              Asian = "P2_008N", 
-              Hispanic = "P2_002N",
-              Total = "P1_001N")
+racevars <- c(white = "P2_005N", 
+              black = "P2_006N", 
+              asian = "P2_008N", 
+              hispanic = "P2_002N",
+              native_American = "P1_005N",
+              native_hawaiian = "P1_007N",
+              #other_race = "P1_008N",
+              total_population = "P1_001N")
 
 #total population: B01003_001
 census_data <- get_decennial(
@@ -74,13 +77,13 @@ census_tracts <- census_data |>
 
 ```{r}
 census_tracts |> 
-  filter(variable == "Black") |> 
+  filter(variable == "black") |> 
   ggplot() +
   geom_sf(aes(fill = value), lwd = 0) +
   scale_fill_viridis_c()
 
 census_tracts |> 
-  filter(variable == "Total") |> 
+  filter(variable == "total_population") |> 
   leaflet() |> 
   addPolygons(weight = 0.1)
 ```
@@ -104,7 +107,7 @@ target_state |>
 census_tracts_wide <- census_tracts |> 
   pivot_wider(names_from = variable, values_from = value) |> 
   rename_with(str_to_lower, -c(NAME, geometry)) |> 
-  mutate(across(-c(NAME, geometry, total), ~.x / total, .names = "pct_{.col}")) |> 
+  mutate(across(-c(NAME, geometry, total_population), ~.x / total_population, .names = "pct_{.col}")) |> 
   rowwise() |> 
   mutate(pct_total = sum(c_across(contains("pct")))) |> 
   ungroup()
@@ -118,7 +121,7 @@ census_tracts_wide |>
 
 ```{r}
 census_tracts_wide |> 
-  select(contains("pct")) |> 
+  select(contains("pct"), -pct_total) |> 
   pivot_longer(cols = contains("pct"), names_to = "variable", values_to = "value") |> 
   ggplot() +
   geom_sf(aes(fill = value), lwd = 0) +
@@ -152,21 +155,23 @@ w_dist
 
 ```{r}
 census_tracts_wide |> 
-  ggplot(aes(total)) +
+  ggplot(aes(total_population)) +
   geom_histogram()
 
 cluster_df <- census_tracts_wide |> 
-  select(geometry, total, contains("pct"), -pct_total) |> 
+  select(geometry, total_population, contains("pct"), -pct_total) |> 
   st_drop_geometry()
 
-bound_vals <- census_tracts_wide['total']
+bound_vals <- census_tracts_wide['total_population']
 
 #minimum group population is 8% of total population
 min_bound <- census_tracts_wide |> 
   st_drop_geometry() |> 
-  summarize(total = sum(total)) |> 
-  mutate(min_bound = total * .08) |> 
+  summarize(total_population = sum(total_population)) |> 
+  mutate(min_bound = total_population * .08) |> 
   pull(min_bound)
+
+scales::comma(min_bound)
 
 tic()
 maxp_clusters_greedy <- maxp_greedy(w_rook, cluster_df, bound_vals, min_bound, scale_method = "standardize")
@@ -205,11 +210,6 @@ tract_clusters |>
 
 cluster_compare <- tract_clusters |> 
   pivot_longer(cols = contains("cluster"), names_to = "cluster_type", values_to = "cluster")
-
-census_tracts |> 
-  summarize() |> 
-  ggplot() +
-  geom_sf()
 ```
 
 ```{r}
@@ -257,7 +257,7 @@ fill_pal <- colorFactor(palette = "Paired", domain = tract_clusters$cluster_gree
 
 labels <- sprintf(
   "<strong>%s</strong><br/>Cluster: %s<br/>White: %#.2f%%<br/>Black: %#.2f%%<br/>Asian: %#.2f%%<br/>Hispanic: %#.2f%%<br/>Total: %f",
-  tract_clusters$NAME, tract_clusters$cluster_greedy, tract_clusters$pct_white, tract_clusters$pct_black, tract_clusters$pct_asian, tract_clusters$pct_hispanic, tract_clusters$total
+  tract_clusters$NAME, tract_clusters$cluster_greedy, tract_clusters$pct_white, tract_clusters$pct_black, tract_clusters$pct_asian, tract_clusters$pct_hispanic, tract_clusters$total_population
 ) %>% lapply(htmltools::HTML)
 
 tract_clusters |> 
@@ -287,12 +287,12 @@ map_greedy +
 cluster_pca <- tract_clusters |> 
   select(-pct_total) |> 
   st_drop_geometry() |> 
-  summarize(across(c(contains("pct"), total), mean),
+  summarize(across(c(contains("pct"), total_population), mean),
             .by = cluster_greedy)
 
 cluster_pca |> 
-  pivot_longer(-c(cluster_greedy, total)) |> 
-  ggplot(aes(total, value, label = cluster_greedy)) +
+  pivot_longer(-c(cluster_greedy, total_population)) |> 
+  ggplot(aes(total_population, value, label = cluster_greedy)) +
   geom_label() +
   facet_wrap(vars(name), scales = "free") +
   theme_bw()
