@@ -106,7 +106,8 @@ census_tracts_wide <- census_tracts |>
   rename_with(str_to_lower, -c(NAME, geometry)) |> 
   mutate(across(-c(NAME, geometry, total), ~.x / total, .names = "pct_{.col}")) |> 
   rowwise() |> 
-  mutate(pct_total = sum(c_across(contains("pct"))))
+  mutate(pct_total = sum(c_across(contains("pct")))) |> 
+  ungroup()
 
 glimpse(census_tracts_wide)
 
@@ -155,7 +156,7 @@ census_tracts_wide |>
   geom_histogram()
 
 cluster_df <- census_tracts_wide |> 
-  select(geometry, total, contains("pct")) |> 
+  select(geometry, total, contains("pct"), -pct_total) |> 
   st_drop_geometry()
 
 bound_vals <- census_tracts_wide['total']
@@ -172,11 +173,11 @@ maxp_clusters_greedy <- maxp_greedy(w_rook, cluster_df, bound_vals, min_bound, s
 maxp_clusters_greedy
 toc()
 
-tic()
-maxp_clusters_tabu <- maxp_tabu(w_rook, cluster_df, bound_vals, min_bound, tabu_length=10, conv_tabu=10)
+#tic()
+#maxp_clusters_tabu <- maxp_tabu(w_rook, cluster_df, bound_vals, min_bound, tabu_length=10, #conv_tabu=10)
 
-maxp_clusters_tabu
-toc()
+#maxp_clusters_tabu
+#toc()
 
 # tic()
 # maxp_clusters_sa <- maxp_sa(w_rook, cluster_df, bound_vals, min_bound, cooling_rate=0.85, sa_maxit=1)
@@ -184,6 +185,7 @@ toc()
 ```
 
 ```{r}
+#| eval: false
 cluster_performance <- list(greedy = maxp_clusters_greedy,
                             tabu = maxp_clusters_tabu)
 
@@ -194,8 +196,8 @@ cluster_performance |>
 
 ```{r}
 tract_clusters <- census_tracts_wide |> 
-  mutate(cluster_greedy = as.character(maxp_clusters_greedy$Clusters),
-         cluster_tabu = as.character(maxp_clusters_tabu$Clusters))
+  mutate(cluster_greedy = as.character(maxp_clusters_greedy$Clusters))#,
+         #cluster_tabu = as.character(maxp_clusters_tabu$Clusters))
 
 tract_clusters |> 
   st_drop_geometry() |> 
@@ -283,6 +285,7 @@ map_greedy +
 
 ```{r}
 cluster_pca <- tract_clusters |> 
+  select(-pct_total) |> 
   st_drop_geometry() |> 
   summarize(across(c(contains("pct"), total), mean),
             .by = cluster_greedy)
