@@ -62,7 +62,9 @@ census_data <- get_decennial(
 )
 
 glimpse(census_data)
+```
 
+```{r}
 census_tracts <- census_data |> 
   # mutate(NAME = case_when(NAME == "Newport County, Rhode Island" ~ "Washington + Newport County, Rhode Island",
   #                         NAME == "Washington County, Rhode Island" ~ "Washington + Newport County, Rhode Island",
@@ -73,9 +75,14 @@ census_tracts <- census_data |>
   summarize(value = sum(value)) |> 
   ungroup() |> 
   ms_simplify(keep = .01, keep_shapes = TRUE)
+
+census_tracts |> 
+  write_sf("posts/geospatial-clustering-pittsburgh/post_data/census_tracts/census_tracts.shp")
 ```
 
 ```{r}
+census_tracts <- read_sf("posts/geospatial-clustering-pittsburgh/post_data/census_tracts/census_tracts.shp")
+
 census_tracts |> 
   filter(variable == "black") |> 
   ggplot() +
@@ -130,12 +137,12 @@ census_tracts_wide |>
 ```
 
 ```{r}
-census_tracts_wide |> 
-  write_sf("posts/geospatial-clustering-pittsburgh/post_data/census_tracts/census_tracts_wide.shp")
+#census_tracts_wide |> 
+#  write_sf("posts/geospatial-clustering-pittsburgh/post_data/census_tracts/census_tracts_wide.shp")
 ```
 
 ```{r}
-census_tracts_wide_geo <- geoda_open("posts/geospatial-clustering-pittsburgh/post_data/census_tracts/census_tracts_wide.shp")
+#census_tracts_wide_geo <- geoda_open("posts/geospatial-clustering-pittsburgh/post_data/census_tracts/census_tracts_wide.shp")
 
 #this crashes sometimes. investigate cause. could be caused by tracts that have no neighbors?
 w_rook <- rook_weights(census_tracts_wide)
