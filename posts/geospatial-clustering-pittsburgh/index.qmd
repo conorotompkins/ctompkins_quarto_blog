@@ -34,34 +34,65 @@ options(tigris_use_cache = TRUE,
 
 set.seed(1234)
 
-census_vars <- load_variables(2020, "pl", cache = TRUE)
+acs_vars <- load_variables(2022, "acs5", cache = TRUE)
 
-view(census_vars)
-#need to add Native American
-racevars <- c(white = "P2_005N", 
-              black = "P2_006N", 
-              asian = "P2_008N", 
-              hispanic = "P2_002N",
-              native_American = "P1_005N",
-              native_hawaiian = "P1_007N",
-              #other_race = "P1_008N",
-              total_population = "P1_001N")
+# acs_vars |> 
+#   view()
 
-#total population: B01003_001
-census_data <- get_decennial(
-  geography = "county",
-  variables = racevars,
-  state = c("PA", "OH", "WV", "MD", "NY", "NJ", "VA", "KY", "DC", "DE", "CT", "RI", "MA", "VT", "NH", "ME", "MI", "IL", "IN", "WI", "MN", "IA", "MO", "TN", "AR", "LA", "MS", "AL", "GA", "NC", "SC", "FL"),
-  #state = c("MI", "WI"),
-  geometry = TRUE,
-  #summary_var = "P1_001N",
-  year = 2020,
-  sumfile = "pl",
-  show_call = TRUE,
-  cache_table = TRUE
-)
+states_vec <- c("PA", "OH", "WV", "MD", "NY", "NJ", "VA", "KY", "DC", "DE", "CT", "RI", "MA", "VT", "NH", "ME", "MS", "IL", "IN", "WI", "TN", "AL", "GA", "NC", "SC", "FL")
 
-glimpse(census_data)
+vars_acs <- c(income = "B19013_001",
+              total_population = "B01003_001",
+              dem_white = "B03002_003",
+              dem_black = "B03002_004",
+              dem_native = "B03002_005",
+              dem_asian = "B03002_006",
+              dem_hipi = "B03002_007",
+              dem_hispanic = "B03002_012",
+              dem_other_race = "B03002_008")
+
+acs_vars |> 
+  filter(name %in% vars_acs)
+
+census_data_acs <- get_acs(year = 2022, 
+                           state = states_vec,
+                           variables = vars_acs, 
+                           geography = "county", 
+                           geometry = TRUE) |> 
+  filter(!str_detect(NAME, "Hawaii|Alaska|Puerto Rico"))
+
+census_data_acs |> 
+  filter(variable == "total_population") |> 
+  ggplot(aes(fill = estimate)) +
+  geom_sf(lwd = 0) +
+  scale_fill_viridis_c() +
+  facet_wrap(vars(variable))
+
+census_data_acs |> 
+  filter(variable == "income") |> 
+  ggplot(aes(fill = estimate)) +
+  geom_sf(lwd = 0) +
+  scale_fill_viridis_c() +
+  facet_wrap(vars(variable))
+
+census_data_acs |> 
+  select(-c(GEOID, moe)) |> 
+  pivot_wider(names_from = variable, values_from = estimate) |> 
+  select(NAME, starts_with("dem"), total_population) |> 
+  mutate(across(-c(NAME, geometry, total_population), ~.x / total_population, .names = "pct_{.col}")) |> 
+  rowwise() |> 
+  mutate(pct_total = sum(c_across(contains("pct")))) |> 
+  ungroup() |> 
+  select(starts_with("pct_dem")) |> 
+  pivot_longer(starts_with("pct_dem")) |> 
+  ggplot(aes(fill = value)) +
+  geom_sf(lwd = 0) +
+  scale_fill_viridis_c() +
+  facet_wrap(vars(name)) +
+  theme_bw()
+
+census_data <- census_data_acs |> 
+  rename(value = estimate)
 ```
 
 ```{r}
@@ -71,10 +102,27 @@ census_tracts <- census_data |>
   #                         TRUE ~ NAME)) |> 
   mutate(NAME = case_when(str_detect(NAME, "Barnstable|Dukes|Nantucket") ~ "Barnstable + Dukes + Nantucket Counties, Massachusetts",
                            TRUE ~ NAME)) |> 
+  mutate(NAME = case_when(str_detect(NAME, "Richmond County, New York|Kings County, New York") ~ "Richmond + Kings Counties, New York",
+         TRUE ~ NAME)) |> 
   group_by(NAME, variable) |> 
   summarize(value = sum(value)) |> 
   ungroup() |> 
   ms_simplify(keep = .01, keep_shapes = TRUE)
+
+census_tracts |> 
+  rook_weights() |> 
+  has_isolates() == FALSE
+
+test_tracts <- census_tracts |> 
+  distinct(NAME, geometry) |>
+  filter(str_detect(NAME, "New York|New Jersey"))
+
+test_tracts |> 
+  rook_weights()
+
+test_tracts |> 
+  mapview::mapview(popup = popupTable(test_tracts,
+                                      zcol = c("NAME")))
 
 census_tracts |> 
   write_sf("posts/geospatial-clustering-pittsburgh/post_data/census_tracts/census_tracts.shp")
@@ -84,7 +132,7 @@ census_tracts |>
 census_tracts <- read_sf("posts/geospatial-clustering-pittsburgh/post_data/census_tracts/census_tracts.shp")
 
 census_tracts |> 
-  filter(variable == "black") |> 
+  filter(variable == "dem_black") |> 
   ggplot() +
   geom_sf(aes(fill = value), lwd = 0) +
   scale_fill_viridis_c()
@@ -99,7 +147,7 @@ census_tracts |>
 #| eval: false
 #test aggregating counties
 target_state <- census_tracts |> 
-  filter(str_detect(NAME, "Mich|Wis")) |> 
+  #filter(str_detect(NAME, "Mich|Wis")) |> 
   mutate(NAME = case_when(str_detect(NAME, "Barnstable|Dukes|Nantucket") ~ "Barnstable + Dukes + Nantucket Counties, Massachusetts",
                            TRUE ~ NAME)) |> 
   group_by(NAME) |> 
@@ -114,7 +162,7 @@ target_state |>
 census_tracts_wide <- census_tracts |> 
   pivot_wider(names_from = variable, values_from = value) |> 
   rename_with(str_to_lower, -c(NAME, geometry)) |> 
-  mutate(across(-c(NAME, geometry, total_population), ~.x / total_population, .names = "pct_{.col}")) |> 
+  mutate(across(-c(NAME, geometry, total_population, income), ~.x / total_population, .names = "pct_{.col}")) |> 
   rowwise() |> 
   mutate(pct_total = sum(c_across(contains("pct")))) |> 
   ungroup()
@@ -151,7 +199,7 @@ w_rook
 
 w_queen <- queen_weights(census_tracts_wide)
 
-w_rook
+w_queen
 
 dist_thres <- min_distthreshold(census_tracts_wide)
 
@@ -175,7 +223,7 @@ bound_vals <- census_tracts_wide['total_population']
 min_bound <- census_tracts_wide |> 
   st_drop_geometry() |> 
   summarize(total_population = sum(total_population)) |> 
-  mutate(min_bound = total_population * .08) |> 
+  mutate(min_bound = total_population * .1) |> 
   pull(min_bound)
 
 scales::comma(min_bound)
@@ -213,7 +261,12 @@ tract_clusters <- census_tracts_wide |>
 
 tract_clusters |> 
   st_drop_geometry() |> 
-  count(cluster_greedy, sort = TRUE)
+  summarize(counties = n(),
+            total_population = sum(total_population),
+            .by = cluster_greedy) |> 
+  ggplot(aes(counties, total_population, label = cluster_greedy)) +
+  geom_label() +
+  theme_bw()
 
 cluster_compare <- tract_clusters |> 
   pivot_longer(cols = contains("cluster"), names_to = "cluster_type", values_to = "cluster")
@@ -264,7 +317,7 @@ fill_pal <- colorFactor(palette = "Paired", domain = tract_clusters$cluster_gree
 
 labels <- sprintf(
   "<strong>%s</strong><br/>Cluster: %s<br/>White: %#.2f%%<br/>Black: %#.2f%%<br/>Asian: %#.2f%%<br/>Hispanic: %#.2f%%<br/>Total: %f",
-  tract_clusters$NAME, tract_clusters$cluster_greedy, tract_clusters$pct_white, tract_clusters$pct_black, tract_clusters$pct_asian, tract_clusters$pct_hispanic, tract_clusters$total_population
+  tract_clusters$NAME, tract_clusters$cluster_greedy, tract_clusters$pct_dem_white, tract_clusters$pct_dem_black, tract_clusters$pct_dem_asian, tract_clusters$pct_dem_hispanic, tract_clusters$total_population
 ) %>% lapply(htmltools::HTML)
 
 tract_clusters |> 
@@ -275,10 +328,10 @@ tract_clusters |>
               weight = .1,
               #stroke = FALSE,
               label = labels,
-  labelOptions = labelOptions(
-    style = list("font-weight" = "normal", padding = "3px 8px"),
-    textsize = "15px",
-    direction = "auto"))
+              labelOptions = labelOptions(
+                style = list("font-weight" = "normal", padding = "3px 8px"),
+                textsize = "15px",
+                direction = "auto"))
 ```
 
 ```{r}
@@ -294,7 +347,7 @@ map_greedy +
 cluster_pca <- tract_clusters |> 
   select(-pct_total) |> 
   st_drop_geometry() |> 
-  summarize(across(c(contains("pct"), total_population), mean),
+  summarize(across(c(contains("pct"), total_population, income), mean),
             .by = cluster_greedy)
 
 cluster_pca |> 
@@ -302,6 +355,8 @@ cluster_pca |>
   ggplot(aes(total_population, value, label = cluster_greedy)) +
   geom_label() +
   facet_wrap(vars(name), scales = "free") +
+  scale_x_continuous(expand = expansion(mult = c(.1, .1))) +
+  scale_y_continuous(expand = expansion(mult = c(.1, .1))) +
   theme_bw()
 ```
 
