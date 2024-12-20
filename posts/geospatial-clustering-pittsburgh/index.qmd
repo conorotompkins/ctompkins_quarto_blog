@@ -24,22 +24,23 @@ library(patchwork)
 library(mapview)
 library(leafpop)
 library(broom)
-```
 
-```{r}
-#| cache: true
 options(tigris_use_cache = TRUE,
         scipen = 999,
         digits = 4)
 
 set.seed(1234)
+```
 
+```{r}
+#| cache: true
+#| 
 acs_vars <- load_variables(2022, "acs5", cache = TRUE)
 
 # acs_vars |> 
 #   view()
 
-states_vec <- c("PA", "OH", "WV", "MD", "NY", "NJ", "VA", "KY", "DC", "DE", "CT", "RI", "MA", "VT", "NH", "ME", "MS", "IL", "IN", "WI", "TN", "AL", "GA", "NC", "SC", "FL")
+states_vec <- c("PA", "OH", "WV", "MD", "NY", "NJ", "VA", "KY", "DC", "DE", "CT", "RI", "MA", "VT", "NH", "ME", "MS", "IL", "IN", "WI", "MI", "TN", "AL", "GA", "NC", "SC", "FL")
 
 vars_acs <- c(income = "B19013_001",
               total_population = "B01003_001",
@@ -185,6 +186,108 @@ census_tracts_wide |>
 ```
 
 ```{r}
+census_pca <- census_tracts_wide |> 
+  select(NAME, total_population, income, contains("pct"), -pct_total) |> 
+  st_drop_geometry()
+
+glimpse(census_pca)
+
+census_pca |> 
+  pivot_longer(-c(NAME, total_population)) |> 
+  ggplot(aes(total_population, value)) +
+  geom_bin_2d() +
+  facet_wrap(vars(name), scales = "free") +
+  scale_x_log10(expand = expansion(mult = c(.1, .1))) +
+  scale_y_continuous(expand = expansion(mult = c(.1, .1))) +
+  scale_fill_viridis_c() +
+  theme_bw()
+```
+
+```{r}
+pca_fit <- census_pca |> 
+  select(where(is.numeric)) |> 
+  prcomp(scale = TRUE)
+
+# define arrow style for plotting
+arrow_style <- arrow(
+  angle = 20, ends = "first", type = "closed", length = grid::unit(8, "pt")
+)
+
+# plot rotation matrix
+pca_fit %>%
+  tidy(matrix = "rotation") %>%
+  pivot_wider(names_from = "PC", names_prefix = "PC", values_from = "value") %>%
+  ggplot(aes(PC1, PC2)) +
+  geom_segment(xend = 0, yend = 0, arrow = arrow_style) +
+  geom_text(
+    aes(label = column),
+    hjust = 1, nudge_x = -0.02, 
+    color = "#904C2F"
+  ) +
+  coord_fixed() + # fix aspect ratio to 1:1
+  scale_x_continuous(expand = expansion(mult = .4)) +
+  scale_y_continuous(expand = expansion(mult = .2)) +
+  theme_bw()
+```
+
+```{r}
+pca_fit %>%
+  tidy(matrix = "eigenvalues") %>%
+  ggplot(aes(PC, percent)) +
+  geom_col(fill = "#56B4E9", alpha = 0.8) +
+  scale_x_continuous(breaks = 0:9) +
+  scale_y_continuous(
+    labels = scales::percent_format(),
+    expand = expansion(mult = c(0, 0.01))
+  ) +
+  theme_bw()
+```
+
+```{r}
+census_pca_augment <- augment(pca_fit, census_pca) |> 
+  select(-c(.rownames, .fittedPC9))
+
+census_pca_augment |> 
+  glimpse()
+
+census_pca_augment |> 
+  ggplot(aes(x = .fittedPC1, y = .fittedPC2)) +
+  geom_bin_2d() +
+  scale_fill_viridis_c() +
+  theme_bw()
+
+census_pca_augment |> 
+  ggplot(aes(x = .fittedPC1, y = .fittedPC3)) +
+  geom_bin_2d() +
+  scale_fill_viridis_c() +
+  theme_bw()
+
+census_pca_augment |> 
+  ggplot(aes(x = .fittedPC2, y = .fittedPC3)) +
+  geom_bin_2d() +
+  scale_fill_viridis_c() +
+  theme_bw()
+```
+
+```{r}
+census_tracts_pca <- census_tracts |> 
+  distinct(NAME, geometry) |> 
+  left_join(census_pca_augment, by = join_by(NAME))
+
+census_tracts_pca |> 
+  select(NAME, contains(".fitted")) |> 
+  pivot_longer(contains(".fitted")) |> 
+  mutate(value_scaled = scale(value) |> as.numeric(),
+         .by = name) |> 
+  ggplot() +
+  geom_sf(aes(fill = value_scaled), lwd = 0) +
+  facet_wrap(vars(name)) +
+  scale_fill_viridis_c() +
+  theme_bw()
+```
+
+
+```{r}
 #census_tracts_wide |> 
 #  write_sf("posts/geospatial-clustering-pittsburgh/post_data/census_tracts/census_tracts_wide.shp")
 ```
@@ -193,28 +296,28 @@ census_tracts_wide |>
 #census_tracts_wide_geo <- geoda_open("posts/geospatial-clustering-pittsburgh/post_data/census_tracts/census_tracts_wide.shp")
 
 #this crashes sometimes. investigate cause. could be caused by tracts that have no neighbors?
-w_rook <- rook_weights(census_tracts_wide)
+w_rook <- rook_weights(census_tracts_pca)
 
 w_rook
 
-w_queen <- queen_weights(census_tracts_wide)
+w_queen <- queen_weights(census_tracts_pca)
 
 w_queen
 
-dist_thres <- min_distthreshold(census_tracts_wide)
+dist_thres <- min_distthreshold(census_tracts_pca)
 
-w_dist <- distance_weights(census_tracts_wide, dist_thres, power=1.0,  is_inverse=FALSE, is_arc=FALSE, is_mile=TRUE)
+w_dist <- distance_weights(census_tracts_pca, dist_thres, power=1.0,  is_inverse=FALSE, is_arc=FALSE, is_mile=TRUE)
 
 w_dist
 ```
 
 ```{r}
-census_tracts_wide |> 
+census_tracts_pca |> 
   ggplot(aes(total_population)) +
   geom_histogram()
 
-cluster_df <- census_tracts_wide |> 
-  select(geometry, total_population, contains("pct"), -pct_total) |> 
+cluster_df <- census_tracts_pca |> 
+  select(contains(".fitted")) |> 
   st_drop_geometry()
 
 bound_vals <- census_tracts_wide['total_population']
@@ -223,21 +326,22 @@ bound_vals <- census_tracts_wide['total_population']
 min_bound <- census_tracts_wide |> 
   st_drop_geometry() |> 
   summarize(total_population = sum(total_population)) |> 
-  mutate(min_bound = total_population * .1) |> 
+  mutate(min_bound = total_population * .05) |> 
   pull(min_bound)
 
 scales::comma(min_bound)
 
 tic()
+
 maxp_clusters_greedy <- maxp_greedy(w_rook, cluster_df, bound_vals, min_bound, scale_method = "standardize")
 maxp_clusters_greedy
 toc()
 
-#tic()
-#maxp_clusters_tabu <- maxp_tabu(w_rook, cluster_df, bound_vals, min_bound, tabu_length=10, #conv_tabu=10)
+tic()
+maxp_clusters_tabu <- maxp_tabu(w_rook, cluster_df, bound_vals, min_bound, tabu_length=10, conv_tabu=10)
 
-#maxp_clusters_tabu
-#toc()
+maxp_clusters_tabu
+toc()
 
 # tic()
 # maxp_clusters_sa <- maxp_sa(w_rook, cluster_df, bound_vals, min_bound, cooling_rate=0.85, sa_maxit=1)
@@ -256,8 +360,8 @@ cluster_performance |>
 
 ```{r}
 tract_clusters <- census_tracts_wide |> 
-  mutate(cluster_greedy = as.character(maxp_clusters_greedy$Clusters))#,
-         #cluster_tabu = as.character(maxp_clusters_tabu$Clusters))
+  mutate(cluster_greedy = as.character(maxp_clusters_greedy$Clusters),
+         cluster_tabu = as.character(maxp_clusters_tabu$Clusters))
 
 tract_clusters |> 
   st_drop_geometry() |> 
@@ -305,8 +409,6 @@ map_tabu +
 ```
 
 ```{r}
-map_greedy
-
 map_greedy +
   facet_wrap(vars(cluster)) +
   theme_void()
@@ -326,7 +428,7 @@ tract_clusters |>
   addPolygons(fillColor = ~fill_pal(cluster_greedy),
               fillOpacity = .5,
               weight = .1,
-              #stroke = FALSE,
+              stroke = FALSE,
               label = labels,
               labelOptions = labelOptions(
                 style = list("font-weight" = "normal", padding = "3px 8px"),
@@ -344,77 +446,29 @@ map_greedy +
 ```
 
 ```{r}
-cluster_pca <- tract_clusters |> 
-  select(-pct_total) |> 
+tract_clusters |> 
+  select(total_population, income, contains("pct"), cluster_greedy, -pct_total) |> 
   st_drop_geometry() |> 
-  summarize(across(c(contains("pct"), total_population, income), mean),
-            .by = cluster_greedy)
-
-cluster_pca |> 
   pivot_longer(-c(cluster_greedy, total_population)) |> 
-  ggplot(aes(total_population, value, label = cluster_greedy)) +
-  geom_label() +
-  facet_wrap(vars(name), scales = "free") +
-  scale_x_continuous(expand = expansion(mult = c(.1, .1))) +
-  scale_y_continuous(expand = expansion(mult = c(.1, .1))) +
-  theme_bw()
-```
-
-```{r}
-pca_fit <- cluster_pca |> 
-  select(where(is.numeric)) |> 
-  prcomp(scale = TRUE)
-
-# define arrow style for plotting
-arrow_style <- arrow(
-  angle = 20, ends = "first", type = "closed", length = grid::unit(8, "pt")
-)
-
-# plot rotation matrix
-pca_fit %>%
-  tidy(matrix = "rotation") %>%
-  pivot_wider(names_from = "PC", names_prefix = "PC", values_from = "value") %>%
-  ggplot(aes(PC1, PC2)) +
-  geom_segment(xend = 0, yend = 0, arrow = arrow_style) +
-  geom_text(
-    aes(label = column),
-    hjust = 1, nudge_x = -0.02, 
-    color = "#904C2F"
-  ) +
-  coord_fixed() + # fix aspect ratio to 1:1
-  scale_x_continuous(expand = expansion(mult = .4)) +
-  scale_y_continuous(expand = expansion(mult = .2)) +
-  theme_bw()
-```
-
-```{r}
-pca_fit %>%
-  tidy(matrix = "eigenvalues") %>%
-  ggplot(aes(PC, percent)) +
-  geom_col(fill = "#56B4E9", alpha = 0.8) +
-  scale_y_continuous(
-    labels = scales::percent_format(),
-    expand = expansion(mult = c(0, 0.01))
-  ) +
-  theme_bw()
-```
-
-```{r}
-pca_fit |> 
-  augment(cluster_pca) |> 
-  ggplot(aes(x = .fittedPC1, y = .fittedPC2, label = cluster_greedy)) +
-  geom_label() +
+  ggplot(aes(total_population, value, color = cluster_greedy, fill = cluster_greedy)) +
+  ggforce::geom_mark_hull(concavity = 10, alpha = .3) +
+  facet_wrap(vars(name), scales = "free_y") +
+  scale_x_log10() +
   theme_bw()
 
-pca_fit |> 
-  augment(cluster_pca) |> 
-  ggplot(aes(x = .fittedPC1, y = .fittedPC3, label = cluster_greedy)) +
-  geom_label() +
-  theme_bw()
-
-pca_fit |> 
-  augment(cluster_pca) |> 
-  ggplot(aes(x = .fittedPC2, y = .fittedPC3, label = cluster_greedy)) +
-  geom_label() +
+tract_clusters |> 
+  select(total_population, income, contains("pct"), cluster_greedy, -pct_total) |> 
+  st_drop_geometry() |> 
+  pivot_longer(-c(cluster_greedy, total_population)) |> 
+  summarize(total_population = mean(total_population),
+            value = mean(value),
+            .by = c(cluster_greedy, name)) |> 
+  ggplot(aes(total_population, value, fill = cluster_greedy, label = cluster_greedy)) +
+  geom_point(aes(color = cluster_greedy)) +
+  ggrepel::geom_label_repel() +
+  facet_wrap(vars(name), scales = "free_y") +
+  scale_x_log10(expand = expansion(mult = c(.2, .2))) +
+  scale_y_continuous(expand = expansion(mult = c(.2, .2))) +
+  guides(fill = "none") +
   theme_bw()
 ```
