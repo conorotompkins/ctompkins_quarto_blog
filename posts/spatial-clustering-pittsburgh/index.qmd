@@ -7,6 +7,7 @@ editor_options:
 execute:
   message: false
   warning: false
+image: featured.png
 format:
   html:
     toc: true
@@ -15,9 +16,7 @@ format:
 
 "What region is Pittsburgh in?" is a question that comes up frequently. Is it in Appalachia? The Midwest? Great Lakes? Mid-Atlantic? It really depends on who you ask, and what variables you have at hand.
 
-In this post, I use spatially constrained clustering with US Census data to build contiguous clusters of US counties. I analyze these clusters and identify which cluster the greater Pittsburgh region (AKA Allegheny County) is in. This post by Kyle Walker is the inspiration for this analysis: <https://walker-data.com/posts/census-regions/>
-
-I use the `{rgeoda}` package for the clustering analysis. It was pulled off of CRAN for compatability reasons, but it is still available on Github: <https://github.com/geodacenter/rgeoda>
+In this post, I use spatially constrained clustering with US Census data to build contiguous clusters of US counties. I analyze these clusters and identify which cluster the greater Pittsburgh region (AKA Allegheny County) is in. This post by Kyle Walker is the inspiration for this analysis: <https://walker-data.com/posts/census-regions/>. I use the `{rgeoda}` package for the clustering analysis.
 
 ### Setup
 
@@ -156,7 +155,10 @@ census_tracts_wide <- census_tracts |>
   ungroup()
 
 glimpse(census_tracts_wide)
+```
 
+This code checks that I am capturing most ethnicities in most counties.
+```{r}
 #check that I am capturing most ethnicities in most counties.
 census_tracts_wide |> 
   ggplot(aes(pct_total)) +
@@ -223,7 +225,7 @@ pca_fit %>%
 
 This graph shows the following:
 
--   Counties that have higher % White population are likely to have low % Black population, and vice versa. This is a statistical artifact of long-standing segregation and associated government policies.
+-   Counties that have higher % White population are likely to have low % Black population, and vice versa. This is a statistical artifact of slavery, long-standing segregation, and other associated government policies.
 -   Counties that have a high % of White or Black population are more likely to have low total population.
 -   Counties that have higher total population are more likely to be more ethnically diverse and have higher income.
 
@@ -328,6 +330,8 @@ maxp_clusters_greedy <- maxp_greedy(w_rook, cluster_df, bound_vals, min_bound, s
 maxp_clusters_greedy[2:5]
 toc()
 ```
+
+The ratio of between to total sum of squares (BSS to TSS) shows that the clusters explain 22% of the variance in the data. This is kind of low for a clustering analysis, but the contiguous spatial constraint creates a higher level of difficulty.
 
 This scatterplot shows the total population and number of counties included in each cluster. This shows that some clusters have many more counties than others, but all clusters have at least 5% of the toal population (9.5 million people).
 
@@ -435,7 +439,7 @@ labels <- sprintf(
 
 clusters_leaflet |> 
   leaflet() |> 
-  setView(lng = -81.6326, lat = 38.3498, zoom = 5) |> 
+  setView(lng = -81.6326, lat = 38.3498, zoom = 4) |> 
   addProviderTiles(providers$CartoDB.Positron) |> 
   addPolygons(fillColor = ~fill_pal(cluster),
               fillOpacity = .5,
@@ -451,10 +455,12 @@ clusters_leaflet |>
 
 ### Cluster discussion
 
+I think you can definitely dispute some of the outcomes of the clustering algorithm on the margins, but as a whole it does make some sense. This reflects the fact that the algorithm is not trying to find the optimal cluster for each county. It is trying to find the optimal number of clusters given the variables it is dealing with.
+
 -   Cluster 8 is New England and counties bordering Lake Ontario and Canada.
 -   Cluster 12 is the northern Acela Corridor (Philadelphia, New Jersey, Hartford).
 -   Cluster 14 is New York City and Long Island.
--   Cluster 11 is the DC/Baltimore/Philly suburb section of the Acela Corridor. Southern Deleware is most likely included because it is not populated enough to be its own cluster, and it would be cut off from its more similar counties otherwise.
+-   Cluster 11 is the DC/Baltimore/Philly suburb section of the Acela Corridor. Southern Delaware is most likely included because it is not populated enough to be its own cluster, and it would be cut off from its more similar counties otherwise.
 -   Cluster 7 is the stretch of rural counties from Ohio to New Hampshire.
 -   Cluster 10 is the Rust Belt. It includes Pittsburgh, Johnstown, Erie, Cleveland, Toledo, and Detroit.
 -   Cluster 5 is rural Appalachia. This cluster includes Charlotte NC, probably because it wouldn't meet the 5% population threshhold otherwise.
@@ -516,7 +522,20 @@ I think there are multiple ways of extending this analysis. The obvious one is t
 -   Religion
 -   Language
 -   Education
+-   Population density
 -   Trends in total population over time
+
+The algorithm is sensitive to the population threshold and the variables it is fed, so a more optimal solution could be found by using those as tuning parameters to find a combination that maximizes BSS/TSS.
+
+### Full map with Pittsburgh highlighted
+
+```{r}
+map_greedy +
+  geom_sf(data = states_geo, fill = NA) +
+  geom_sf(data = ac_geo,  lwd = .5, color = "black", fill = NA) +
+  theme_void()
+```
+
 
 ### Cluster characteristics
 
@@ -547,7 +566,7 @@ tract_clusters |>
   theme_bw()
 ```
 
-This shows the distribution of each variable within each cluster.
+This shows the distribution of each variable within each cluster. Note that the X axis for each variable will be different for each cluster.
 
 ```{r}
 cluster_dist <- tract_clusters |> 
