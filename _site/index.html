@@ -206,7 +206,7 @@ window.Quarto = {
 
 <div class="quarto-listing quarto-listing-container-default" id="listing-listing">
 <div class="list quarto-listing-default">
-<div class="quarto-post image-right" data-index="0" data-listing-file-modified-sort="1736131490211" data-listing-reading-time-sort="17" data-listing-word-count-sort="3381">
+<div class="quarto-post image-right" data-index="0" data-listing-file-modified-sort="1736175729600" data-listing-reading-time-sort="18" data-listing-word-count-sort="3432">
 <div class="thumbnail">
 <p><a href="./posts/spatial-clustering-pittsburgh/index.html" class="no-external"></a></p><a href="./posts/spatial-clustering-pittsburgh/index.html" class="no-external">
 <p><img loading="lazy" src="./posts/spatial-clustering-pittsburgh/featured.png" class="thumbnail-image"></p>
@@ -220,7 +220,7 @@ window.Quarto = {
 <a href="./posts/spatial-clustering-pittsburgh/index.html" class="no-external">Or, unsupervised demography with spatially constrained clustering</a>
 </div>
 <div class="listing-description">
-<a href="./posts/spatial-clustering-pittsburgh/index.html" class="no-external">“What region is Pittsburgh in?” is a question that comes up frequently. Is it in Appalachia? The Midwest? Great Lakes? Mid-Atlantic? It really depends on who you ask, and…</a>
+<a href="./posts/spatial-clustering-pittsburgh/index.html" class="no-external">“What region is Pittsburgh in?” is a question that comes up frequently around here. Is it in Appalachia? The Midwest? Great Lakes? Mid-Atlantic? It really depends on who you…</a>
 </div>
 </div>
 <div class="metadata">
@@ -276,6 +276,7 @@ Conor Tompkins
 <a href="./posts/forecasting-potholes-with-exogenous-variables/index.html" class="no-external"></a>
 </div>
 <div class="listing-categories">
+
 </div>
 <div class="listing-description">
 <a href="./posts/forecasting-potholes-with-exogenous-variables/index.html" class="no-external">In this post I will extend the modelling approach from the previous post with exogenous variables (variables not directly about the quantity being measured in the time…<strong></strong></a>
@@ -306,6 +307,7 @@ Conor Tomkpins
 <a href="./posts/forecasting-pittsburgh-potholes-with-fable/index.html" class="no-external"></a>
 </div>
 <div class="listing-categories">
+
 </div>
 <div class="listing-description">
 <a href="./posts/forecasting-pittsburgh-potholes-with-fable/index.html" class="no-external">Potholes are the bane of Pittsburgh drivers’ existence. You can either weave around the minefield of holes in the road (some of alarming size) or risk damage to your vehicle.…</a>
@@ -438,6 +440,7 @@ Conor Tompkins
 <a href="./posts/covid_19_vaccine_forecasts/index.html" class="no-external"></a>
 </div>
 <div class="listing-categories">
+
 </div>
 <div class="listing-description">
 <a href="./posts/covid_19_vaccine_forecasts/index.html" class="no-external">Like many other Americans, I have been following the COVID-19 vaccination campaign closely. I have found the graphs and data on the NYTimes and Bloomberg sites very useful…</a>
@@ -468,6 +471,7 @@ Conor Tompkins
 <a href="./posts/riverhounds_lilley/index.html" class="no-external"></a>
 </div>
 <div class="listing-categories">
+
 </div>
 <div class="listing-description">
 <a href="./posts/riverhounds_lilley/index.html" class="no-external">I have been a season-ticket holder with the Pittsburgh Riverhounds for a couple seasons now. The stadium has a great fan experience, and the team has gotten a lot better…</a>
@@ -498,6 +502,7 @@ Conor Tompkins
 <a href="./posts/bivariate_transit_map/index.html" class="no-external">Mapping commuter modes with bivariate discretized bins</a>
 </div>
 <div class="listing-categories">
+
 </div>
 <div class="listing-description">
 <a href="./posts/bivariate_transit_map/index.html" class="no-external">The clash between public transportation and single passenger vehicles is a heated topic of discussion nationally and in the Pittsburgh area. Public transit ridership has…</a>
@@ -528,6 +533,7 @@ Conor Tompkins
 <a href="./posts/house_price_estimator/index.html" class="no-external"></a>
 </div>
 <div class="listing-categories">
+
 </div>
 <div class="listing-description">
 <a href="./posts/house_price_estimator/index.html" class="no-external">Click here to view the full dashboard</a>
@@ -886,6 +892,7 @@ Conor Tompkins
 <a href="./posts/time-series-clustering-covid-19-cases/index.html" class="no-external"></a>
 </div>
 <div class="listing-categories">
+
 </div>
 <div class="listing-description">
 <a href="./posts/time-series-clustering-covid-19-cases/index.html" class="no-external">Interactive Tableau visualization of the clusters</a>
@@ -1909,6 +1916,7 @@ Conor Tompkins
 <a href="./posts/comparing-u-s-senators-casey-and-toomey/index.html" class="no-external"></a>
 </div>
 <div class="listing-categories">
+
 </div>
 <div class="listing-description">
 <a href="./posts/comparing-u-s-senators-casey-and-toomey/index.html" class="no-external">As a follow-up to my post about how Pittsburgh Mayor Bill Peduto uses Twitter, I thought it would be useful to examine and compare how Pennsylvania’s U.S. senators use…</a>
@@ -2136,7 +2144,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
   }
     var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
     var mailtoRegex = new RegExp(/^mailto:/);
-      var filterRegex = new RegExp("https:\/\/ctompkins\.netlify\.app");
+      var filterRegex = new RegExp('/' + window.location.host + '/');
     var isInternal = (href) => {
         return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
     }
