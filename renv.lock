@@ -4,7 +4,7 @@
     "Repositories": [
       {
         "Name": "CRAN",
-        "URL": "https://packagemanager.posit.co/cran/latest"
+        "URL": "https://cran.rstudio.com"
       }
     ]
   },
@@ -1180,14 +1180,13 @@
     },
     "evaluate": {
       "Package": "evaluate",
-      "Version": "0.24.0",
+      "Version": "1.0.1",
       "Source": "Repository",
       "Repository": "CRAN",
       "Requirements": [
-        "R",
-        "methods"
+        "R"
       ],
-      "Hash": "a1066cbc05caee9a4bf6d90f194ff4da"
+      "Hash": "3fd29944b231036ad67c3edb32e02201"
     },
     "extraDistr": {
       "Package": "extraDistr",
@@ -3764,6 +3763,25 @@
       ],
       "Hash": "bb5996d0bd962d214a11140d77589917"
     },
+    "rgeoda": {
+      "Package": "rgeoda",
+      "Version": "0.0.10-4",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "rgeoda",
+      "RemoteUsername": "geodacenter",
+      "RemoteSha": "531656139169a3f19307f48e1fdf15810f72006f",
+      "Requirements": [
+        "BH",
+        "R",
+        "Rcpp",
+        "digest",
+        "methods",
+        "sf"
+      ],
+      "Hash": "60112ca8356d1d778eb75c8b1d8c88df"
+    },
     "rlang": {
       "Package": "rlang",
       "Version": "1.1.4",
@@ -4055,7 +4073,7 @@
     },
     "sf": {
       "Package": "sf",
-      "Version": "1.0-16",
+      "Version": "1.0-19",
       "Source": "Repository",
       "Repository": "CRAN",
       "Requirements": [
@@ -4074,7 +4092,7 @@
         "units",
         "utils"
       ],
-      "Hash": "ad57b543f7c3fca05213ba78ff63df9b"
+      "Hash": "fe02eec2f6b3ba0e24afe83d5ccfb528"
     },
     "sfd": {
       "Package": "sfd",
@@ -4360,7 +4378,7 @@
     },
     "terra": {
       "Package": "terra",
-      "Version": "1.7-83",
+      "Version": "1.8-5",
       "Source": "Repository",
       "Repository": "CRAN",
       "Requirements": [
@@ -4368,7 +4386,7 @@
         "Rcpp",
         "methods"
       ],
-      "Hash": "fbeffe988419d292225a57cf9c284802"
+      "Hash": "6e3f2c53b58161327fe5787fe1a63d02"
     },
     "textshaping": {
       "Package": "textshaping",
@@ -5059,7 +5077,7 @@
     },
     "withr": {
       "Package": "withr",
-      "Version": "3.0.1",
+      "Version": "3.0.2",
       "Source": "Repository",
       "Repository": "CRAN",
       "Requirements": [
@@ -5067,7 +5085,7 @@
         "grDevices",
         "graphics"
       ],
-      "Hash": "07909200e8bbe90426fbfeb73e1e27aa"
+      "Hash": "cc2d62c76458d425210d1eb1478b30b4"
     },
     "wk": {
       "Package": "wk",
