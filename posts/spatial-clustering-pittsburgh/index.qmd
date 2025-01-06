@@ -14,9 +14,9 @@ format:
     code-fold: true
 ---
 
-"What region is Pittsburgh in?" is a question that comes up frequently. Is it in Appalachia? The Midwest? Great Lakes? Mid-Atlantic? It really depends on who you ask, and what variables you have at hand.
+"What region is Pittsburgh in?" is a question that comes up frequently around here. Is it in [Appalachia](https://www.wesa.fm/identity-community/2021-12-11/what-is-appalachia-heres-what-people-from-around-the-region-including-pittsburgh-have-to-say)? The [Midwest](https://venturebeat.com/entrepreneur/in-5-years-the-midwest-will-have-more-startups-than-silicon-valley/)? [Great Lakes](https://en.wikipedia.org/wiki/Great_Lakes_megalopolis)? [Mid-Atlantic](https://www2.census.gov/geo/pdfs/maps-data/maps/reference/us_regdiv.pdf)? It really depends on who you ask, and what variables you have at hand.
 
-In this post, I use spatially constrained clustering with US Census data to build contiguous clusters of US counties. I analyze these clusters and identify which cluster the greater Pittsburgh region (AKA Allegheny County) is in. This post by Kyle Walker is the inspiration for this analysis: <https://walker-data.com/posts/census-regions/>. I use the `{rgeoda}` package for the clustering analysis.
+In this post, I use spatially constrained clustering with US Census data to build contiguous clusters of US counties. This is purely based on demography, not geographic data such as mountain ranges, bodies of water, or watersheds. I analyze these clusters and identify which cluster the greater Pittsburgh region (AKA Allegheny County) is in. This post by Kyle Walker is the inspiration for this analysis: <https://walker-data.com/posts/census-regions/>. I use the `{rgeoda}` package for the clustering analysis.
 
 ### Setup
 
@@ -524,6 +524,8 @@ I think there are multiple ways of extending this analysis. The obvious one is t
 -   Education
 -   Population density
 -   Trends in total population over time
+
+[Virginia has independent cities and counties](https://en.wikipedia.org/wiki/List_of_cities_and_counties_in_Virginia) that could be causing odd clustering outcomes in that area. It may be better to combine each city with its surrounding county to maximize spatial contiguity.
 
 The algorithm is sensitive to the population threshold and the variables it is fed, so a more optimal solution could be found by using those as tuning parameters to find a combination that maximizes BSS/TSS.
 
