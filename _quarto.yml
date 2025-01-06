@@ -10,10 +10,11 @@ website:
         href: https://github.com/conorotompkins
       - icon: linkedin
         href: www.linkedin.com/in/conor-tompkins-04b06a3b
+  google-analytics: "G-7TL8ET415E"
+  
 format:
   html:
     theme: cosmo
     css: styles.css
 
 editor: visual
-
