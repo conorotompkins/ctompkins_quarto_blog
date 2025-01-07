@@ -1,0 +1,272 @@
+---
+title: Analyzing US labor participation rates with {feasts}
+author: Conor Tompkins
+date: '2023-11-14'
+slug: analyzing-us-labor-participation-rate-with-feasts
+categories: []
+tags: []
+subtitle: ''
+summary: ''
+authors: []
+lastmod: '2023-11-14T19:44:21-05:00'
+featured: no
+image:
+  caption: ''
+  focal_point: ''
+  preview_only: no
+projects: []
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(fpp3)
+library(broom)
+library(fredr)
+library(hrbrthemes)
+library(tictoc)
+
+theme_set(theme_ipsum())
+
+options(scipen = 999, digits = 4)
+```
+
+## Intro
+
+### Load in data from FRED
+
+```{r}
+fred_df_raw <- c("men" = "LNU01300001",
+             "women" = "LNU01300002") |> 
+  map_dfr(fredr, .id = "series")
+
+glimpse(fred_df_raw)
+```
+
+#### Time series EDA
+
+```{r}
+fred_df <- fred_df_raw |> 
+  select(series, date, value) |> 
+  rename(participation_rate = value) |> 
+  mutate(date = yearmonth(date)) |> 
+  as_tsibble(key = series, index = date)
+
+autoplot(fred_df)
+```
+
+```{r}
+stl_models <- fred_df |> 
+  model(stl = STL(participation_rate ~ trend() + season(), robust = TRUE))
+
+stl_models |> 
+  filter(series == "men") |> 
+  components() |> 
+  autoplot()
+
+stl_models |> 
+  filter(series == "women") |> 
+  components() |> 
+  autoplot()
+```
+
+#### Features
+
+```{r}
+fred_features <- fred_df |>
+  features(participation_rate, feature_set(pkgs = "feasts"))
+
+glimpse(fred_features)
+```
+
+```{r}
+fred_features |> 
+  select(series, trend_strength, seasonal_strength_year, spectral_entropy)
+```
+
+```{r}
+month_lookup <- tibble(month_int = c(0:11),
+                       month = month.abb) |> 
+  mutate(month = fct(month, levels = month.abb))
+
+fred_features |> 
+  select(series, seasonal_peak_year, seasonal_trough_year) |> 
+  left_join(month_lookup, by = c("seasonal_peak_year" = "month_int")) |> 
+  select(-seasonal_peak_year) |> 
+  rename(seasonal_peak_year = month) |> 
+  left_join(month_lookup, by = c("seasonal_trough_year" = "month_int")) |> 
+  select(-seasonal_trough_year) |> 
+  rename(seasonal_trough_year = month)
+```
+
+#### Tiled time series
+
+```{r}
+fred_tile <- tile_tsibble(fred_df, .size = 4*12)
+
+glimpse(fred_tile)
+
+fred_tile |> 
+  count(series, .id) |> 
+  distinct(n)
+
+fred_tile |> 
+  count(series, date) |> 
+  ggplot(aes(date, n)) +
+  geom_line()
+
+fred_tile |>
+  filter(series == "men") |> 
+  autoplot()
+```
+
+```{r}
+period_start <- fred_tile |> 
+  as_tibble() |> 
+  group_by(series, .id) |> 
+  summarize(period_starting = min(date)) |> 
+  ungroup()
+
+tic()
+fred_tile_features <- fred_tile |>
+  features(participation_rate, feature_set(pkgs = "feasts")) |> 
+  left_join(period_start, by = c("series", ".id"))
+toc()
+
+glimpse(fred_tile_features)
+```
+
+```{r}
+fred_tile_features |> 
+  ggplot(aes(trend_strength, seasonal_strength_year, fill = series, label = .id)) +
+  geom_label() +
+  geom_path()
+```
+
+```{r}
+fred_tile_features |> 
+  select(.id, period_starting, series, trend_strength, seasonal_strength_year, spectral_entropy) |> 
+  pivot_longer(-c(.id, series, period_starting)) |> 
+  mutate(name = fct_inorder(name)) |> 
+  ggplot(aes(period_starting, value, color = series)) +
+  geom_line() +
+  facet_wrap(vars(name), ncol = 1)
+```
+
+```{r}
+fred_tile_features |> 
+  select(series, .id, period_starting, seasonal_peak_year, seasonal_trough_year) |> 
+  left_join(month_lookup, by = c("seasonal_peak_year" = "month_int"))
+
+month_seasonality <- fred_tile_features |> 
+  select(series, .id, period_starting, seasonal_peak_year, seasonal_trough_year) |> 
+  left_join(month_lookup, by = c("seasonal_peak_year" = "month_int")) |> 
+  select(-seasonal_peak_year) |> 
+  rename(seasonal_peak_year = month) |> 
+  left_join(month_lookup, by = c("seasonal_trough_year" = "month_int")) |> 
+  select(-seasonal_trough_year) |> 
+  rename(seasonal_trough_year = month) |> 
+  arrange(series, period_starting)
+
+fred_tile_features |> 
+  select(series, .id, period_starting, seasonal_peak_year, seasonal_trough_year) |> 
+  filter(series == "women") |> 
+  view()
+
+month_seasonality |> 
+  count(series)
+
+month_seasonality |> 
+  count(series, seasonal_peak_year)
+
+month_seasonality |> 
+  count(series, seasonal_peak_year)
+
+month_seasonality |> 
+  count(series, period_starting, seasonal_peak_year, seasonal_trough_year) |> 
+  pivot_longer(contains("year")) |> 
+  filter(name == "seasonal_peak_year") |> 
+  complete(series, period_starting, name, value) |> 
+  mutate(flag = !is.na(n)) |> 
+  ggplot(aes(period_starting, value, fill = flag)) +
+  geom_tile() +
+  facet_wrap(vars(series), ncol = 1)
+
+month_seasonality |> 
+  count(series, period_starting, seasonal_peak_year, seasonal_trough_year) |> 
+  pivot_longer(contains("year")) |> 
+  #filter(name == "seasonal_trough_year") |> 
+  complete(series, period_starting, name, value) |> 
+  mutate(flag = !is.na(n),
+         value = fct_rev(value)) |> 
+  ggplot(aes(period_starting, value, fill = flag)) +
+  geom_tile() +
+  scale_x_yearmonth(expand = c(0, 0)) +
+  scale_y_discrete(expand = c(0, 0)) +
+  facet_wrap(vars(series, name), ncol = 2)
+```
+
+```{r}
+seasonal_model <- fred_tile |> 
+  model(ts_lm_seasonal = TSLM(participation_rate ~ trend() + season())) |> 
+  left_join(period_start, by = c("series", ".id"))
+
+stl_components <- fred_tile |> 
+  model(stl = STL(participation_rate ~ trend() + season())) |> 
+  left_join(period_start, by = c("series", ".id")) |> 
+  components()
+
+stl_components
+
+stl_components |> 
+  mutate(year = year(date),
+         month = month(date, label = TRUE) |> fct_rev()) |> 
+  ggplot(aes(year, month, fill = season_year)) +
+  geom_tile() +
+  scale_fill_viridis_c()
+
+seasonal_model |> 
+  mutate(coeffs = map(ts_lm_seasonal, tidy)) |> 
+  unnest(coeffs) |> 
+  filter(str_detect(term, "season")) |>
+  mutate(term = fct_inorder(term) |> fct_rev()) |> 
+  filter(series == "men") |> 
+  ggplot(aes(period_starting, term, fill = estimate)) +
+  geom_tile() +
+  scale_fill_viridis_c() +
+  facet_wrap(vars(series))
+```
+
+```{r}
+pcs <- fred_tile_features |>
+  select(-c(series, .id, period_starting, zero_run_mean, bp_pvalue, lb_pvalue, zero_end_prop, zero_start_prop, zero_run_mean)) |>
+  prcomp(scale = TRUE) |>
+  augment(fred_tile_features)
+
+pcs |>
+  ggplot(aes(x = .fittedPC1, y = .fittedPC2, col = series)) +
+  geom_point() +
+  theme(aspect.ratio = 1)
+```
+
+```{r}
+pcs |> 
+  select(.id, period_starting, series, .fittedPC1, .fittedPC2) |> 
+  pivot_longer(cols = contains("PC")) |> 
+  ggplot(aes(.id, value, color = name, lty = series)) +
+  geom_line() +
+  facet_wrap(vars(name), ncol = 1)
+```
+
+```{r}
+pcs |> 
+  select(.fittedPC1, .fittedPC2, trend_strength, seasonal_strength_year, spectral_entropy) |> 
+  GGally::ggpairs()
+```
