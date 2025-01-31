@@ -27,7 +27,8 @@ library(fpp3)
 library(broom)
 library(fredr)
 library(hrbrthemes)
-library(tictoc)
+library(GGally)
+library(scales)
 
 theme_set(theme_ipsum())
 
@@ -417,12 +418,22 @@ pcs |>
   facet_wrap(vars(name), ncol = 1)
 ```
 
-The second component is highly correlated with the seasonality of the series (`seasonal_strength_year`).
+The second component is positively correlated with the seasonality of the series (`seasonal_strength_year`) and negatively correlated with the amount of noise in the series (`spectral_entropy`).
 
 ```{r}
+#https://stackoverflow.com/questions/44984822/how-to-create-lower-density-plot-using-your-own-density-function-in-ggally
+my_fn <- function(data, mapping, ...){
+  
+      p <- ggplot(data = data, mapping = mapping) + 
+        geom_point(alpha = .4) +
+        geom_smooth(method = "lm")
+      p
+      
+}
+
 pcs |> 
   select(.fittedPC1, .fittedPC2, trend_strength, seasonal_strength_year, spectral_entropy) |> 
-  GGally::ggpairs()
+  ggpairs(lower = list(continuous = my_fn))
 ```
 
 This makes sense because of the significant decrease in seasonality during this time period.
