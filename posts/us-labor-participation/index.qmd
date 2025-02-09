@@ -33,12 +33,12 @@ library(GGally)
 library(scales)
 library(plotly)
 library(here)
+library(ggthemes)
+library(ggrepel)
 
 theme_set(theme_ipsum())
 
 options(scipen = 999, digits = 4)
-
-#set manual color palette for men and women
 ```
 
 ### Load in data from FRED
@@ -71,11 +71,24 @@ fred_df_raw <- c("men >= age 20" = "LNU01300025",
 
 ```{r}
 glimpse(fred_df_raw)
+
+#set manual color palette for men and women
+series_vec <- fred_df_raw |> 
+  distinct(series) |> 
+  pull()
+
+#RColorBrewer::brewer.pal(3, "Dark2")[1:2]
+
+series_pal <- colorblind_pal()(2)
+
+names(series_pal) <- series_vec
+
+#show_col(series_pal)
 ```
 
 #### Time series exploratory data analysis (EDA)
 
-Here I use the `tsibble` package to transform the dataframe into a time series table. Then I plot the data with `autoplot`.
+Here I use the `tsibble` package to transform the dataframe into a time series table. Then I plot the data with `autoplot` and use `{plotly}` to make it interactive.
 
 ```{r}
 fred_df <- fred_df_raw |> 
@@ -85,7 +98,9 @@ fred_df <- fred_df_raw |>
   as_tsibble(key = series, index = date)
 
 x <- autoplot(fred_df) +
-  scale_y_percent(scale = 1)
+  scale_y_percent(scale = 1) +
+  scale_color_manual(values = series_pal) +
+  labs(title = "Labor Force Participation Rate")
 
 ggplotly(x)
 ```
@@ -104,7 +119,7 @@ There are a couple general trends in this data.
 
     -   The pattern of seasonality among women appears to be somewhat strong but highly variable early on, and then becomes weaker over time.
 
-    -   My hypothesis is that the decreasing seasonality is due to changes in what jobs are available and people's preference for those jobs. For example, agricultural labor and construction are highly seasonal, but may have become a smaller % of the available jobs over time.
+    -   My hypothesis is that the decreasing seasonality is due to changes in what types of jobs are available and people's preference for those jobs. For example, agricultural labor and construction are highly seasonal, but may have become a smaller % of the available jobs over time.
 
 For context, the overall LFPR increased starting in the late 1960s, but has declined since 2000:
 
@@ -130,7 +145,9 @@ stl_components <- stl_models |>
 stl_components
 ```
 
-The decomposition for men shows that the magnitude of the seasonality shrinks over time, and the pattern in which months are peaks and troughs changes as well. The `season_year` variable represents the seasonality. The grey bars on the left indicate the reverse magnitude of the effect. Among men, the `remainder` seems to have a stronger effect than seasonality (`seasonal_year`), though that is probably skewed by the singularly large outlier value of the COVID-19 pandemic.
+The decomposition for men shows that the magnitude of the seasonality shrinks over time, and the pattern in which months are peaks and troughs changes as well. The `season_year` variable represents the seasonality. The grey bars on the left indicate the reverse magnitude of the effect.
+
+Among men, the `remainder` seems to have a stronger effect than seasonality (`seasonal_year`), though that is probably skewed by the singularly large outlier value of the COVID-19 pandemic.
 
 ```{r}
 #| fig-height: 10
@@ -153,7 +170,9 @@ This shows the de-seasonalized trend among men and women:
 ```{r}
 stl_components |> 
   ggplot(aes(date, trend, color = series)) +
-  geom_line() +
+  geom_line(lwd = 1.5) +
+  scale_color_manual(values = series_pal) +
+  labs(title = "Labor Force Participation Rate") +
   theme(legend.position = "bottom")
 ```
 
@@ -163,8 +182,10 @@ The LFPR trend for women actually increased at the height of the 2008 financial 
 stl_components |> 
   filter(between(year(date), 2005, 2010)) |> 
   ggplot(aes(date, trend, color = series)) +
-  geom_line() +
+  geom_line(lwd = 1.5) +
+  scale_color_manual(values = series_pal) +
   facet_wrap(vars(series), scales = "free_y", ncol = 1) +
+  labs(title = "LFPR during 2008 financial crisis") +
   theme(legend.position = "bottom")
 ```
 
@@ -179,7 +200,8 @@ x <- stl_components |>
   filter(str_starts(series, "men")) |> 
   #filter(decade < 1980) |> 
   ggplot(aes(date, season_year, color = series, group = series)) +
-  geom_line() +
+  geom_line(lwd = 1.5) +
+  scale_color_manual(values = series_pal) +
   facet_wrap(vars(series), ncol = 1, scales = "free_y") +
   guides(color = "none")
 
@@ -192,7 +214,8 @@ x
 x <- stl_components |> 
   filter(str_starts(series, "women")) |> 
   ggplot(aes(date, season_year, color = series, group = series)) +
-  geom_line() +
+  geom_line(lwd = 1.5) +
+  scale_color_manual(values = series_pal) +
   facet_wrap(vars(series), ncol = 1, scales = "free_y") +
   guides(color = "none")
 
@@ -202,7 +225,7 @@ x
 
 ## Features
 
-This code uses the feasts package to calculate summary statistics about each time series. I will focus on the strength of the trend and seasonality, and the amount of noise in each series.
+This code uses the `{feasts}` package to calculate summary statistics about each time series. I will focus on the strength of the trend and seasonality, and the amount of noise in each series.
 
 ```{r}
 fred_features <- fred_df |>
@@ -214,7 +237,7 @@ fred_features |>
 
 Both series have very strong trends, but the series for men has stronger seasonality. This reflects my impressions from the graphs above. The series have very similar low `spectral_entropy` values which shows that there is very little noise in the data. I would expect both series to be easily forecastable in the near term.
 
-## Peaks and troughs
+### Peaks and troughs
 
 Another way to summarize a time series is to calculate the average peak and trough of the seasonality.
 
@@ -272,7 +295,7 @@ glimpse(fred_tile)
 #   distinct(n)
 ```
 
-This calculates the starting year-month of each time period and calculates the features for each.
+This code calculates the starting year-month of each time period and calculates the features for each.
 
 ```{r}
 period_start <- fred_tile |> 
@@ -309,7 +332,10 @@ fred_tile_features |>
   ggplot(aes(period_starting, value, color = series, fill = series)) +
   geom_point() +
   geom_smooth() +
+  scale_color_manual(values = series_pal) +
+  scale_fill_manual(values = series_pal) +
   facet_wrap(vars(name), ncol = 1, scales = "free_y") +
+  labs(title = "Labor Force Participation Rate") +
   theme(legend.position = "bottom")
 ```
 
@@ -411,7 +437,8 @@ stl_components |>
   facet_wrap(vars(series), ncol = 1) +
   scale_x_continuous(n.breaks = 8, expand = c(0, 0)) +
   scale_y_discrete(expand = c(0, 0)) +
-  scale_fill_viridis_c(name = "Seasonal strength") +
+  scale_fill_viridis_c(name = "Seasonal strength", option = "C") +
+  labs(title = "Labor Force Participation Rate") +
   theme(legend.position = "bottom",
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
@@ -438,14 +465,17 @@ seasonal_model |>
   facet_wrap(vars(series), ncol = 1) +
   scale_x_yearmonth(expand = c(0, 0)) +
   scale_y_discrete(expand = c(0, 0)) +
-  scale_fill_viridis_c(name = "Seasonal strength") +
-  labs(subtitle = "January is hidden reference month") +
+  scale_fill_viridis_c(name = "Seasonal strength", option = "C") +
+  labs(title = "Labor Force Participation Rate",
+       subtitle = "January is hidden reference month") +
   theme(legend.position = "bottom",
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
 ```
 
-Here I apply Principal Component Analysis to the features calculated on the tiled time series. The most recent period for each series, which contains the COVID-19 pandemic, is an outlier along the second component.
+### Principal Component Analysis
+
+Here I apply Principal Component Analysis (PCA) to the features calculated on the tiled time series. The most recent period for each series, which contains the COVID-19 pandemic, is an outlier along the second component.
 
 ```{r}
 pcs <- fred_tile_features |>
@@ -457,9 +487,11 @@ pcs |>
   mutate(period = str_c("Period starting", period_starting, sep = " ")) |> 
   mutate(graph_label = case_when(.fittedPC2 < -4 ~ period,
                                  .default = NA_character_)) |> 
-  ggplot(aes(x = .fittedPC1, y = .fittedPC2, col = series)) +
+  ggplot(aes(x = .fittedPC1, y = .fittedPC2, color = series, fill = series)) +
   geom_point() +
-  ggrepel::geom_label_repel(aes(label = graph_label), size = 3) +
+  geom_label_repel(aes(label = graph_label), size = 3, color = "white") +
+  scale_color_manual(values = series_pal) +
+  scale_fill_manual(values = series_pal) +
   labs(title = "Outlier analysis with PCA",
        subtitle = "4-year time periods") +
   theme(aspect.ratio = 1,
@@ -473,7 +505,8 @@ pcs |>
   select(.id, period_starting, series, .fittedPC1, .fittedPC2) |> 
   pivot_longer(cols = contains("PC")) |> 
   ggplot(aes(period_starting, value, color = series)) +
-  geom_line() +
+  geom_line(lwd = 1.5) +
+  scale_color_manual(values = series_pal) +
   facet_wrap(vars(name), ncol = 1) +
   theme(legend.position = "bottom")
 ```
@@ -484,17 +517,18 @@ The second component is positively correlated with the seasonality of the series
 #https://stackoverflow.com/questions/44984822/how-to-create-lower-density-plot-using-your-own-density-function-in-ggally
 my_fn <- function(data, mapping, ...){
   
-      p <- ggplot(data = data, mapping = mapping) + 
-        geom_point(alpha = .4, size = 1) +
-        geom_smooth(method = "lm")
-      p
-      
+  p <- ggplot(data = data, mapping = mapping) + 
+    geom_point(alpha = .4, size = 1) +
+    geom_smooth(method = "lm")
+  
+  p
+  
 }
-
+  
 pcs |> 
   select(.fittedPC1, .fittedPC2, trend_strength, seasonal_strength_year, spectral_entropy) |> 
   ggpairs(lower = list(continuous = my_fn)) +
   theme(strip.text = element_text(size = 8),
-        axis.text.x = element_text(size = 8),
-        axis.text.y = element_text(size = 8))
+  axis.text.x = element_text(size = 8),
+  axis.text.y = element_text(size = 8))
 ```
