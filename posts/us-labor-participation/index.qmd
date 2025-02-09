@@ -11,6 +11,8 @@ format:
   html:
     toc: true
     code-fold: true
+    fig-height: 7
+lightbox: true
 ---
 
 ## Intro
@@ -29,10 +31,14 @@ library(fredr)
 library(hrbrthemes)
 library(GGally)
 library(scales)
+library(plotly)
+library(here)
 
 theme_set(theme_ipsum())
 
 options(scipen = 999, digits = 4)
+
+#set manual color palette for men and women
 ```
 
 ### Load in data from FRED
@@ -40,10 +46,30 @@ options(scipen = 999, digits = 4)
 This code takes the FRED series ID and uses `map_dfr` to read in the data from the FRED API with `fredr` and combine the results into one dataframe. I specifically chose the non-seasonally adjusted datasets because I want to look at the seasonality.
 
 ```{r}
+#| echo: false
+#| eval: false
 fred_df_raw <- c("men >= age 20" = "LNU01300025",
              "women >= age 20" = "LNU01300026") |> 
   map_dfr(fredr, .id = "series")
 
+fred_df_raw |> 
+  write_csv("/Users/conorotompkins/Documents/github_repos/ctompkins_quarto_blog/posts/us-labor-participation/post_data/fred_data.csv")
+```
+
+```{r}
+#| echo: false
+fred_df_raw <- read_csv("post_data/fred_data.csv")
+#fred_df_raw <- read_csv("/Users/conorotompkins/Documents/github_repos/ctompkins_quarto_blog/posts/us-labor-participation/post_data/fred_data.csv")
+```
+
+```{r}
+#| eval: false
+fred_df_raw <- c("men >= age 20" = "LNU01300025",
+             "women >= age 20" = "LNU01300026") |> 
+  map_dfr(fredr, .id = "series")
+```
+
+```{r}
 glimpse(fred_df_raw)
 ```
 
@@ -58,16 +84,10 @@ fred_df <- fred_df_raw |>
   mutate(date = yearmonth(date)) |> 
   as_tsibble(key = series, index = date)
 
-autoplot(fred_df) +
-  scale_y_percent(scale = 1) +
-  theme(legend.position = "bottom")
-```
-
-```{r}
 x <- autoplot(fred_df) +
   scale_y_percent(scale = 1)
 
-plotly::ggplotly(x)
+ggplotly(x)
 ```
 
 There are a couple general trends in this data.
@@ -82,7 +102,7 @@ There are a couple general trends in this data.
 
     -   The strong seasonailty among men peaks early in this series becomes weaker over time.
 
-    -   The pattern of seasonality among women appears to be somewhat strong but unstable early on, and then becomes weaker over time.
+    -   The pattern of seasonality among women appears to be somewhat strong but highly variable early on, and then becomes weaker over time.
 
     -   My hypothesis is that the decreasing seasonality is due to changes in what jobs are available and people's preference for those jobs. For example, agricultural labor and construction are highly seasonal, but may have become a smaller % of the available jobs over time.
 
@@ -98,11 +118,11 @@ The trend among men and women are subsets of this overall trend, although the st
 
 ### Trend and seasonality
 
-Here I use STL to decompose the time series into trend, seasonality, and remainder. This models the strength of the trend and seasonality over time. The remainder is the noise in the data that cannot be explained by the trend or seasonality. I use `components` to extract the components of the decomposition to analyze them further.
+Here I use STL (Multiple seasonal decomposition by Loess) to decompose each time series into trend, seasonality, and remainder. This models the strength of the trend and seasonality over time. The remainder is the noise in the data that cannot be explained by the trend or seasonality. I use `components` to extract the components of the decomposition to analyze them further. I also transform `participation_rate` to the log scale, which makes the STL decomposition multiplicative instead of additive. This makes it easier to compare the magnitude of seasonality (`season_year`) and `remainder` between series.
 
 ```{r}
 stl_models <- fred_df |> 
-  model(stl = STL(participation_rate ~ trend() + season()))
+  model(stl = STL(log(participation_rate) ~ trend() + season()))
 
 stl_components <- stl_models |>
   components()
@@ -110,17 +130,19 @@ stl_components <- stl_models |>
 stl_components
 ```
 
-The decomposition for men shows that the magnitude of the seasonality shrinks over time, and the pattern in which months are peaks and troughs changes as well. The `season_year` variable represents the seasonality.
+The decomposition for men shows that the magnitude of the seasonality shrinks over time, and the pattern in which months are peaks and troughs changes as well. The `season_year` variable represents the seasonality. The grey bars on the left indicate the reverse magnitude of the effect. Among men, the `remainder` seems to have a stronger effect than seasonality (`seasonal_year`), though that is probably skewed by the singularly large outlier value of the COVID-19 pandemic.
 
 ```{r}
+#| fig-height: 10
 stl_components |> 
   filter(str_starts(series, "men")) |> 
   autoplot()
 ```
 
-The seasonality pattern for women changes drastically multiple times over the course of the time series. The grey bars on the left indicate the reverse magnitude of the effect. The height of the grey bars for seasonality and the remainder are similar for women, so the seasonal effect is smaller overall.
+The seasonality pattern for women changes drastically multiple times over the course of the time series. The early years of this series have many large `remainder` values (in absolute terms), which could indicate the change in job types that were available to women at the time.
 
 ```{r}
+#| fig-height: 10
 stl_components |> 
   filter(str_starts(series, "women")) |> 
   autoplot()
@@ -131,26 +153,54 @@ This shows the de-seasonalized trend among men and women:
 ```{r}
 stl_components |> 
   ggplot(aes(date, trend, color = series)) +
-  geom_line()
+  geom_line() +
+  theme(legend.position = "bottom")
 ```
 
-The LFPR trend for women actually increased at the height of the 2008 financial crisis. This could indicate that some women were pulled into the labor force in response to increased economic pressure on their household.
-
-This shows the de-trended seasonality at different scales for each group:
+The LFPR trend for women actually increased at the height of the 2008 financial crisis. This could indicate that some women were pulled into the labor force in response to increased economic pressure on them and/or their household.
 
 ```{r}
+stl_components |> 
+  filter(between(year(date), 2005, 2010)) |> 
+  ggplot(aes(date, trend, color = series)) +
+  geom_line() +
+  facet_wrap(vars(series), scales = "free_y", ncol = 1) +
+  theme(legend.position = "bottom")
+```
+
+
+```{r}
+#| eval: false
+#| echo: false
+#facet by decade
 x <- stl_components |> 
+  #mutate(year = year(date)) |> 
+  #mutate(decade = year - (year %% 10)) |> 
+  filter(str_starts(series, "men")) |> 
+  #filter(decade < 1980) |> 
   ggplot(aes(date, season_year, color = series, group = series)) +
   geom_line() +
   facet_wrap(vars(series), ncol = 1, scales = "free_y") +
   guides(color = "none")
 
-plotly::ggplotly(x)
+x
 ```
 
-There are clearly changes in seasonality over time, specifically in periods when the magnitude of the seasonality is weaker.
+```{r}
+#| eval: false
+#| echo: false
+x <- stl_components |> 
+  filter(str_starts(series, "women")) |> 
+  ggplot(aes(date, season_year, color = series, group = series)) +
+  geom_line() +
+  facet_wrap(vars(series), ncol = 1, scales = "free_y") +
+  guides(color = "none")
 
-#### Features
+x
+```
+
+
+## Features
 
 This code uses the feasts package to calculate summary statistics about each time series. I will focus on the strength of the trend and seasonality, and the amount of noise in each series.
 
@@ -162,9 +212,9 @@ fred_features |>
   select(series, trend_strength, seasonal_strength_year, spectral_entropy)
 ```
 
-Both series have very strong trends, but the series for men has stronger seasonality. This reflects my impressions from the graphs above. The series have very similar low `spectral_entropy` values which shows that there is very little noise in the data. I would expect both series to be easily forecastable.
+Both series have very strong trends, but the series for men has stronger seasonality. This reflects my impressions from the graphs above. The series have very similar low `spectral_entropy` values which shows that there is very little noise in the data. I would expect both series to be easily forecastable in the near term.
 
-### Peaks and troughs
+## Peaks and troughs
 
 Another way to summarize a time series is to calculate the average peak and trough of the seasonality.
 
@@ -186,7 +236,7 @@ peak_trough
 
 In men, the peak is July and the trough is in January. In women, the peak is in October and the trough is in July. These metrics are calculated over the entire series, so it does not reflect changes over time.
 
-#### Trends within trends
+## Trends within trends
 
 To capture how each time series changes over time, I turn each into a tiled time series. I create exclusive blocks of 48 consecutive months, and then treat each as its own "mini" time series. This creates 19 48-month time series for men and women.
 
@@ -239,6 +289,8 @@ fred_tile_features <- fred_tile |>
 ```
 
 ```{r}
+#| eval: false
+#| echo: false
 fred_tile_features |> 
   ggplot(aes(trend_strength, seasonal_strength_year, fill = series, label = period_starting)) +
   geom_label() +
@@ -357,12 +409,15 @@ stl_components |>
   ggplot(aes(year, month, fill = season_year)) +
   geom_tile() +
   facet_wrap(vars(series), ncol = 1) +
-  scale_x_continuous(n.breaks = 8) +
+  scale_x_continuous(n.breaks = 8, expand = c(0, 0)) +
+  scale_y_discrete(expand = c(0, 0)) +
   scale_fill_viridis_c(name = "Seasonal strength") +
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
 ```
 
-The seasonality among men appears to have started diffusely in the late summer, concentrated in the same season in the late 1960s, and then diffused again over time.
+The seasonality among men appears to have started diffusely in the late summer, strengthened in the same season in the late 1960s, and then diffused again over time.
 
 Among women, the seasonality was very strong in the fall in the 1950s. Then it diverged into two groups (spring and fall) bisected by a seasonal trough in the summer. The series for men and women converged on opposite peaks/troughs in the late 1960s, which makes me think the two groups were responding to the same (or multiple correlated) socioeconomic events.
 
@@ -378,12 +433,16 @@ seasonal_model |>
   unnest(coeffs) |> 
   filter(str_detect(term, "season")) |>
   mutate(term = fct_inorder(term) |> fct_rev()) |> 
-  ggplot(aes(period_starting, term, fill = estimate)) +
+  ggplot(aes(x = period_starting, y = term, fill = estimate)) +
   geom_tile() +
-  scale_fill_viridis_c(name = "Seasonal strength") +
   facet_wrap(vars(series), ncol = 1) +
-  labs(subtitle = "January is reference month") +
-  theme(legend.position = "bottom")
+  scale_x_yearmonth(expand = c(0, 0)) +
+  scale_y_discrete(expand = c(0, 0)) +
+  scale_fill_viridis_c(name = "Seasonal strength") +
+  labs(subtitle = "January is hidden reference month") +
+  theme(legend.position = "bottom",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
 ```
 
 Here I apply Principal Component Analysis to the features calculated on the tiled time series. The most recent period for each series, which contains the COVID-19 pandemic, is an outlier along the second component.
@@ -400,7 +459,7 @@ pcs |>
                                  .default = NA_character_)) |> 
   ggplot(aes(x = .fittedPC1, y = .fittedPC2, col = series)) +
   geom_point() +
-  geom_label(aes(label = graph_label), nudge_x = -5, nudge_y = 1, size = 3) +
+  ggrepel::geom_label_repel(aes(label = graph_label), size = 3) +
   labs(title = "Outlier analysis with PCA",
        subtitle = "4-year time periods") +
   theme(aspect.ratio = 1,
@@ -415,17 +474,18 @@ pcs |>
   pivot_longer(cols = contains("PC")) |> 
   ggplot(aes(period_starting, value, color = series)) +
   geom_line() +
-  facet_wrap(vars(name), ncol = 1)
+  facet_wrap(vars(name), ncol = 1) +
+  theme(legend.position = "bottom")
 ```
 
-The second component is positively correlated with the seasonality of the series (`seasonal_strength_year`) and negatively correlated with the amount of noise in the series (`spectral_entropy`).
+The second component is positively correlated with the seasonality of the series (`seasonal_strength_year`) and negatively correlated with the amount of noise in the series (`spectral_entropy`). This reflects the significant decrease in seasonality during this time period.
 
 ```{r}
 #https://stackoverflow.com/questions/44984822/how-to-create-lower-density-plot-using-your-own-density-function-in-ggally
 my_fn <- function(data, mapping, ...){
   
       p <- ggplot(data = data, mapping = mapping) + 
-        geom_point(alpha = .4) +
+        geom_point(alpha = .4, size = 1) +
         geom_smooth(method = "lm")
       p
       
@@ -433,7 +493,8 @@ my_fn <- function(data, mapping, ...){
 
 pcs |> 
   select(.fittedPC1, .fittedPC2, trend_strength, seasonal_strength_year, spectral_entropy) |> 
-  ggpairs(lower = list(continuous = my_fn))
+  ggpairs(lower = list(continuous = my_fn)) +
+  theme(strip.text = element_text(size = 8),
+        axis.text.x = element_text(size = 8),
+        axis.text.y = element_text(size = 8))
 ```
-
-This makes sense because of the significant decrease in seasonality during this time period.
