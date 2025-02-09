@@ -100,7 +100,9 @@ fred_df <- fred_df_raw |>
 x <- autoplot(fred_df) +
   scale_y_percent(scale = 1) +
   scale_color_manual(values = series_pal) +
-  labs(title = "Labor Force Participation Rate")
+  labs(title = "Labor Force Participation Rate",
+       x = "Date",
+       y = "LFPR")
 
 ggplotly(x)
 ```
@@ -172,7 +174,9 @@ stl_components |>
   ggplot(aes(date, trend, color = series)) +
   geom_line(lwd = 1.5) +
   scale_color_manual(values = series_pal) +
-  labs(title = "Labor Force Participation Rate") +
+  labs(title = "Labor Force Participation Rate",
+       x = "Date",
+       y = "LFPR trend") +
   theme(legend.position = "bottom")
 ```
 
@@ -185,43 +189,10 @@ stl_components |>
   geom_line(lwd = 1.5) +
   scale_color_manual(values = series_pal) +
   facet_wrap(vars(series), scales = "free_y", ncol = 1) +
-  labs(title = "LFPR during 2008 financial crisis") +
+  labs(title = "LFPR during 2008 financial crisis",
+       x = "Date") +
   theme(legend.position = "bottom")
 ```
-
-
-```{r}
-#| eval: false
-#| echo: false
-#facet by decade
-x <- stl_components |> 
-  #mutate(year = year(date)) |> 
-  #mutate(decade = year - (year %% 10)) |> 
-  filter(str_starts(series, "men")) |> 
-  #filter(decade < 1980) |> 
-  ggplot(aes(date, season_year, color = series, group = series)) +
-  geom_line(lwd = 1.5) +
-  scale_color_manual(values = series_pal) +
-  facet_wrap(vars(series), ncol = 1, scales = "free_y") +
-  guides(color = "none")
-
-x
-```
-
-```{r}
-#| eval: false
-#| echo: false
-x <- stl_components |> 
-  filter(str_starts(series, "women")) |> 
-  ggplot(aes(date, season_year, color = series, group = series)) +
-  geom_line(lwd = 1.5) +
-  scale_color_manual(values = series_pal) +
-  facet_wrap(vars(series), ncol = 1, scales = "free_y") +
-  guides(color = "none")
-
-x
-```
-
 
 ## Features
 
@@ -278,23 +249,6 @@ fred_tile |>
 glimpse(fred_tile)
 ```
 
-```{r}
-#| echo: false
-#| eval: false
-# fred_tile |> 
-#   as_tibble() |> 
-#   count(series, .id) |> 
-#   distinct(n)
-# 
-# fred_tile |> 
-#   count(series, date) |> 
-#   distinct(n)
-# 
-# fred_tile |> 
-#   count(series, .id) |> 
-#   distinct(n)
-```
-
 This code calculates the starting year-month of each time period and calculates the features for each.
 
 ```{r}
@@ -309,15 +263,6 @@ fred_tile_features <- fred_tile |>
   left_join(period_start, by = c("series", ".id")) |> 
   select(.id, series, period_starting, everything()) |> 
   arrange(series, .id)
-```
-
-```{r}
-#| eval: false
-#| echo: false
-fred_tile_features |> 
-  ggplot(aes(trend_strength, seasonal_strength_year, fill = series, label = period_starting)) +
-  geom_label() +
-  geom_path(aes(color = series))
 ```
 
 The strength of the trend has a fair amount of variance over time for both series, but decreased more for men in the 4-year period starting January 2020. This reflects the recent flattening of that trend.
@@ -335,89 +280,13 @@ fred_tile_features |>
   scale_color_manual(values = series_pal) +
   scale_fill_manual(values = series_pal) +
   facet_wrap(vars(name), ncol = 1, scales = "free_y") +
-  labs(title = "Labor Force Participation Rate") +
+  labs(title = "Labor Force Participation Rate",
+       x = "Period start",
+       y = "Value") +
   theme(legend.position = "bottom")
 ```
 
 ### Changes in peaks/troughs over time
-
-```{r}
-#| eval: false
-#| echo: false
-fred_tile_features |> 
-  distinct(seasonal_peak_year)
-
-fred_tile_features |> 
-  distinct(seasonal_trough_year)
-
-fred_tile_features |> 
-  select(seasonal_peak_year, seasonal_trough_year) |> 
-  pivot_longer(cols = everything()) |> 
-  distinct(value)
-
-month_seasonality <- fred_tile_features |> 
-  select(series, .id, period_starting, seasonal_peak_year, seasonal_trough_year) |> 
-  left_join(month_lookup, by = c("seasonal_peak_year" = "month_int")) |> 
-  select(-seasonal_peak_year) |> 
-  rename(seasonal_peak_year = month) |> 
-  left_join(month_lookup, by = c("seasonal_trough_year" = "month_int")) |> 
-  select(-seasonal_trough_year) |> 
-  rename(seasonal_trough_year = month) |> 
-  arrange(series, period_starting)
-
-fred_tile_features |> 
-  select(series, .id, period_starting, seasonal_peak_year, seasonal_trough_year) |> 
-  filter(str_starts(series, "women")) |> 
-  view()
-
-month_seasonality |> 
-  count(series)
-
-month_seasonality |> 
-  count(series, seasonal_peak_year) |> 
-  arrange(series, desc(n))
-
-month_seasonality |> 
-  count(series, seasonal_trough_year) |> 
-  arrange(series, desc(n))
-```
-
-```{r}
-#| eval: false
-#| echo: false
-month_seasonality |> 
-  count(series, period_starting, seasonal_peak_year, seasonal_trough_year) |> 
-  pivot_longer(contains("year")) |> 
-  filter(name == "seasonal_peak_year") |> 
-  complete(series, period_starting, name, value = month.abb) |> 
-  mutate(flag = !is.na(n)) |> 
-  mutate(value = fct_rev(value)) |> 
-  ggplot(aes(period_starting, value, fill = flag)) +
-  geom_tile() +
-  facet_wrap(vars(series), ncol = 1) +
-  scale_fill_viridis_d()
-
-month_seasonality |> 
-  count(series, period_starting, seasonal_peak_year, seasonal_trough_year) |> 
-  view()
-  pivot_longer(contains("year")) |> 
-  filter(is.na(value))
-
-month_seasonality |> 
-  count(series, period_starting, seasonal_peak_year, seasonal_trough_year) |> 
-  pivot_longer(contains("year")) |> 
-  #filter(name == "seasonal_trough_year") |> 
-  complete(series, period_starting, name, value = month.abb) |> 
-  mutate(value = fct_relevel(value, month.abb)) |> 
-  mutate(flag = !is.na(n),
-         value = fct_rev(value)) |> 
-  ggplot(aes(period_starting, value, fill = flag)) +
-  geom_tile() +
-  scale_x_yearmonth(expand = c(0, 0)) +
-  scale_y_discrete(expand = c(0, 0)) +
-  facet_wrap(vars(series, name), ncol = 2) +
-  scale_fill_viridis_d()
-```
 
 Here I apply STL decomposition to the tiled series to investigate the changes in seasonality over time.
 
@@ -438,7 +307,9 @@ stl_components |>
   scale_x_continuous(n.breaks = 8, expand = c(0, 0)) +
   scale_y_discrete(expand = c(0, 0)) +
   scale_fill_viridis_c(name = "Seasonal strength", option = "C") +
-  labs(title = "Labor Force Participation Rate") +
+  labs(title = "Labor Force Participation Rate",
+       x = "Period start",
+       y = "Month") +
   theme(legend.position = "bottom",
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
@@ -465,9 +336,11 @@ seasonal_model |>
   facet_wrap(vars(series), ncol = 1) +
   scale_x_yearmonth(expand = c(0, 0)) +
   scale_y_discrete(expand = c(0, 0)) +
-  scale_fill_viridis_c(name = "Seasonal strength", option = "C") +
+  scale_fill_viridis_c(name = "Coefficient", option = "C") +
   labs(title = "Labor Force Participation Rate",
-       subtitle = "January is hidden reference month") +
+       subtitle = "January is hidden reference month",
+       x = "Period start",
+       y = "Model term") +
   theme(legend.position = "bottom",
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
