@@ -3,6 +3,7 @@
     "listing": "/index.html",
     "items": [
       "/posts/spatial-clustering-pittsburgh/index.html",
+      "/posts/us-labor-participation/index.html",
       "/posts/c-s-presentation-time-series-forecasting/index.html",
       "/posts/forecasting-potholes-with-exogenous-variables/index.html",
       "/posts/forecasting-pittsburgh-potholes-with-fable/index.html",
