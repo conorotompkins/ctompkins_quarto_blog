@@ -12,6 +12,7 @@ format:
   html:
     toc: true
     code-fold: true
+date: 2025-01-06
 ---
 
 "What region is Pittsburgh in?" is a question that comes up frequently around here. Is it in [Appalachia](https://www.wesa.fm/identity-community/2021-12-11/what-is-appalachia-heres-what-people-from-around-the-region-including-pittsburgh-have-to-say)? The [Midwest](https://venturebeat.com/entrepreneur/in-5-years-the-midwest-will-have-more-startups-than-silicon-valley/)? [Great Lakes](https://en.wikipedia.org/wiki/Great_Lakes_megalopolis)? [Mid-Atlantic](https://www2.census.gov/geo/pdfs/maps-data/maps/reference/us_regdiv.pdf)? It really depends on who you ask, and what variables you have at hand.
@@ -158,6 +159,7 @@ glimpse(census_tracts_wide)
 ```
 
 This code checks that I am capturing most ethnicities in most counties.
+
 ```{r}
 #check that I am capturing most ethnicities in most counties.
 census_tracts_wide |> 
@@ -537,7 +539,6 @@ map_greedy +
   geom_sf(data = ac_geo,  lwd = .5, color = "black", fill = NA) +
   theme_void()
 ```
-
 
 ### Cluster characteristics
 
