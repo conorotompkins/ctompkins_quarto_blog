@@ -1,5 +1,5 @@
 ---
-title: Analyzing US labor participation rates with {feasts}
+title: Analyzing US labor force participation rates with {feasts}
 author: Conor Tompkins
 editor_options: 
   chunk_output_type: console
@@ -12,6 +12,7 @@ format:
     toc: true
     code-fold: true
     fig-height: 7
+date: last-modified
 lightbox: true
 ---
 
@@ -41,7 +42,7 @@ theme_set(theme_ipsum())
 options(scipen = 999, digits = 4)
 ```
 
-### Load in data from FRED
+#### Load in data from FRED
 
 This code takes the FRED series ID and uses `map_dfr` to read in the data from the FRED API with `fredr` and combine the results into one dataframe. I specifically chose the non-seasonally adjusted datasets because I want to look at the seasonality.
 
@@ -86,7 +87,7 @@ names(series_pal) <- series_vec
 #show_col(series_pal)
 ```
 
-#### Time series exploratory data analysis (EDA)
+### Time series exploratory data analysis (EDA)
 
 Here I use the `tsibble` package to transform the dataframe into a time series table. Then I plot the data with `autoplot` and use `{plotly}` to make it interactive.
 
@@ -102,7 +103,8 @@ x <- autoplot(fred_df) +
   scale_color_manual(values = series_pal) +
   labs(title = "Labor Force Participation Rate",
        x = "Date",
-       y = "LFPR")
+       y = "LFPR",
+       color = "Series")
 
 ggplotly(x)
 ```
@@ -117,9 +119,9 @@ There are a couple general trends in this data.
 
 -   Seasonality
 
-    -   The strong seasonailty among men peaks early in this series becomes weaker over time.
+    -   The strong seasonailty among men peaks early in this series and becomes weaker over time.
 
-    -   The pattern of seasonality among women appears to be somewhat strong but highly variable early on, and then becomes weaker over time.
+    -   The pattern of seasonality among women appears to be strong but highly variable early on, and then becomes weaker over time.
 
     -   My hypothesis is that the decreasing seasonality is due to changes in what types of jobs are available and people's preference for those jobs. For example, agricultural labor and construction are highly seasonal, but may have become a smaller % of the available jobs over time.
 
@@ -147,9 +149,9 @@ stl_components <- stl_models |>
 stl_components
 ```
 
-The decomposition for men shows that the magnitude of the seasonality shrinks over time, and the pattern in which months are peaks and troughs changes as well. The `season_year` variable represents the seasonality. The grey bars on the left indicate the reverse magnitude of the effect.
+In the following graphs, the `season_year` variable represents the seasonality. The grey bars on the left indicate the reverse magnitude of the effect of each STL component.
 
-Among men, the `remainder` seems to have a stronger effect than seasonality (`seasonal_year`), though that is probably skewed by the singularly large outlier value of the COVID-19 pandemic.
+The decomposition for men shows that the magnitude of the seasonality shrinks over time, and the pattern in which months are peaks and troughs changes as well. Among men, the `remainder` seems to have a stronger effect than seasonality (`seasonal_year`), though that is probably skewed by the singularly large outlier value of the COVID-19 pandemic.
 
 ```{r}
 #| fig-height: 10
@@ -190,7 +192,9 @@ stl_components |>
   scale_color_manual(values = series_pal) +
   facet_wrap(vars(series), scales = "free_y", ncol = 1) +
   labs(title = "LFPR during 2008 financial crisis",
-       x = "Date") +
+       x = "Date",
+       y = "LFPR trend",
+       color = "Series") +
   theme(legend.position = "bottom")
 ```
 
@@ -206,7 +210,7 @@ fred_features |>
   select(series, trend_strength, seasonal_strength_year, spectral_entropy)
 ```
 
-Both series have very strong trends, but the series for men has stronger seasonality. This reflects my impressions from the graphs above. The series have very similar low `spectral_entropy` values which shows that there is very little noise in the data. I would expect both series to be easily forecastable in the near term.
+Both series have very strong trends, but the series for men has stronger seasonality (`seasonal_strength_year`). This confirms my impressions from the graphs above. Both series have very similar low `spectral_entropy` values which shows that there is very little noise in the data. I would expect both series to be easily forecastable in the near term.
 
 ### Peaks and troughs
 
@@ -282,7 +286,9 @@ fred_tile_features |>
   facet_wrap(vars(name), ncol = 1, scales = "free_y") +
   labs(title = "Labor Force Participation Rate",
        x = "Period start",
-       y = "Value") +
+       y = "Value",
+       color = "Series",
+       fill = "Series") +
   theme(legend.position = "bottom")
 ```
 
@@ -366,7 +372,8 @@ pcs |>
   scale_color_manual(values = series_pal) +
   scale_fill_manual(values = series_pal) +
   labs(title = "Outlier analysis with PCA",
-       subtitle = "4-year time periods") +
+       subtitle = "4-year time periods",
+       color = "Series") +
   theme(aspect.ratio = 1,
         legend.position = "bottom")
 ```
@@ -381,6 +388,10 @@ pcs |>
   geom_line(lwd = 1.5) +
   scale_color_manual(values = series_pal) +
   facet_wrap(vars(name), ncol = 1) +
+  labs(title = "PCA components over time",
+       x = "Period start",
+       color = "Series",
+       fill = "Series") +
   theme(legend.position = "bottom")
 ```
 
