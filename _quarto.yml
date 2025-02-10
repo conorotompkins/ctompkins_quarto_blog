@@ -10,7 +10,11 @@ website:
         href: https://github.com/conorotompkins
       - icon: linkedin
         href: www.linkedin.com/in/conor-tompkins-04b06a3b
+      - icon: rss
+        href: index.xml
   google-analytics: "G-7TL8ET415E"
+  site-url: https://ctompkins.netlify.app/
+  description: "Conor Tompkins data science blog"
   
 format:
   html:
