@@ -1,0 +1,692 @@
+---
+title: Inferring habitat clusters with eBird data
+author: Conor Tompkins
+editor_options: 
+  chunk_output_type: console
+execute:
+  message: false
+  warning: false
+image: featured.png
+format:
+  html:
+    toc: true
+    code-fold: true
+    fig-height: 7
+date: 2025-06-08
+lightbox: true
+bibliography: references.bib
+---
+
+# Intro
+
+The motivation for this post is to see if it is possible to use bird species abundance across space to infer types of habitat. I will use bird species abundance rasters to create clusters in an unsupervised learning context. I focus on Pennsylvania because that is habitat I am personally familiar with, but the approach could be generalized to other areas that the data has been collected for.
+
+# Get data from {ebirdst}
+
+The species abundance data I use is from the [{ebirdst}](https://ebird.github.io/ebirdst/) package. There is a great series of tutorial [videos on Youtube](https://www.youtube.com/watch?v=DWqgbsMH1yU) that explain the underlying theory and application. The TLDR is that the authors use citizen science observations from eBird, temporal data, and environmental data (geographic indicators such as elevation, topography, and land cover) to predict the relative abundance of many bird species across space and time. The full paper is available [here](https://esajournals.onlinelibrary.wiley.com/doi/10.1002/eap.2056).
+
+::: callout-note
+## Matthew Strimas-Mackey, Shawn Ligocki, Tom Auer, Daniel Fink (2023).   ebirdst: Access and Analyze eBird Status and Trends Data Products. R   package version 3.2022.0. https://ebird.github.io/ebirdst/
+:::
+
+For this analysis I focus on the proportion of the population for a given species for a given 3x3 kilometer area. I focus on migratory birds that the Cornell team has high confidence data for.
+
+I wrote a convenience function to handle the process of getting the data and subsetting to my area of interest. The process is:
+
+-   Download the raster data
+-   Crop and mask the raster to just Pennsylvania
+-   Since the rasters have multiple layers for each week of the year, I take the highest value for the entire year for each raster tile. This means that each tile represents the maximum proportion of population for that species across the year.
+
+# Organize data
+
+```{r load packages}
+library(tidyverse)
+library(sf)
+library(broom)
+library(parsnip)
+library(tidyclust)
+library(factoextra)
+library(clValid)
+library(tune)
+library(gt)
+library(ggrepel)
+
+options(scipen = 999, digits = 4)
+
+theme_set(theme_bw())
+
+set.seed(1234)
+```
+
+```{r load functions}
+#https://medium.com/@ozturkfemre/unsupervised-learning-determination-of-cluster-number-be8842cdb11
+fviz_dunn <- function(data, nclust) {
+  k <- c(2:nclust)
+  dunnin <- c()
+  for (i in 2:nclust) {
+    dunnin[i] <- dunn(distance = dist(data), clusters = kmeans(data, i)$cluster)
+  }
+  dunnin <- dunnin[2:nclust]
+  plot(k, dunnin, xlab =  "Cluster number k",
+       ylab = "Dunn Index",
+       main = "Dunn Plot", cex.main=1,
+       col = "dodgerblue1", cex = 0.9 ,
+       lty=1 , type="o" , lwd=1, pch=4,
+       bty = "l",
+       las = 1, cex.axis = 0.8, tcl  = -0.2)
+  abline(v=which(dunnin==max(dunnin)) + 1, lwd=1, col="red", lty="dashed")
+}
+```
+
+```{r read data}
+# bird_df <- read_csv("posts/ebird-habitat-clustering/post_data/species_abundance_present_in_pa.csv") |>
+#   rename(prop_pop_max = prop_pop)
+
+bird_df <- read_csv("post_data/species_abundance_present_in_pa.csv") |>
+  rename(prop_pop_max = prop_pop)
+
+glimpse(bird_df)
+```
+
+# EDA
+
+## Problem of scale
+
+While the distribution of some birds' abundance across space is normally distributed, some distributions are extremely skewed. This makes it more difficult to analyze across species.
+
+```{r calc metrics}
+bird_df <- bird_df |> 
+  mutate(scaled = prop_pop_max |> scale() |> as.numeric(),
+         rescaled = prop_pop_max |> scales::rescale(to = c(-1, 1)),
+         log10 = log10(prop_pop_max + 1),
+         .by = common_name)
+```
+
+This shows the distribution of various species' abundance, transformed various ways to attempt to normalize the skewed distributions.
+```{r compare scales}
+test_sp <- c("Dark-eyed Junco", "Field Sparrow", "Common Grackle", "Snow Goose", "American Crow")
+
+bird_df |> 
+  filter(common_name %in% test_sp) |> 
+  select(common_name, prop_pop_max, scaled, rescaled, log10) |> 
+  pivot_longer(cols = c(prop_pop_max, scaled, rescaled, log10)) |> 
+  ggplot(aes(value)) +
+  geom_histogram() +
+  facet_wrap(vars(name, common_name), ncol = 5, scales = "free") +
+  scale_x_continuous(labels = NULL) +
+  scale_y_continuous(labels = NULL)
+```
+
+```{r}
+bird_df |>
+  filter(common_name %in% test_sp) |> 
+  ggplot(aes(x, y, fill = prop_pop_max)) +
+  geom_tile() +
+  facet_wrap(vars(common_name)) +
+  scale_fill_viridis_c() +
+  labs(title = "prop_pop_max")
+```
+
+```{r}
+bird_df |>
+  filter(common_name %in% test_sp) |> 
+  ggplot(aes(x, y, fill = scaled)) +
+  geom_tile() +
+  facet_wrap(vars(common_name)) +
+  scale_fill_viridis_c() +
+  labs(title = "Scaled")
+```
+
+```{r}
+bird_df |>
+  filter(common_name %in% test_sp) |> 
+  ggplot(aes(x, y, fill = log10)) +
+  geom_tile() +
+  facet_wrap(vars(common_name)) +
+  scale_fill_viridis_c() +
+  labs("log10 scale")
+```
+
+## Pairwise scatter plot
+
+```{r pairwise scatter}
+bird_df <- bird_df |> 
+  select(common_name, x, y, log10) |> 
+  rename(prop_pop_max_log10 = log10)
+
+bird_df_wide <- bird_df |> 
+  pivot_wider(names_from = common_name, values_from = prop_pop_max_log10)
+
+bird_df_wide_noloc <- select(bird_df_wide, -c(x, y))
+
+#ggpairs plot
+my_fn <- function(data, mapping, ...){
+  # Using default ggplot density function
+  
+  p <- ggplot(data = data, mapping = mapping) + 
+    stat_density2d(aes(fill=after_stat(density)), geom="tile", contour = FALSE) +
+    scale_fill_gradientn(colours=viridis::viridis(100, option="viridis")) +
+    theme(axis.text = element_blank(),
+          strip.text = element_text(size = 6))
+  p
+}
+
+sampled_sp <- bird_df |> 
+  select(common_name, prop_pop_max_log10) |> 
+  summarize(mean = mean(prop_pop_max_log10), .by = common_name) |> 
+  dplyr::slice_sample(n = 10, weight_by = mean)
+
+bird_df_wide_noloc |>
+  select(all_of(pull(sampled_sp, common_name))) |> 
+  GGally::ggpairs(lower = list(continuous = my_fn))
+```
+
+## PCA
+
+### On birds
+
+```{r bird pca}
+#tidy PCA code from https://clauswilke.com/blog/2020/09/07/pca-tidyverse-style/
+pca_fit <- bird_df_wide_noloc |> 
+  prcomp(scale = TRUE) # do PCA on scaled data
+
+pca_fit |>
+  tidy(matrix = "eigenvalues") |>
+  filter(PC <= 10) |> 
+  ggplot(aes(PC, percent)) +
+  geom_col() +
+  scale_x_continuous(breaks = c(1:10))
+```
+
+```{r bird pca 2}
+# plot rotation matrix
+pca_rot <- pca_fit |>
+  tidy(matrix = "rotation") |>
+  pivot_wider(names_from = "PC", names_prefix = "PC", values_from = "value") |> 
+  rename(common_name = column)
+
+# define arrow style for plotting
+arrow_style <- arrow(
+  angle = 20, ends = "first", type = "closed", length = grid::unit(3, "pt")
+)
+
+pca_outliers <- pca_rot |>
+  filter(PC1 == max(PC1) | PC2 == max(PC2) | PC3 == max(PC3) | PC1 == min(PC1) | PC2 == min(PC2) | PC3 == min(PC3))
+
+pca_outliers_max <- pca_rot |> 
+  select(common_name, PC1:PC3) |> 
+  pivot_longer(-common_name) |> 
+  group_by(name) |> 
+  slice_max(order_by = value, n = 3) |> 
+  ungroup() |> 
+  distinct(common_name)
+
+pca_outliers_min <- pca_rot |> 
+  select(common_name, PC1:PC3) |> 
+  pivot_longer(-common_name) |> 
+  group_by(name) |> 
+  slice_min(order_by = value, n = 3) |> 
+  ungroup() |> 
+  distinct(common_name)
+
+pca_outliers <- bind_rows(pca_outliers_max, pca_outliers_min) |> 
+  left_join(pca_rot)
+```
+
+PC1 is the "Deep Forest" index. Higher values indicate that the bird prefers deeper forest habitat. PC2 indicates how open the habitat is. Higher values indicate that the bird prefers more open habitat.
+
+```{r  bird pca 3}
+pca_rot |>
+  ggplot(aes(PC1, PC2)) +
+  geom_segment(xend = 0, yend = 0, arrow = arrow_style, lwd = .2) +
+  geom_point(
+    data = pca_outliers,
+    color = "#904C2F"
+  ) +
+  ggrepel::geom_label_repel(
+    data = pca_outliers,
+    aes(label = common_name),
+    color = "#904C2F"
+  ) +
+  coord_obs_pred()
+```
+
+PC3 indicates presence of water. Lower values indicate that the species prefers habitat with more water.
+
+```{r bird pca 4}
+pca_rot |>
+  ggplot(aes(PC1, PC3)) +
+  geom_segment(xend = 0, yend = 0, arrow = arrow_style, lwd = .2) +
+  geom_point(
+    data = pca_outliers,
+    color = "#904C2F"
+  ) +
+  ggrepel::geom_label_repel(
+    data = pca_outliers,
+    aes(label = common_name),
+    color = "#904C2F"
+  ) +
+  coord_obs_pred()
+```
+
+```{r bird pca 5}
+pca_rot |>
+  ggplot(aes(PC2, PC3)) +
+  geom_segment(xend = 0, yend = 0, arrow = arrow_style, lwd = .2) +
+  geom_point(
+    data = pca_outliers,
+    color = "#904C2F"
+  ) +
+  ggrepel::geom_label_repel(
+    data = pca_outliers,
+    aes(label = common_name),
+    color = "#904C2F"
+  ) +
+  coord_obs_pred()
+```
+
+### On tiles
+
+```{r tile pca 1}
+tile_df <- bird_df |> 
+  distinct(x, y) |> 
+  mutate(tile_id = row_number() |> as.character())
+
+tile_pca_fit <- bird_df |> 
+  left_join(tile_df) |> 
+  select(tile_id, common_name, prop_pop_max_log10) |> 
+  pivot_wider(names_from = tile_id, values_from = prop_pop_max_log10) |> 
+  select(-common_name) |> 
+  prcomp(scale = TRUE)
+
+tile_pca_fit |>
+  tidy(matrix = "eigenvalues") |>
+  filter(PC <= 10) |> 
+  ggplot(aes(PC, percent)) +
+  geom_col() +
+  scale_x_continuous(breaks = c(1:10))
+
+tile_pca_rot <- tile_pca_fit |> 
+  tidy("rotation") |> 
+  rename(tile_id = column) |> 
+  pivot_wider(names_from = PC, values_from = value, names_prefix = "PC")
+
+tile_df |> 
+  left_join(tile_pca_rot) |> 
+  ggplot(aes(x, y, fill = PC1)) +
+  geom_tile() +
+  scale_fill_viridis_c() +
+  labs(title = "PC1 is a continuum of deep forest vs water. The Susquehanna River (southeast) and Ohio River (southwest) are highlighted.")
+
+tile_df |> 
+  left_join(tile_pca_rot) |> 
+  ggplot(aes(x, y, fill = PC2)) +
+  geom_tile() +
+  scale_fill_viridis_c() +
+  labs(title = "PC2 indicates presence/absence of farmland. The area where the Susquehanna River bisecst the Allegheny Mountains is known for its farmland.")
+
+tile_df |> 
+  left_join(tile_pca_rot) |> 
+  ggplot(aes(x, y, fill = PC3)) +
+  geom_tile() +
+  scale_fill_viridis_c() +
+  labs(title = "PC3 indicates the steepness of mountains.")
+```
+
+# Cluster
+
+## Kmeans
+
+```{r kmeans 1}
+nclust_global <- 10
+
+kclusts <- tibble(k = 1:nclust_global) |>
+  mutate(
+    kclust = purrr::map(k, ~kmeans(bird_df_wide_noloc, .x)),
+    tidied = purrr::map(kclust, tidy),
+    glanced = purrr::map(kclust, glance),
+    augmented = purrr::map(kclust, augment, bird_df_wide)
+  )
+
+clusters <- kclusts |>
+  unnest(cols = c(tidied))
+
+assignments <- kclusts |>
+  unnest(cols = c(augmented))
+
+clusterings <- kclusts |>
+  unnest(cols = c(glanced))
+
+ggplot(clusterings, aes(k, tot.withinss)) +
+  geom_line() +
+  geom_point() +
+  scale_x_continuous(breaks = c(1:nclust_global))
+```
+
+```{r kmeans 2}
+p1 <- assignments |> 
+  ggplot(aes(x, y)) +
+  geom_point(aes(color = .cluster), alpha = 0.8) + 
+  facet_wrap(~ k)
+p1
+
+nclust_kmeans <- 4
+
+kmeans_spec <- k_means(num_clusters = nclust_kmeans) |> 
+  set_engine("stats")
+
+kclust_fit <- kmeans_spec |> 
+  fit(~ .,
+      data = bird_df_wide_noloc
+  )
+```
+
+### Metrics
+
+```{r kmeans 3}
+kmeans_summary <- extract_fit_summary(kclust_fit)
+```
+
+Metrics explanation
+```{r kmeans 5}
+dists <- bird_df_wide_noloc |> 
+  as.matrix() |> 
+  dist()
+
+kmeans_silhouette_score <- silhouette_avg(kclust_fit, dists = dists)
+
+kmeans_metrics <- tibble(algorithm = "kmeans",
+                         sse_ratio = sse_ratio(kclust_fit) |> pull(.estimate),
+                         silhouette_score = kmeans_silhouette_score |> pull(.estimate))
+
+gt(kmeans_metrics)
+```
+
+### Maps
+
+```{r kmeans 7}
+cluster_geo <- bird_df_wide |> 
+  bind_cols(extract_cluster_assignment(kclust_fit)) |> 
+  select(.cluster, everything())
+
+custom_palette_kmeans <- RColorBrewer::brewer.pal(nclust_kmeans, "Paired")
+
+kmeans_map <- cluster_geo |> 
+  ggplot(aes(x, y, fill = .cluster)) +
+  geom_tile() +
+  scale_fill_manual(values = custom_palette_kmeans) +
+  labs(title = "Types of habitat inferred from species proportion of population",
+       subtitle = "Clusters determined by kmeans algorithm",
+       caption = "Data from eBird Status and Trends",
+       fill = "Cluster") +
+  theme_void() +
+  theme(plot.background = element_rect(fill = "white"),
+        plot.title = element_text(size = 30),
+        plot.subtitle = element_text(size = 16),
+        plot.caption = element_text(size = 14),
+        legend.text = element_text(size = 12))
+
+kmeans_map
+```
+
+```{r kmeans 8}
+#faceted map
+blank_tiles <- bird_df_wide |>
+  distinct(x, y)
+
+kmeans_map_facet <- cluster_geo |> 
+  select(x, y, .cluster) |> 
+  ggplot(aes(x, y, fill = .cluster)) +
+  geom_tile(data = blank_tiles, aes(x, y), inherit.aes = FALSE, fill = "light grey", alpha = .5) +
+  geom_tile() +
+  scale_fill_manual(values = custom_palette_kmeans) +
+  labs(title = "Types of habitat inferred from species proportion of population",
+       subtitle = "Clusters determined by kmeans algorithm",
+       caption = "Data from eBird Status and Trends") +
+  guides(fill = "none") +
+  facet_wrap(vars(.cluster)) +
+  theme_void() +
+  theme(plot.background = element_rect(fill = "white"),
+        plot.title = element_text(size = 30),
+        plot.subtitle = element_text(size = 16),
+        plot.caption = element_text(size = 14))
+
+kmeans_map_facet
+```
+
+-   Cluster 1 indicates open habitat and areas with more intensive agriculture.
+-   Cluster 2 contains forest and lower-elevation mountain areas.
+-   Cluster 3 indicates the peak of the Allegheny Mountain range.
+-   Cluster 4 is a unique area in southeastern Pennsylvania that attracts very large flocks of blackbirds.
+
+Next I will compare the abundance of each species in each cluster to the statewide average of abundance for that species.
+
+```{r kmeans 9}
+#compare clusters to global average
+global_avg <- bird_df |> 
+  summarize(prop_pop_global_mean = mean(prop_pop_max_log10),
+            .by = c(common_name))
+
+global_avg |> 
+  head() |> 
+  gt()
+```
+
+```{r kmeans 10}
+centroids_long_kmeans <- kclust_fit |>
+  extract_centroids() |> 
+  pivot_longer(-.cluster, names_to = "common_name", values_to = "cluster_mean") |> 
+  mutate(common_name = str_remove_all(common_name, "\\`"))
+
+centroid_vs_global_kmeans <- centroids_long_kmeans |> 
+  left_join(global_avg) |> 
+  mutate(diff = cluster_mean - prop_pop_global_mean,
+         diff_abs = abs(diff))
+
+centroid_vs_global_kmeans |> 
+  ggplot(aes(diff_abs)) +
+  geom_histogram()
+```
+
+This table shows which birds are more abundant in a cluster compared to the statewide average:
+
+```{r kmeans 11}
+#what birds are more common in a cluster than average?
+centroid_vs_global_kmeans |> 
+  group_by(.cluster) |> 
+  slice_max(order_by = diff, n = 5) |> 
+  select(.cluster, common_name, diff) |> 
+  arrange(.cluster, desc(diff)) |> 
+  select(-diff) |> 
+  pivot_wider(names_from = .cluster, values_from = common_name) |> 
+  unnest(everything()) |> 
+  gt()
+```
+
+This shows species that are less abundant than the statewide average:
+
+```{r kmeans 12}
+#what birds are less common in a cluster than average?
+centroid_vs_global_kmeans |> 
+  group_by(.cluster) |> 
+  slice_min(order_by = diff, n = 5) |> 
+  select(.cluster, common_name, diff) |> 
+  arrange(.cluster, desc(diff)) |> 
+  select(-diff) |> 
+  pivot_wider(names_from = .cluster, values_from = common_name) |> 
+  unnest(everything()) |> 
+  gt()
+```
+
+## Hierarchical
+
+```{r hclust 1}
+hclust_wss_plot <- fviz_nbclust(bird_df_wide_noloc, FUN = hcut, method = "wss", k.max = 10)
+
+hclust_wss_plot
+```
+
+```{r hclust 2}
+nclust_hclust <- 6
+
+hc_spec <- hier_clust(
+  num_clusters = nclust_hclust,
+  linkage_method = "ward"
+)
+
+hc_spec
+```
+
+```{r hclust 3}
+hc_fit <- hc_spec |>
+  fit(~ ., data = bird_df_wide_noloc)
+
+hc_fit$fit |> str(max.level = 1)
+```
+
+This shows the full dendrogram of the hierarchical cluster output
+
+```{r hclust 4}
+hclust_tree <- as.dendrogram(hc_fit$fit)
+
+plot(hclust_tree, leaflab = "none")
+```
+
+This shows the same dendrogram cut at 6 clusters (branches).
+
+```{r hclust 5}
+tree_cut <- hclust_tree |> cut(h = .008)
+
+tree_cut$upper |> plot()
+```
+
+```{r hclust 6}
+hc_summary <- hc_fit |> extract_fit_summary()
+
+hc_summary |> str(max.level = 1)
+```
+
+### Metrics
+
+```{r hclust 7}
+hc_silhouette_score <- silhouette_avg(hc_fit, dists = dists)
+
+hclust_metrics <- tibble(algorithm = "hclust",
+                         sse_ratio = sse_ratio(hc_fit) |> pull(.estimate),
+                         silhouette_score = hc_silhouette_score |> pull(.estimate))
+
+gt(hclust_metrics)
+```
+
+```{r hclust 8}
+hc_assignments <- extract_cluster_assignment(hc_fit)
+```
+
+### Maps
+
+```{r hclust 9}
+hclust_geo <- bird_df_wide |> 
+  select(x, y) |> 
+  bind_cols(hc_assignments) |> 
+  mutate(.cluster = fct_infreq(.cluster))
+
+#custom_palette_hclust <- c(RColorBrewer::brewer.pal(9, "Paired"), "dark grey", "black")
+
+custom_palette_hclust <- RColorBrewer::brewer.pal(nclust_hclust, "Paired")
+
+hclust_map <- hclust_geo |> 
+  ggplot(aes(x, y, fill = .cluster)) +
+  geom_tile() +
+  scale_fill_manual(values = custom_palette_hclust) +
+  labs(title = "Types of habitat inferred from species proportion of population",
+       subtitle = "Clusters determined by hclust algorithm",
+       caption = "Data from eBird Status and Trends",
+       fill = "Cluster") +
+  theme_void() +
+  theme(plot.background = element_rect(fill = "white"),
+        plot.title = element_text(size = 30),
+        plot.subtitle = element_text(size = 16),
+        plot.caption = element_text(size = 14),
+        legend.text = element_text(size = 12))
+
+hclust_map
+```
+
+```{r}
+#faceted map
+hclust_map_facet <- hclust_geo |> 
+  ggplot(aes(x, y, fill = .cluster)) +
+  geom_tile(data = blank_tiles, aes(x, y), fill = "light grey", alpha = .5, inherit.aes = FALSE) +
+  geom_tile() +
+  scale_fill_manual(values = custom_palette_hclust) +
+  facet_wrap(vars(.cluster)) +
+  labs(title = "Types of habitat inferred from species proportion of population",
+       subtitle = "Clusters determined by hclust algorithm",
+       caption = "Data from eBird Status and Trends") +
+  guides(fill = "none") +
+  theme_void() +
+  theme(plot.background = element_rect(fill = "white"),
+        plot.title = element_text(size = 30),
+        plot.subtitle = element_text(size = 16),
+        plot.caption = element_text(size = 14),
+        legend.text = element_text(size = 12))
+
+hclust_map_facet
+```
+
+Commpare abundance
+```{r}
+#compare clusters to global average
+centroids_long_hc <- hc_fit |>
+  extract_centroids() |> 
+  pivot_longer(-.cluster, names_to = "common_name", values_to = "cluster_mean") |> 
+  mutate(common_name = str_remove_all(common_name, "\\`"))
+
+centroid_vs_global_hc <- centroids_long_hc |> 
+  left_join(global_avg) |> 
+  mutate(diff = cluster_mean - prop_pop_global_mean,
+         diff_abs = abs(diff))
+
+centroid_vs_global_hc |> 
+  ggplot(aes(diff_abs)) +
+  geom_histogram()
+```
+
+Which birds are more abundant in a cluster than average?
+```{r}
+#what birds are more common in a cluster than average?
+centroid_vs_global_hc |> 
+  group_by(.cluster) |> 
+  slice_max(order_by = diff, n = 5) |> 
+  select(.cluster, common_name, diff) |> 
+  arrange(.cluster, desc(diff)) |> 
+  select(-diff) |> 
+  pivot_wider(names_from = .cluster, values_from = common_name) |> 
+  unnest(everything()) |> 
+  gt()
+```
+
+Which birds are less abundant in a cluster than average?
+```{r}
+#what birds are less common in a cluster than average?
+centroid_vs_global_hc |> 
+  group_by(.cluster) |> 
+  slice_min(order_by = diff, n = 5) |> 
+  select(.cluster, common_name, diff) |> 
+  arrange(.cluster, desc(diff)) |> 
+  select(-diff) |> 
+  pivot_wider(names_from = .cluster, values_from = common_name) |> 
+  unnest(everything()) |> 
+  gt()
+```
+
+## Compare
+
+```{r}
+bind_rows(kmeans_metrics, hclust_metrics) |> 
+  gt()
+```
+
+While the kmeans algorithm has a slightly higher silhouette score, my interpretation is that this difference is negligible. The clusters from the hierarchical clustering algorithm seem more natural, according to my own limited experience birding across Pennsylvania. The hierarchical model is also more appealing because it more naturally reflects the structure of habitats. For example, 
+
+# Conclusions
