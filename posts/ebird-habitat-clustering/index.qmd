@@ -11,7 +11,6 @@ format:
   html:
     toc: true
     code-fold: true
-    fig-height: 7
 date: 2025-06-08
 lightbox: true
 bibliography: references.bib
@@ -50,6 +49,7 @@ library(clValid)
 library(tune)
 library(gt)
 library(ggrepel)
+library(patchwork)
 
 options(scipen = 999, digits = 4)
 
@@ -94,65 +94,112 @@ glimpse(bird_df)
 
 While the distribution of some birds' abundance across space is normally distributed, some distributions are extremely skewed. This makes it more difficult to analyze across species.
 
+```{r}
+test_sp <- c("Dark-eyed Junco", "Field Sparrow", "Yellow Warbler", "Snow Goose", "American Crow")
+
+bird_df |> 
+  filter(common_name == "Snow Goose") |> 
+  mutate(log10 = log10(prop_pop_max + 1)) |> 
+  ggplot(aes(prop_pop_max, log10)) +
+  geom_bin_2d()
+
+bird_df |> 
+  select(common_name, prop_pop_max) |> 
+  filter(common_name == test_sp[5]) |> 
+  mutate(log10 = log10(prop_pop_max + 1),
+         log = log(prop_pop_max + 1)) |> 
+  pivot_longer(cols = -common_name) |> 
+  ggplot(aes(value, fill = name)) +
+  geom_density(alpha = .5) +
+  facet_wrap(vars(name), scale = "free", ncol = 1)
+```
+
+
 ```{r calc metrics}
-bird_df <- bird_df |> 
+bird_df_scale_compare <- bird_df |> 
+  group_by(common_name) |> 
   mutate(scaled = prop_pop_max |> scale() |> as.numeric(),
          rescaled = prop_pop_max |> scales::rescale(to = c(-1, 1)),
-         log10 = log10(prop_pop_max + 1),
-         .by = common_name)
+         log = log(prop_pop_max + 1),
+         log10 = log10(prop_pop_max + 1)) |> 
+  ungroup()
 ```
 
 This shows the distribution of various species' abundance, transformed various ways to attempt to normalize the skewed distributions.
 ```{r compare scales}
-test_sp <- c("Dark-eyed Junco", "Field Sparrow", "Common Grackle", "Snow Goose", "American Crow")
+#| fig-height: 10
 
-bird_df |> 
+test_sp <- c("Dark-eyed Junco", "Field Sparrow", "Yellow Warbler", "Snow Goose", "American Crow")
+
+bird_df_scale_compare <- bird_df_scale_compare |> 
   filter(common_name %in% test_sp) |> 
-  select(common_name, prop_pop_max, scaled, rescaled, log10) |> 
-  pivot_longer(cols = c(prop_pop_max, scaled, rescaled, log10)) |> 
-  ggplot(aes(value)) +
-  geom_histogram() +
-  facet_wrap(vars(name, common_name), ncol = 5, scales = "free") +
-  scale_x_continuous(labels = NULL) +
-  scale_y_continuous(labels = NULL)
+  select(common_name, x, y, prop_pop_max, scaled, rescaled, log, log10) |> 
+  pivot_longer(cols = c(prop_pop_max, scaled, rescaled, log, log10))
+
+graph_abundance <- function(x, y){
+  
+  x |> 
+    ggplot(aes(value, fill = name)) +
+    geom_density(alpha = .3) +
+    facet_wrap(vars(name), ncol = 5, scales = "free") +
+    scale_x_continuous(labels = NULL) +
+    scale_y_continuous(labels = NULL) +
+    labs(title = y)
+  
+}
+
+test_df <- bird_df_scale_compare |> 
+  filter(common_name == test_sp[1])
+
+bird_df_scale_compare |> 
+  group_nest(common_name) |> 
+  mutate(plot = map2(data, common_name, graph_abundance)) |> 
+  pull(plot) |> 
+  wrap_plots(ncol = 1, guides = "collect")
 ```
 
 ```{r}
-bird_df |>
+bird_df_scale_compare |>
+  pivot_wider(names_from = name, values_from = value) |> 
   filter(common_name %in% test_sp) |> 
   ggplot(aes(x, y, fill = prop_pop_max)) +
   geom_tile() +
   facet_wrap(vars(common_name)) +
   scale_fill_viridis_c() +
-  labs(title = "prop_pop_max")
+  labs(title = "prop_pop_max") +
+  theme_void()
 ```
 
 ```{r}
-bird_df |>
+bird_df_scale_compare |>
+  pivot_wider(names_from = name, values_from = value) |> 
   filter(common_name %in% test_sp) |> 
   ggplot(aes(x, y, fill = scaled)) +
   geom_tile() +
   facet_wrap(vars(common_name)) +
   scale_fill_viridis_c() +
-  labs(title = "Scaled")
+  labs(title = "Scaled") +
+  theme_void()
 ```
 
 ```{r}
-bird_df |>
+bird_df_scale_compare |>
+  pivot_wider(names_from = name, values_from = value) |> 
   filter(common_name %in% test_sp) |> 
   ggplot(aes(x, y, fill = log10)) +
   geom_tile() +
   facet_wrap(vars(common_name)) +
   scale_fill_viridis_c() +
-  labs("log10 scale")
+  labs("log10 scale") +
+  theme_void()
 ```
 
 ## Pairwise scatter plot
 
 ```{r pairwise scatter}
 bird_df <- bird_df |> 
-  select(common_name, x, y, log10) |> 
-  rename(prop_pop_max_log10 = log10)
+  mutate(prop_pop_max_log10 = log10(prop_pop_max + 1)) |> 
+  select(common_name, x, y, prop_pop_max_log10)
 
 bird_df_wide <- bird_df |> 
   pivot_wider(names_from = common_name, values_from = prop_pop_max_log10)
@@ -179,158 +226,6 @@ sampled_sp <- bird_df |>
 bird_df_wide_noloc |>
   select(all_of(pull(sampled_sp, common_name))) |> 
   GGally::ggpairs(lower = list(continuous = my_fn))
-```
-
-## PCA
-
-### On birds
-
-```{r bird pca}
-#tidy PCA code from https://clauswilke.com/blog/2020/09/07/pca-tidyverse-style/
-pca_fit <- bird_df_wide_noloc |> 
-  prcomp(scale = TRUE) # do PCA on scaled data
-
-pca_fit |>
-  tidy(matrix = "eigenvalues") |>
-  filter(PC <= 10) |> 
-  ggplot(aes(PC, percent)) +
-  geom_col() +
-  scale_x_continuous(breaks = c(1:10))
-```
-
-```{r bird pca 2}
-# plot rotation matrix
-pca_rot <- pca_fit |>
-  tidy(matrix = "rotation") |>
-  pivot_wider(names_from = "PC", names_prefix = "PC", values_from = "value") |> 
-  rename(common_name = column)
-
-# define arrow style for plotting
-arrow_style <- arrow(
-  angle = 20, ends = "first", type = "closed", length = grid::unit(3, "pt")
-)
-
-pca_outliers <- pca_rot |>
-  filter(PC1 == max(PC1) | PC2 == max(PC2) | PC3 == max(PC3) | PC1 == min(PC1) | PC2 == min(PC2) | PC3 == min(PC3))
-
-pca_outliers_max <- pca_rot |> 
-  select(common_name, PC1:PC3) |> 
-  pivot_longer(-common_name) |> 
-  group_by(name) |> 
-  slice_max(order_by = value, n = 3) |> 
-  ungroup() |> 
-  distinct(common_name)
-
-pca_outliers_min <- pca_rot |> 
-  select(common_name, PC1:PC3) |> 
-  pivot_longer(-common_name) |> 
-  group_by(name) |> 
-  slice_min(order_by = value, n = 3) |> 
-  ungroup() |> 
-  distinct(common_name)
-
-pca_outliers <- bind_rows(pca_outliers_max, pca_outliers_min) |> 
-  left_join(pca_rot)
-```
-
-PC1 is the "Deep Forest" index. Higher values indicate that the bird prefers deeper forest habitat. PC2 indicates how open the habitat is. Higher values indicate that the bird prefers more open habitat.
-
-```{r  bird pca 3}
-pca_rot |>
-  ggplot(aes(PC1, PC2)) +
-  geom_segment(xend = 0, yend = 0, arrow = arrow_style, lwd = .2) +
-  geom_point(
-    data = pca_outliers,
-    color = "#904C2F"
-  ) +
-  ggrepel::geom_label_repel(
-    data = pca_outliers,
-    aes(label = common_name),
-    color = "#904C2F"
-  ) +
-  coord_obs_pred()
-```
-
-PC3 indicates presence of water. Lower values indicate that the species prefers habitat with more water.
-
-```{r bird pca 4}
-pca_rot |>
-  ggplot(aes(PC1, PC3)) +
-  geom_segment(xend = 0, yend = 0, arrow = arrow_style, lwd = .2) +
-  geom_point(
-    data = pca_outliers,
-    color = "#904C2F"
-  ) +
-  ggrepel::geom_label_repel(
-    data = pca_outliers,
-    aes(label = common_name),
-    color = "#904C2F"
-  ) +
-  coord_obs_pred()
-```
-
-```{r bird pca 5}
-pca_rot |>
-  ggplot(aes(PC2, PC3)) +
-  geom_segment(xend = 0, yend = 0, arrow = arrow_style, lwd = .2) +
-  geom_point(
-    data = pca_outliers,
-    color = "#904C2F"
-  ) +
-  ggrepel::geom_label_repel(
-    data = pca_outliers,
-    aes(label = common_name),
-    color = "#904C2F"
-  ) +
-  coord_obs_pred()
-```
-
-### On tiles
-
-```{r tile pca 1}
-tile_df <- bird_df |> 
-  distinct(x, y) |> 
-  mutate(tile_id = row_number() |> as.character())
-
-tile_pca_fit <- bird_df |> 
-  left_join(tile_df) |> 
-  select(tile_id, common_name, prop_pop_max_log10) |> 
-  pivot_wider(names_from = tile_id, values_from = prop_pop_max_log10) |> 
-  select(-common_name) |> 
-  prcomp(scale = TRUE)
-
-tile_pca_fit |>
-  tidy(matrix = "eigenvalues") |>
-  filter(PC <= 10) |> 
-  ggplot(aes(PC, percent)) +
-  geom_col() +
-  scale_x_continuous(breaks = c(1:10))
-
-tile_pca_rot <- tile_pca_fit |> 
-  tidy("rotation") |> 
-  rename(tile_id = column) |> 
-  pivot_wider(names_from = PC, values_from = value, names_prefix = "PC")
-
-tile_df |> 
-  left_join(tile_pca_rot) |> 
-  ggplot(aes(x, y, fill = PC1)) +
-  geom_tile() +
-  scale_fill_viridis_c() +
-  labs(title = "PC1 is a continuum of deep forest vs water. The Susquehanna River (southeast) and Ohio River (southwest) are highlighted.")
-
-tile_df |> 
-  left_join(tile_pca_rot) |> 
-  ggplot(aes(x, y, fill = PC2)) +
-  geom_tile() +
-  scale_fill_viridis_c() +
-  labs(title = "PC2 indicates presence/absence of farmland. The area where the Susquehanna River bisecst the Allegheny Mountains is known for its farmland.")
-
-tile_df |> 
-  left_join(tile_pca_rot) |> 
-  ggplot(aes(x, y, fill = PC3)) +
-  geom_tile() +
-  scale_fill_viridis_c() +
-  labs(title = "PC3 indicates the steepness of mountains.")
 ```
 
 # Cluster
@@ -482,10 +377,6 @@ centroid_vs_global_kmeans <- centroids_long_kmeans |>
   left_join(global_avg) |> 
   mutate(diff = cluster_mean - prop_pop_global_mean,
          diff_abs = abs(diff))
-
-centroid_vs_global_kmeans |> 
-  ggplot(aes(diff_abs)) +
-  geom_histogram()
 ```
 
 This table shows which birds are more abundant in a cluster compared to the statewide average:
@@ -646,10 +537,6 @@ centroid_vs_global_hc <- centroids_long_hc |>
   left_join(global_avg) |> 
   mutate(diff = cluster_mean - prop_pop_global_mean,
          diff_abs = abs(diff))
-
-centroid_vs_global_hc |> 
-  ggplot(aes(diff_abs)) +
-  geom_histogram()
 ```
 
 Which birds are more abundant in a cluster than average?
@@ -687,6 +574,164 @@ bind_rows(kmeans_metrics, hclust_metrics) |>
   gt()
 ```
 
-While the kmeans algorithm has a slightly higher silhouette score, my interpretation is that this difference is negligible. The clusters from the hierarchical clustering algorithm seem more natural, according to my own limited experience birding across Pennsylvania. The hierarchical model is also more appealing because it more naturally reflects the structure of habitats. For example, 
+While the kmeans algorithm has a slightly higher silhouette score, my interpretation is that this difference is negligible. The clusters from the hierarchical clustering algorithm seem more natural, according to my own limited experience birding across Pennsylvania. The hierarchical model is also more appealing because it more naturally reflects the structure of habitats. For example, there are multiple types of forest (light, medium, deep) that attract different types of birds.
 
 # Conclusions
+
+# Appendix - PCA
+
+### On birds
+
+```{r bird pca}
+#tidy PCA code from https://clauswilke.com/blog/2020/09/07/pca-tidyverse-style/
+pca_fit <- bird_df_wide_noloc |> 
+  prcomp(scale = TRUE) # do PCA on scaled data
+
+pca_fit |>
+  tidy(matrix = "eigenvalues") |>
+  filter(PC <= 10) |> 
+  ggplot(aes(PC, percent)) +
+  geom_col() +
+  scale_x_continuous(breaks = c(1:10))
+```
+
+```{r bird pca 2}
+# plot rotation matrix
+pca_rot <- pca_fit |>
+  tidy(matrix = "rotation") |>
+  pivot_wider(names_from = "PC", names_prefix = "PC", values_from = "value") |> 
+  rename(common_name = column)
+
+# define arrow style for plotting
+arrow_style <- arrow(
+  angle = 20, ends = "first", type = "closed", length = grid::unit(3, "pt")
+)
+
+pca_outliers <- pca_rot |>
+  filter(PC1 == max(PC1) | PC2 == max(PC2) | PC3 == max(PC3) | PC1 == min(PC1) | PC2 == min(PC2) | PC3 == min(PC3))
+
+pca_outliers_max <- pca_rot |> 
+  select(common_name, PC1:PC3) |> 
+  pivot_longer(-common_name) |> 
+  group_by(name) |> 
+  slice_max(order_by = value, n = 3) |> 
+  ungroup() |> 
+  distinct(common_name)
+
+pca_outliers_min <- pca_rot |> 
+  select(common_name, PC1:PC3) |> 
+  pivot_longer(-common_name) |> 
+  group_by(name) |> 
+  slice_min(order_by = value, n = 3) |> 
+  ungroup() |> 
+  distinct(common_name)
+
+pca_outliers <- bind_rows(pca_outliers_max, pca_outliers_min) |> 
+  left_join(pca_rot)
+```
+
+PC1 is the "Deep Forest" index. Higher values indicate that the bird prefers deeper forest habitat. PC2 indicates how open the habitat is. Higher values indicate that the bird prefers habitat with less forest.
+
+```{r  bird pca 3}
+pca_rot |>
+  ggplot(aes(PC1, PC2)) +
+  geom_segment(xend = 0, yend = 0, arrow = arrow_style, lwd = .2) +
+  geom_point(
+    data = pca_outliers,
+    color = "#904C2F"
+  ) +
+  ggrepel::geom_label_repel(
+    data = pca_outliers,
+    aes(label = common_name),
+    color = "#904C2F"
+  ) +
+  coord_obs_pred()
+```
+
+PC3 indicates presence of water. Lower values indicate that the species prefers habitat with more water.
+
+```{r bird pca 4}
+pca_rot |>
+  ggplot(aes(PC1, PC3)) +
+  geom_segment(xend = 0, yend = 0, arrow = arrow_style, lwd = .2) +
+  geom_point(
+    data = pca_outliers,
+    color = "#904C2F"
+  ) +
+  ggrepel::geom_label_repel(
+    data = pca_outliers,
+    aes(label = common_name),
+    color = "#904C2F"
+  ) +
+  coord_obs_pred()
+```
+
+```{r bird pca 5}
+pca_rot |>
+  ggplot(aes(PC2, PC3)) +
+  geom_segment(xend = 0, yend = 0, arrow = arrow_style, lwd = .2) +
+  geom_point(
+    data = pca_outliers,
+    color = "#904C2F"
+  ) +
+  ggrepel::geom_label_repel(
+    data = pca_outliers,
+    aes(label = common_name),
+    color = "#904C2F"
+  ) +
+  coord_obs_pred()
+```
+
+### On tiles
+
+```{r tile pca 1}
+tile_df <- bird_df |> 
+  distinct(x, y) |> 
+  mutate(tile_id = row_number() |> as.character())
+
+tile_pca_fit <- bird_df |> 
+  left_join(tile_df) |> 
+  select(tile_id, common_name, prop_pop_max_log10) |> 
+  pivot_wider(names_from = tile_id, values_from = prop_pop_max_log10) |> 
+  select(-common_name) |> 
+  prcomp(scale = TRUE)
+
+tile_pca_fit |>
+  tidy(matrix = "eigenvalues") |>
+  filter(PC <= 10) |> 
+  ggplot(aes(PC, percent)) +
+  geom_col() +
+  scale_x_continuous(breaks = c(1:10))
+
+tile_pca_rot <- tile_pca_fit |> 
+  tidy("rotation") |> 
+  rename(tile_id = column) |> 
+  pivot_wider(names_from = PC, values_from = value, names_prefix = "PC")
+```
+
+PC1 is a continuum of deep forest vs water. The Susquehanna River (southeast) and Ohio River (southwest) are highlighted.
+```{r}
+tile_df |> 
+  left_join(tile_pca_rot) |> 
+  ggplot(aes(x, y, fill = PC1)) +
+  geom_tile() +
+  scale_fill_viridis_c()
+```
+
+PC2 indicates presence/absence of farmland. The area where the Susquehanna River bisects the Allegheny Mountains is known for its farmland.
+```{r}
+tile_df |> 
+  left_join(tile_pca_rot) |> 
+  ggplot(aes(x, y, fill = PC2)) +
+  geom_tile() +
+  scale_fill_viridis_c()
+```
+
+PC3 indicates the steepness of mountains.
+```{r}
+tile_df |> 
+  left_join(tile_pca_rot) |> 
+  ggplot(aes(x, y, fill = PC3)) +
+  geom_tile() +
+  scale_fill_viridis_c()
+```
