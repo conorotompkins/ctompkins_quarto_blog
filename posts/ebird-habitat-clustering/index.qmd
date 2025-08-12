@@ -22,11 +22,13 @@ The motivation for this post is to see if it is possible to use bird species abu
 
 # Get data from {ebirdst}
 
-The species abundance data I use is from the [{ebirdst}](https://ebird.github.io/ebirdst/) package. There is a great series of tutorial [videos on Youtube](https://www.youtube.com/watch?v=DWqgbsMH1yU) that explain the underlying theory and application. The TLDR is that the authors use citizen science observations from eBird, temporal data, and environmental data (geographic indicators such as elevation, topography, and land cover) to predict the relative abundance of many bird species across space and time. The full paper is available [here](https://esajournals.onlinelibrary.wiley.com/doi/10.1002/eap.2056).
+The species abundance data I use is from the [{ebirdst}](https://ebird.github.io/ebirdst/) package. There is a great series of tutorial [videos on Youtube](https://www.youtube.com/watch?v=DWqgbsMH1yU) that explain the underlying theory and application. The TLDR is that the authors use citizen science observations from eBird, temporal data, and environmental data (geographic indicators such as elevation, topography, and land cover) to predict the relative abundance of many bird species across space and time. While there is some risk of circular logic here (using estimates partially based on environmental data to make inferences about the environment), I think the signal in spatiotemporal patterns of bird abundance adds enough extra information to justify the approach.
+
+The full paper behind the estimates is available [here](https://esajournals.onlinelibrary.wiley.com/doi/10.1002/eap.2056).
 
 >Matthew Strimas-Mackey, Shawn Ligocki, Tom Auer, Daniel Fink (2023). ebirdst: Access and Analyze eBird Status and Trends Data Products. R package version 3.2022.0. https://ebird.github.io/ebirdst/
 
-For this analysis I focus on the proportion of the population for a given species that exist in a 3x3 kilometer area. I focus on migratory birds that the Cornell team has high confidence estimates for.
+For this analysis I focus on the proportion of the population for a given species in a 3x3 kilometer area. For example, if 10% of the Pennsylvania population of Yellow Warbler exist in 3x3 km tile "A", that tile's proportion of population for that species is 10%. I focus on migratory birds that the Cornell team has high confidence estimates for.
 
 I wrote a convenience function to handle the process of getting the data and subsetting it to my area of interest. The process is:
 
@@ -100,7 +102,7 @@ bird_df_scale_compare <- bird_df_raw |>
 
 This shows the distribution of various species' abundance, transformed various ways to attempt to normalize the skewed distributions. Unfortunately the species with more skew in their distribution are extremely zero-inflated, i.e. there are many values of 0 abundance.
 
-These transformations are not very effective with this type of skew. Using a scale function to transform the data relative to its mean is not effective for zero-inflated data because the mean is very close to the lower limit (0) of the data.
+These transformations are not very effective with this type of skew. Using a scale function to transform the data relative to its mean is not effective for zero-inflated data because the mean is very close to the lower limit (0) of the data. While the maps that use `scaled` and `rescaled` may look "better", I don't think the output is statistically sensible.
 
 ```{r compare scales}
 #| fig-height: 10
@@ -117,7 +119,7 @@ graph_abundance <- function(x, y){
   
   x |> 
     ggplot(aes(value, fill = name)) +
-    geom_density(alpha = .3) +
+    geom_density() +
     facet_wrap(vars(name), ncol = 5, scales = "free") +
     scale_x_continuous(labels = NULL) +
     scale_y_continuous(labels = NULL) +
@@ -198,26 +200,26 @@ bird_df_scale_compare |>
   theme_void()
 ```
 
-I ended up choosing the `scales::rescale` transformation because the result looks marginally better inthe above maps, but more testing would be needed to really justify this choice.
+I ended up choosing the `log10` transformation, but more testing would be needed to really justify this choice.
 ```{r}
 bird_df <- bird_df_raw |> 
-  mutate(rescaled = rescale(prop_pop_max, to = c(-1, 1)),
+  mutate(prop_pop_max_log10 = log10(prop_pop_max + 1),
          .by = common_name) |> 
-  select(common_name, x, y, rescaled)
+  select(common_name, x, y, prop_pop_max_log10)
 
 bird_df_wide <- bird_df |> 
-  pivot_wider(names_from = common_name, values_from = rescaled)
+  pivot_wider(names_from = common_name, values_from = prop_pop_max_log10)
 
 bird_df_wide_noloc <- select(bird_df_wide, -c(x, y))
 ```
 
-The Snow Goose in Pennsylvania is a good example of highly zero-inflated abundance distribution because it is either absent or hugely abundant, and only in specific areas.
+The Snow Goose in Pennsylvania is a good example of a highly zero-inflated distribution because it is either absent or hugely abundant, and only in specific areas.
 
 [![Snow Goose abundance map from eBird](images/snow_goose.png)](https://science.ebird.org/en/status-and-trends/species/snogoo/abundance-map)
 
 One Snow Goose:
 
-<iframe src="https://macaulaylibrary.org/asset/290513131/embed" height="509" width="640" frameborder="0" allowfullscreen></iframe>
+<iframe src="https://macaulaylibrary.org/asset/290513131/embed" height="509" width="700" frameborder="0" allowfullscreen></iframe>
 
 Many Snow Geese:
 
@@ -261,12 +263,12 @@ ggplot(clusterings, aes(k, tot.withinss)) +
   scale_x_continuous(breaks = c(1:nclust_global))
 ```
 
-`tot.withinss` stops decreasing around 3 clusters, which means that the clusters stop becoming significantly more compact after 3 clusters.
+`tot.withinss` stops decreasing around 4 clusters, which means that the clusters stop becoming significantly more compact after 4 clusters.
 
-This code fits the kmeans algorithm against the data using 3 clusters.
+This code fits the kmeans algorithm against the data using 4 clusters.
 
 ```{r kmeans 2}
-nclust_kmeans <- 3
+nclust_kmeans <- 4
 
 kmeans_spec <- k_means(num_clusters = nclust_kmeans) |> 
   set_engine("stats")
@@ -323,7 +325,7 @@ cluster_geo |>
 -   Cluster 1 indicates fields, forests, and areas with more intensive agriculture.
 -   Cluster 2 contains the shoreline of Lake Erie and the Susquehanna River.
 -   Cluster 3 indicates the peaks of the Allegheny Mountain Range.
--   Cluster 4 is a unique area in southeastern Pennsylvania that attracts very large flocks of blackbirds. This may also contain the Middle Creek WMA, which is a critical stopover point for Snow Goose during their migration.
+-   Cluster 4 is a unique area in southeastern Pennsylvania that attracts very large flocks of blackbirds.
 
 ```{r kmeans 8}
 #faceted map
@@ -345,12 +347,12 @@ cluster_geo |>
   theme_void()
 ```
 
-Next I will compare the abundance of each species in each cluster to the statewide average of abundance for that species.
+Next I will compare the proportion of population for species in each cluster to the statewide average for that species.
 
 ```{r kmeans 9}
 #compare clusters to global average
 global_avg <- bird_df |> 
-  summarize(prop_pop_global_mean = mean(rescaled),
+  summarize(prop_pop_global_mean = mean(prop_pop_max_log10),
             .by = c(common_name))
 ```
 
@@ -366,7 +368,7 @@ centroid_vs_global_kmeans <- centroids_long_kmeans |>
          diff_abs = abs(diff))
 ```
 
-This table shows which birds are more abundant in a cluster compared to the statewide average:
+This table shows which birds are more represented in a cluster compared to the statewide average:
 
 ```{r kmeans 11}
 #which birds are more common in a cluster than average?
@@ -381,7 +383,7 @@ centroid_vs_global_kmeans |>
   gt()
 ```
 
-This shows species that are less abundant than the statewide average:
+This shows species that are less represented than the statewide average:
 
 ```{r kmeans 12}
 #what birds are less common in a cluster than average?
@@ -400,7 +402,7 @@ These patterns match what I would have expected. Gulls and ducks are more likely
 
 ## Hierarchical
 
-This code uses the total within sum of squares to show the optimal number of clusters using hierarchical clustering. As more clusters are used, there are diminishing returns in the compactness of the clusters. This makes sense because of how the algorithm divides the data into nested clusters. There is a slight elbow at 5 clusters, so I chose that as the cutoff.
+This code uses the total within sum of squares to show the optimal number of clusters using hierarchical clustering. As more clusters are used, there are diminishing returns in the compactness of the clusters. This makes sense because of how the algorithm divides the data into nested clusters. There is a slight elbow at 6 clusters, so I chose that as the cutoff.
 
 ```{r hclust 1}
 hclust_wss_plot <- fviz_nbclust(bird_df_wide_noloc, FUN = hcut, method = "wss", k.max = 10)
@@ -409,7 +411,7 @@ hclust_wss_plot
 ```
 
 ```{r hclust 2}
-nclust_hclust <- 5
+nclust_hclust <- 6
 
 hc_spec <- hier_clust(
   num_clusters = nclust_hclust,
@@ -428,10 +430,10 @@ hclust_tree <- as.dendrogram(hc_fit$fit)
 plot(hclust_tree, leaflab = "none")
 ```
 
-This shows the same dendrogram cut at 5 clusters (branches).
+This shows the same dendrogram cut at 6 clusters (branches).
 
 ```{r hclust 5}
-tree_cut <- hclust_tree |> cut(h = 600)
+tree_cut <- hclust_tree |> cut(h = .009)
 
 tree_cut$upper |> plot()
 ```
@@ -499,7 +501,7 @@ hclust_geo |>
   theme_void()
 ```
 
-* Cluster 1 indicates areas with more open habitat and less water. This area is notably smaller compared to the same habitat cluster from the kmeans algorithm.
+* Cluster 1 indicates areas with more open tree canopy and less water. This area is notably smaller compared to the same habitat cluster from the kmeans algorithm.
 * Cluster 2 contains the shoreline of Lake Erie and the Susquehanna River. This is the same as in kmeans.
 * Cluster 3 contains the "deep forest" habitat.
 * Cluster 4 is the habitat dominated by agricultural land use.
@@ -558,7 +560,7 @@ bind_rows(kmeans_metrics, hclust_metrics) |>
   gt()
 ```
 
-The kmeans clusters have a higher silhouette score and a lower SSE ratio, which means that they are more distinct and the observations within each cluster are more similar to each other than to observations from other clusters. The hierarchical method produced clusters that are less distinctive and less internally cohesive.
+The kmeans clusters have a higher silhouette score and a lower SSE ratio, which means that they are more distinct from each other and the observations within each cluster are more similar to each other than to observations from other clusters. The hierarchical method produced clusters that are less distinctive and less internally cohesive.
 
 This is surprising to me, because the clusters from the hierarchical clustering algorithm seem more natural, according to my own limited experience birding across Pennsylvania. The hierarchical approach is also more appealing because it more naturally reflects the structure of habitats. For example, there are multiple types of forest (light, medium, deep) and topology (flat land, hills, steep mountains) that attract different types of birds.
 
@@ -568,6 +570,7 @@ I see a few natural extensions of this analysis:
 * Increase the geographic scope of the analysis. Pennsylvania does not have as many high-use migration paths compared to neighboring states like Ohio and New Jersey. If it is computationally feasible on my laptop, I could try expanding the coverage to many more states and Canadian provinces. It would be interesting to see what clusters Pennsylvania habitat are assigned to, in the context of a wider geographic area.
 * Try other algorithms (DBSCAN, network graph community detection etc.)
 * Perform PCA on the proportion of population data and use the components as the inputs to the clustering algorithm, instead of directly using the proportion of population data
+* Add data on non-migratory (resident) birds
 
 # Appendix
 
@@ -591,9 +594,9 @@ my_fn <- function(data, mapping, ...){
   p
 }
 
-sampled_sp <- bird_df_raw |>
-  select(common_name, prop_pop_max) |>
-  summarize(mean = mean(prop_pop_max), .by = common_name) |>
+sampled_sp <- bird_df |>
+  select(common_name, prop_pop_max_log10) |>
+  summarize(mean = mean(prop_pop_max_log10), .by = common_name) |>
   slice_sample(n = 10, weight_by = mean)
 
 bird_df_wide_noloc |>
@@ -601,13 +604,13 @@ bird_df_wide_noloc |>
   ggpairs(lower = list(continuous = my_fn))
 ```
 
-This is not a feasible analysis tool at scale, but it confirms some basic intuitive findings. For example, Ovenbird and Scarlet Tanager are highly correlated.
+This is not a feasible analysis tool at scale, but it confirms some basic intuitive findings.
 
 ## PCA
 
 ### On birds
 
-This code calculates principal components using each species' rescaled `prop_pop_max` as inputs.
+This code calculates principal components using each species' `prop_pop_max_log10` as inputs.
 
 ```{r bird pca}
 #tidy PCA code from https://clauswilke.com/blog/2020/09/07/pca-tidyverse-style/
@@ -659,7 +662,7 @@ pca_outliers <- bind_rows(pca_outliers_max, pca_outliers_min) |>
   left_join(pca_rot)
 ```
 
-PC1 is the "Deep Forest" index. Higher values indicate that the bird prefers deeper forest habitat. PC2 indicates how open the canopy of the habitat is. Higher values indicate that the bird prefers habitat with less forest.
+PC1 is the "Deep Forest" index. Higher values indicate that the bird prefers deeper forest habitat. PC2 indicates how open the tree canopy of the habitat is. Higher values indicate that the bird prefers habitat with less forest.
 
 ```{r  bird pca 3}
 #| fig-width: 9
@@ -729,8 +732,8 @@ tile_df <- bird_df |>
 
 tile_pca_fit <- bird_df |> 
   left_join(tile_df) |> 
-  select(tile_id, common_name, rescaled) |> 
-  pivot_wider(names_from = tile_id, values_from = rescaled) |> 
+  select(tile_id, common_name, prop_pop_max_log10) |> 
+  pivot_wider(names_from = tile_id, values_from = prop_pop_max_log10) |> 
   select(-common_name) |> 
   prcomp(scale = TRUE)
 
@@ -773,7 +776,7 @@ tile_df |>
   theme_void()
 ```
 
-PC3 is not an obvious indicator. It may show whether the habitat drains into the Mississippi or Atlantic watershed.
+PC3 indicates how steep the mountains are.
 
 ```{r}
 tile_df |> 
