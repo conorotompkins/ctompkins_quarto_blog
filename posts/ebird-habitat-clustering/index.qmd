@@ -11,9 +11,8 @@ format:
   html:
     toc: true
     code-fold: true
-date: 2025-06-08
+date: 2025-08-12
 lightbox: true
-bibliography: references.bib
 ---
 
 # Intro
@@ -30,7 +29,7 @@ The full paper behind the estimates is available [here](https://esajournals.onli
 
 For this analysis I focus on the proportion of the population for a given species in a 3x3 kilometer area. For example, if 10% of the Pennsylvania population of Yellow Warbler exist in 3x3 km tile "A", that tile's proportion of population for that species is 10%. I focus on migratory birds that the Cornell team has high confidence estimates for.
 
-I wrote a convenience function to handle the process of getting the data and subsetting it to my area of interest. The process is:
+I wrote a [convenience function](https://github.com/conorotompkins/ebird/blob/master/scripts/pull_ebirdst_metrics.R) to handle the process of getting the data and subsetting it to my area of interest. The process is:
 
 -   Download the raster data for the entire world
 -   Crop and mask the raster to just Pennsylvania
@@ -64,9 +63,6 @@ set.seed(1234)
 ```
 
 ```{r read data}
-# bird_df_raw <- read_csv("posts/ebird-habitat-clustering/post_data/species_abundance_present_in_pa.csv") |>
-#   rename(prop_pop_max = prop_pop)
-
 bird_df_raw <- read_csv("post_data/species_abundance_present_in_pa.csv") |>
   rename(prop_pop_max = prop_pop)
 
