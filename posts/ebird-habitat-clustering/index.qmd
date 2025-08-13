@@ -7,11 +7,12 @@ execute:
   message: false
   warning: false
 image: featured.png
+tags: [R, eBird]
 format:
   html:
     toc: true
     code-fold: true
-date: 2025-08-12
+date: 2025-08-13
 lightbox: true
 ---
 
