@@ -85,60 +85,64 @@
     <lastmod>2024-12-14T20:46:17.295Z</lastmod>
   </url>
   <url>
-    <loc>https://ctompkins.netlify.app/posts/riverhounds_lilley/index.html</loc>
-    <lastmod>2024-12-14T20:46:17.195Z</lastmod>
-  </url>
-  <url>
-    <loc>https://ctompkins.netlify.app/posts/cleaning-creatively-formatted-u-s-census-bureau-migration-data/index.html</loc>
-    <lastmod>2024-12-14T20:46:16.154Z</lastmod>
-  </url>
-  <url>
-    <loc>https://ctompkins.netlify.app/posts/mapping-boswash-commuter-patterns/index.html</loc>
-    <lastmod>2024-12-14T20:46:16.912Z</lastmod>
-  </url>
-  <url>
-    <loc>https://ctompkins.netlify.app/posts/healthy_ride_access_pittsburgh/index.html</loc>
-    <lastmod>2024-12-14T20:46:16.888Z</lastmod>
-  </url>
-  <url>
-    <loc>https://ctompkins.netlify.app/posts/exploring-allegheny-county-with-census-data/index.html</loc>
-    <lastmod>2024-12-14T20:46:16.866Z</lastmod>
-  </url>
-  <url>
-    <loc>https://ctompkins.netlify.app/posts/c-s-presentation-time-series-forecasting/index.html</loc>
-    <lastmod>2024-12-14T20:46:15.990Z</lastmod>
-  </url>
-  <url>
-    <loc>https://ctompkins.netlify.app/posts/us-labor-participation/index.html</loc>
-    <lastmod>2025-02-10T14:26:49.018Z</lastmod>
-  </url>
-  <url>
-    <loc>https://ctompkins.netlify.app/posts/forecasting-potholes-with-exogenous-variables/index.html</loc>
-    <lastmod>2024-12-14T20:46:16.875Z</lastmod>
-  </url>
-  <url>
-    <loc>https://ctompkins.netlify.app/posts/comparing-u-s-senators-casey-and-toomey/index.html</loc>
-    <lastmod>2024-12-14T20:46:16.581Z</lastmod>
-  </url>
-  <url>
-    <loc>https://ctompkins.netlify.app/posts/modeling-pittsburgh-house-sales-linear/index.html</loc>
-    <lastmod>2024-12-14T20:46:16.936Z</lastmod>
-  </url>
-  <url>
-    <loc>https://ctompkins.netlify.app/posts/networking-usl-clubs-with-euclidean-distance/index.html</loc>
-    <lastmod>2024-12-14T20:46:16.936Z</lastmod>
-  </url>
-  <url>
-    <loc>https://ctompkins.netlify.app/posts/ac_driving_commuter_routes/index.html</loc>
-    <lastmod>2024-06-16T19:04:14.801Z</lastmod>
+    <loc>https://ctompkins.netlify.app/posts/map-census-data-with-r/index.html</loc>
+    <lastmod>2024-12-14T20:46:16.910Z</lastmod>
   </url>
   <url>
     <loc>https://ctompkins.netlify.app/posts/car-crashes-in-allegheny-county/index.html</loc>
     <lastmod>2024-12-14T20:46:16.043Z</lastmod>
   </url>
   <url>
-    <loc>https://ctompkins.netlify.app/posts/map-census-data-with-r/index.html</loc>
-    <lastmod>2024-12-14T20:46:16.910Z</lastmod>
+    <loc>https://ctompkins.netlify.app/posts/ac_driving_commuter_routes/index.html</loc>
+    <lastmod>2024-06-16T19:04:14.801Z</lastmod>
+  </url>
+  <url>
+    <loc>https://ctompkins.netlify.app/posts/networking-usl-clubs-with-euclidean-distance/index.html</loc>
+    <lastmod>2024-12-14T20:46:16.936Z</lastmod>
+  </url>
+  <url>
+    <loc>https://ctompkins.netlify.app/posts/modeling-pittsburgh-house-sales-linear/index.html</loc>
+    <lastmod>2024-12-14T20:46:16.936Z</lastmod>
+  </url>
+  <url>
+    <loc>https://ctompkins.netlify.app/posts/comparing-u-s-senators-casey-and-toomey/index.html</loc>
+    <lastmod>2024-12-14T20:46:16.581Z</lastmod>
+  </url>
+  <url>
+    <loc>https://ctompkins.netlify.app/posts/forecasting-potholes-with-exogenous-variables/index.html</loc>
+    <lastmod>2024-12-14T20:46:16.875Z</lastmod>
+  </url>
+  <url>
+    <loc>https://ctompkins.netlify.app/posts/us-labor-participation/index.html</loc>
+    <lastmod>2025-02-10T14:26:49.018Z</lastmod>
+  </url>
+  <url>
+    <loc>https://ctompkins.netlify.app/posts/c-s-presentation-time-series-forecasting/index.html</loc>
+    <lastmod>2024-12-14T20:46:15.990Z</lastmod>
+  </url>
+  <url>
+    <loc>https://ctompkins.netlify.app/posts/exploring-allegheny-county-with-census-data/index.html</loc>
+    <lastmod>2024-12-14T20:46:16.866Z</lastmod>
+  </url>
+  <url>
+    <loc>https://ctompkins.netlify.app/posts/healthy_ride_access_pittsburgh/index.html</loc>
+    <lastmod>2024-12-14T20:46:16.888Z</lastmod>
+  </url>
+  <url>
+    <loc>https://ctompkins.netlify.app/posts/mapping-boswash-commuter-patterns/index.html</loc>
+    <lastmod>2024-12-14T20:46:16.912Z</lastmod>
+  </url>
+  <url>
+    <loc>https://ctompkins.netlify.app/posts/cleaning-creatively-formatted-u-s-census-bureau-migration-data/index.html</loc>
+    <lastmod>2024-12-14T20:46:16.154Z</lastmod>
+  </url>
+  <url>
+    <loc>https://ctompkins.netlify.app/posts/riverhounds_lilley/index.html</loc>
+    <lastmod>2024-12-14T20:46:17.195Z</lastmod>
+  </url>
+  <url>
+    <loc>https://ctompkins.netlify.app/posts/ebird-habitat-clustering/index.html</loc>
+    <lastmod>2025-08-13T17:05:54.159Z</lastmod>
   </url>
   <url>
     <loc>https://ctompkins.netlify.app/posts/forecasting-healthy-ride-ridership-with-prophet/index.html</loc>
@@ -190,7 +194,7 @@
   </url>
   <url>
     <loc>https://ctompkins.netlify.app/posts/ebirding-in-allegheny-county/index.html</loc>
-    <lastmod>2024-12-14T20:46:16.859Z</lastmod>
+    <lastmod>2025-08-12T21:49:39.700Z</lastmod>
   </url>
   <url>
     <loc>https://ctompkins.netlify.app/posts/graphing-seasonality-in-ebird-bird-sightings/index.html</loc>
@@ -214,6 +218,6 @@
   </url>
   <url>
     <loc>https://ctompkins.netlify.app/index.html</loc>
-    <lastmod>2025-02-10T18:44:11.461Z</lastmod>
+    <lastmod>2025-02-10T19:10:05.505Z</lastmod>
   </url>
 </urlset>
