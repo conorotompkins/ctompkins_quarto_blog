@@ -6,3 +6,4 @@
 /.quarto/
 
 post_data
+**/*.quarto_ipynb

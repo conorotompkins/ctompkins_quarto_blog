@@ -17,6 +17,7 @@ execute:
   warning: false
   message: false
   eval: false
+  freeze: true
 ---
 
 Like many other Americans, I have been following the COVID-19 vaccination campaign closely. I have found the graphs and data on the [NYTimes](https://www.nytimes.com/interactive/2020/us/covid-19-vaccine-doses.html) and [Bloomberg](https://www.bloomberg.com/graphics/covid-vaccine-tracker-global-distribution/) sites very useful for tracking trends.

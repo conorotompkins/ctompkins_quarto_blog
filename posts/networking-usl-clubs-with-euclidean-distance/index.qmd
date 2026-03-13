@@ -13,6 +13,7 @@ featured: false
 draft: false
 execute: 
   eval: false
+  freeze: true
 ---
 
 Euclidean distance is a simple way to measure the distance between two points. It can also be used to measure how similar two sports teams are, given a set of variables. In this post, I use Euclidean distance to calculate the similarity between USL clubs and map that data to a network graph. I will use the [538 Soccer Power Index data](https://projects.fivethirtyeight.com/global-club-soccer-rankings/) to calculate the distance.

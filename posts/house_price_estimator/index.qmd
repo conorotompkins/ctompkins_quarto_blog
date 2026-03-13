@@ -12,6 +12,8 @@ draft: false
 editor_options: 
   chunk_output_type: console
 image: featured.jpg
+execute:
+    freeze: true
 ---
 
 ```{r}

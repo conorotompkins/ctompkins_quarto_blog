@@ -16,6 +16,7 @@ execute:
   echo: true
   warning: false
   message: false
+  freeze: true
 ---
 
 Over the winter I became interested in birding. Sitting in your back yard doing nothing but watching birds fly around is quite relaxing. Naturally I am looking for ways to optimize and quantify this relaxing activity. [eBird](https://ebird.org/home) lets you track your bird sightings and research which birds are common or more rare in your area. Luckily, the folks at [ROpenSci](https://ropensci.org/) have the `{rebird}` [package](https://cran.r-project.org/web/packages/rebird/index.html), which provides an easy interface to the eBird API.

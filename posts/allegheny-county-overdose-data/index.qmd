@@ -16,6 +16,7 @@ execute:
   echo: true
   warning: false
   message: false
+  freeze: true
 ---
 
 Opiate addiction and overdose have become a major problem in American society. [The life expectancy in the U.S. has decreased for the past 2 years, and deaths from drug overdoses rose 21% from 2016 to 2017.](https://www.washingtonpost.com/national/health-science/fueled-by-drug-crisis-us-life-expectancy-declines-for-a-second-straight-year/2017/12/20/2e3f8dea-e596-11e7-ab50-621fe0588340_story.html?utm_term=.373d79de65f5)

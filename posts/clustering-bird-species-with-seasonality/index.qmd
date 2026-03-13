@@ -18,6 +18,7 @@ execute:
   echo: true
   warning: false
   message: false
+  freeze: true
 ---
 
 In this post, I use k-means clustering to identify clusters of bird species based on frequency of observations per month. I use bird sightings in Allegheny County from [eBird](https://ebird.org/data/download).

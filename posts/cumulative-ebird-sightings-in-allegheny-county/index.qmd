@@ -19,6 +19,7 @@ execute:
   echo: true
   warning: false
   message: false
+  freeze: true
 ---
 
 This will be a quick post on cumulative bird observations in Allegheny County. Cumulative graphs show overall trends, seasonality, and quirks in how the data was recorded. They are also fun to turn into animated gifs with `gganimate`.

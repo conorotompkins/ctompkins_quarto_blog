@@ -18,6 +18,7 @@ editor_options:
 execute:
   warning: false
   message: false
+  freeze: true
 ---
 
 In this post, I review the process I use to make daily graphs from data published by the [Allegheny County Health Department](https://www.alleghenycounty.us/Health-Department/Resources/COVID-19/COVID-19.aspx). I use the [data posted by Franklin Chen](https://github.com/FranklinChen/covid-19-allegheny-county), who scrapes the data from the County's email updates.

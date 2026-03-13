@@ -10,6 +10,7 @@ execute:
   echo: true
   warning: false
   message: false
+  freeze: true
 ---
 
 Lawrence Andrews asked me on Twitter if there had been a change in Health Ride usage after COVID-19.

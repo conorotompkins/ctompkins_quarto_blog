@@ -15,9 +15,11 @@ execute:
   echo: true
   warning: false
   message: false
+  freeze: true
 editor_options: 
   chunk_output_type: console
 ---
+
 ### Intro
 
 In this post I will extend the modelling approach from the [previous post](https://ctompkins.netlify.app/post/forecasting-pittsburgh-potholes-with-fable/) with exogenous variables (variables not directly about the quantity being measured in the time series). These time series models will take into account the time series dynamics of the historical data **and** any relationship between pothole reports and weather. As I noted in the previous post, you can imagine a "physics" model of pothole creation driven by precipitation and the freeze/thaw cycle. These models will attempt to capture some of that process.
@@ -41,6 +43,7 @@ options(scipen = 999, digits = 4)
 ```
 
 This code reads in the pothole data used in the previous post, aggregates it by year + month, and turns it into a `tsibble`.
+
 ```{r}
 #read in pothole data
 pothole_data <- read_csv("post_data/wprdc_311.csv") |> 
@@ -60,6 +63,7 @@ pothole_df
 ### Weather data
 
 This uses the [{GSODR}](https://cran.r-project.org/web/packages/GSODR/index.html) package to get daily weather data from the USA National Centers for Environmental Information ('NCEI'). Temperature is in Celsius and precipitation is in millimeters.
+
 ```{r, eval = FALSE}
 load(system.file("extdata", "isd_history.rda", package = "GSODR"))
 
@@ -81,6 +85,7 @@ glimpse(weather_data)
 ```
 
 Next I summarize the data by year + month and calculate various lags for each variable.
+
 ```{r}
 weather_data <- weather_data |> 
   mutate(date_ym = yearmonth(date)) |> 
@@ -102,6 +107,7 @@ glimpse(weather_data)
 ##### Explore weather data
 
 This shows average temperature, average minimum temperature, and average maximum temperature in Pittsburgh by year + month.
+
 ```{r}
 weather_data |> 
   ggplot(aes(date_ym, temp_avg)) +
@@ -110,6 +116,7 @@ weather_data |>
 ```
 
 This shows the sum of precipitation by year + month over time.
+
 ```{r}
 weather_data |> 
   ggplot(aes(date_ym, prcp_sum)) +
@@ -117,6 +124,7 @@ weather_data |>
 ```
 
 This compares precipitation vs the minimum temperature (below freezing highlighted).
+
 ```{r}
 weather_data |> 
   mutate(year = as.factor(year(date_ym))) |> 
@@ -133,6 +141,7 @@ weather_data |>
 ##### Compare weather data and pothole reports
 
 Next I do some EDA to visualize any connection between reports of potholes in the "current" month and weather.
+
 ```{r}
 pothole_df <- pothole_df |> 
   left_join(weather_data, by = c("created_yearmonth" = "date_ym"))
@@ -149,6 +158,7 @@ pothole_df |>
   facet_wrap(vars(name), scales = "free") +
   labs(title = "Pothole reports vs. the average temperature")
 ```
+
 There is some positive relationship between lower average temperatures in previous months and pothole reports. The "current" average temperature does not appear to be related.
 
 ```{r}
@@ -162,6 +172,7 @@ pothole_df |>
   facet_wrap(vars(name), scales = "free") +
   labs(title = "Pothole reports vs. the temperature difference")
 ```
+
 There is a weakly positive relationship between temperature difference in the current month and pothole reports. Longer lags develop a negative relationship.
 
 ```{r}
@@ -175,6 +186,7 @@ pothole_df |>
   facet_wrap(vars(name), scales = "free") +
   labs(title = "Pothole reports vs. the minimum temperature")
 ```
+
 There appears to be a positive relationship between lower minimum temperature in previous months and pothole reports.
 
 ```{r}
@@ -188,6 +200,7 @@ pothole_df |>
   facet_wrap(vars(name), scales = "free") +
   labs(title = "Pothole reports vs. the maximum temperature")
 ```
+
 There is some positive relationship between lower maximum temperature in previous months and pothole reports.
 
 ```{r}
@@ -201,11 +214,13 @@ pothole_df |>
   facet_wrap(vars(name), scales = "free") +
   labs(title = "Pothole reports vs. precipitation")
 ```
+
 There is a positive relationship between the total precipitation in the current month and pothole reports.
 
 ### Cross-validate models
 
 Next I cross-validate models using various combinations of the weather data as exogenous variables. I also make benchmark models for comparison.
+
 ```{r}
 #cv
 pothole_cv <- stretch_tsibble(pothole_df, .step = 1, .init = 24)
@@ -215,6 +230,7 @@ pothole_cv |>
 ```
 
 As in the previous post, `report_count` is transformed with `log(x + 1)` to force the predictions to be positive.
+
 ```{r fit_models}
 tic()
 progressr::with_progress(
@@ -237,9 +253,11 @@ progressr::with_progress(
 )
 toc()
 ```
+
 The "exo_custom" models represent a naive guess at what combinations of weather variables are most related, based on the previous graphs. A more methodological meteorological approach would probably be much better.
 
 I use `new_data` to generate 12 new future observations for each CV `.id` and make a forecast for each `.id` and `.model`.
+
 ```{r forecast}
 horizon_data <- new_data(pothole_cv, 12) |> 
   left_join(pothole_df)
@@ -253,6 +271,7 @@ pothole_fc_exo <- model_df_exo |>
 ##### Compare accuracy
 
 This code calculates the out of sample accuracy for each `.id` and `.model`, and then averages the accuracy by `.model`.
+
 ```{r calculate_accuracy}
 tic()
 fc_exo_acc <- pothole_fc_exo |> 
@@ -264,9 +283,10 @@ toc()
 fc_exo_acc
 ```
 
-My `arima_exo_custom` model slightly improves on the `arima_exo_lag3` model. 
+My `arima_exo_custom` model slightly improves on the `arima_exo_lag3` model.
 
 Excluding the worst two models:
+
 ```{r}
 fc_exo_acc |> 
   filter(!.model %in% c("ets", "arima")) |> 
@@ -279,6 +299,7 @@ fc_exo_acc |>
 ### Scenario forecasting
 
 This code simulates high and low scenarios of precipitation. I use these to create scenario forecasts based on varying levels of future precipitation and the temperature data. Then I forecast each scenario with the `arima_exo_custom` model.
+
 ```{r}
 #extracts the 10%, 50%, and 90% percentiles of precipitation by month
 prcp_percentiles <- pothole_df |> 
@@ -339,12 +360,14 @@ create_horizon_data <- function(x, prcp_scenario, prcp_col){
 ```
 
 This shows the future scenario with 10th percentile precipitation in each month:
+
 ```{r}
 create_horizon_data(pothole_df, prcp_percentiles, prcp_sum_10) |> 
   glimpse()
 ```
 
 Next I create the scenarios to be fed into the model.
+
 ```{r}
 #create scenarios
 fc_scenarios <- scenarios(
@@ -361,6 +384,7 @@ str(fc_scenarios, max.level = 1)
 ```
 
 This shows the monthly precipitation in each scenario:
+
 ```{r}
 fc_scenarios |> 
   map(as_tibble) |> 
@@ -373,6 +397,7 @@ fc_scenarios |>
 ```
 
 Finally, I refit the model against the entire history and forecast against each scenario.
+
 ```{r refit_models}
 #refit best model on total history
 final_exo_model <- pothole_df |> 
@@ -393,7 +418,8 @@ scenerio_fc |>
   facet_wrap(vars(.scenario), scales = "fixed", ncol = 1)
 ```
 
-The model predicts that the scenario with more precipitation will have ~1,000 more pothole reports in the next 12 months than the scenario with less precipitation.
+The model predicts that the scenario with more precipitation will have \~1,000 more pothole reports in the next 12 months than the scenario with less precipitation.
+
 ```{r}
 scenerio_fc |> 
   as_tibble() |> 

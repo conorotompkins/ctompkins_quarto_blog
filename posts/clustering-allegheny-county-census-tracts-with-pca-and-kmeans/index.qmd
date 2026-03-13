@@ -16,6 +16,7 @@ execute:
   echo: true
   warning: false
   message: false
+  freeze: true
 ---
 
 In this post I will use the census API discussed in [the last post](https://ctompkins.netlify.com/2018/08/06/exploring-allegheny-county-with-census-data/) to cluster the Allegheny County census tracts using PCA and k-means.

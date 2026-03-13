@@ -15,6 +15,7 @@ execute:
   echo: true
   warning: false
   message: false
+  freeze: true
 ---
 
 *This post was originally run with data from August 2018. 538 does not provide historical rankings, so I had to rerun the code with June 2023 data when I migrated my blog.*

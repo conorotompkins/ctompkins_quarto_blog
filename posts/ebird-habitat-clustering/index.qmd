@@ -6,6 +6,7 @@ editor_options:
 execute:
   message: false
   warning: false
+  freeze: true
 image: featured.png
 tags: [R, eBird]
 format:
@@ -26,7 +27,7 @@ The species abundance data I use is from the [{ebirdst}](https://ebird.github.io
 
 The full paper behind the estimates is available [here](https://esajournals.onlinelibrary.wiley.com/doi/10.1002/eap.2056).
 
->Matthew Strimas-Mackey, Shawn Ligocki, Tom Auer, Daniel Fink (2023). ebirdst: Access and Analyze eBird Status and Trends Data Products. R package version 3.2022.0. https://ebird.github.io/ebirdst/
+> Matthew Strimas-Mackey, Shawn Ligocki, Tom Auer, Daniel Fink (2023). ebirdst: Access and Analyze eBird Status and Trends Data Products. R package version 3.2022.0. https://ebird.github.io/ebirdst/
 
 For this analysis I focus on the proportion of the population for a given species in a 3x3 kilometer area. For example, if 10% of the Pennsylvania population of Yellow Warbler exist in 3x3 km tile "A", that tile's proportion of population for that species is 10%. I focus on migratory birds that the Cornell team has high confidence estimates for.
 
@@ -198,6 +199,7 @@ bird_df_scale_compare |>
 ```
 
 I ended up choosing the `log10` transformation, but more testing would be needed to really justify this choice.
+
 ```{r}
 bird_df <- bird_df_raw |> 
   mutate(prop_pop_max_log10 = log10(prop_pop_max + 1),
@@ -216,17 +218,23 @@ The Snow Goose in Pennsylvania is a good example of a highly zero-inflated distr
 
 One Snow Goose:
 
-<iframe src="https://macaulaylibrary.org/asset/290513131/embed" height="509" width="700" frameborder="0" allowfullscreen></iframe>
+<iframe src="https://macaulaylibrary.org/asset/290513131/embed" height="509" width="700" frameborder="0" allowfullscreen>
+
+</iframe>
 
 Many Snow Geese:
 
-<iframe src="https://macaulaylibrary.org/asset/614961086/embed" height="509" width="640" frameborder="0" allowfullscreen></iframe>
+<iframe src="https://macaulaylibrary.org/asset/614961086/embed" height="509" width="640" frameborder="0" allowfullscreen>
+
+</iframe>
 
 Snow Goose make distribution skew go brrrrrrrrrr
 
 My potato photo, to calibrate your expections of my photography skills:
 
-<iframe src="https://macaulaylibrary.org/asset/542945591/embed" height="357" width="640" frameborder="0" allowfullscreen></iframe>
+<iframe src="https://macaulaylibrary.org/asset/542945591/embed" height="357" width="640" frameborder="0" allowfullscreen>
+
+</iframe>
 
 # Clustering
 
@@ -299,6 +307,7 @@ gt(kmeans_metrics)
 ### Maps
 
 This code creates a map where each tile is colored by the cluster it belongs to. I think kmeans misses a fair amount of the variation in the data. The clusters seem way too general, based on my experience in the regions.
+
 ```{r kmeans 7}
 cluster_geo <- bird_df_wide |> 
   bind_cols(extract_cluster_assignment(kclust_fit)) |> 
@@ -498,12 +507,12 @@ hclust_geo |>
   theme_void()
 ```
 
-* Cluster 1 indicates areas with more open tree canopy and less water. This area is notably smaller compared to the same habitat cluster from the kmeans algorithm.
-* Cluster 2 contains the shoreline of Lake Erie and the Susquehanna River. This is the same as in kmeans.
-* Cluster 3 contains the "deep forest" habitat.
-* Cluster 4 is the habitat dominated by agricultural land use.
-* Cluster 5 contains habitat with steep mountains and forests.
-* Cluster 6 has the habitat in the southeast dominated by large flocks of blackbirds.
+-   Cluster 1 indicates areas with more open tree canopy and less water. This area is notably smaller compared to the same habitat cluster from the kmeans algorithm.
+-   Cluster 2 contains the shoreline of Lake Erie and the Susquehanna River. This is the same as in kmeans.
+-   Cluster 3 contains the "deep forest" habitat.
+-   Cluster 4 is the habitat dominated by agricultural land use.
+-   Cluster 5 contains habitat with steep mountains and forests.
+-   Cluster 6 has the habitat in the southeast dominated by large flocks of blackbirds.
 
 These tables compare the abundance of species within each cluster to the state-wide average.
 
@@ -563,11 +572,11 @@ This is surprising to me, because the clusters from the hierarchical clustering 
 
 I see a few natural extensions of this analysis:
 
-* Try different linkage methods for the hierarchical method to see if that produces higher quality clusters
-* Increase the geographic scope of the analysis. Pennsylvania does not have as many high-use migration paths compared to neighboring states like Ohio and New Jersey. If it is computationally feasible on my laptop, I could try expanding the coverage to many more states and Canadian provinces. It would be interesting to see what clusters Pennsylvania habitat are assigned to, in the context of a wider geographic area.
-* Try other algorithms (DBSCAN, network graph community detection etc.)
-* Perform PCA on the proportion of population data and use the components as the inputs to the clustering algorithm, instead of directly using the proportion of population data
-* Add data on non-migratory (resident) birds
+-   Try different linkage methods for the hierarchical method to see if that produces higher quality clusters
+-   Increase the geographic scope of the analysis. Pennsylvania does not have as many high-use migration paths compared to neighboring states like Ohio and New Jersey. If it is computationally feasible on my laptop, I could try expanding the coverage to many more states and Canadian provinces. It would be interesting to see what clusters Pennsylvania habitat are assigned to, in the context of a wider geographic area.
+-   Try other algorithms (DBSCAN, network graph community detection etc.)
+-   Perform PCA on the proportion of population data and use the components as the inputs to the clustering algorithm, instead of directly using the proportion of population data
+-   Add data on non-migratory (resident) birds
 
 # Appendix
 

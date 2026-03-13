@@ -15,13 +15,15 @@ image: preview.png
 execute: 
   message: false
   warning: false
+  freeze: true
 ---
-  
+
 [Interactive Tableau visualization of the clusters](https://public.tableau.com/app/profile/conorotompkins/viz/COVID-19TimeSeriesClustering/Dashboard)
-                                                      
+
 The goal of this post is to group states into clusters based on the shape of the curve of a state's cumulative sum of COVID-19 cases. This type of clustering is useful when the variance in absolute values of a time series obscures the underlying pattern in the data. Since states experienced plateaus and peaks at different times, my hope is that the clustering is able to identify those differences.
 
 This loads the packages I will use in the analysis and set up the environment:
+
 ```{r}
 library(tidyverse)
 library(tsibble)
@@ -38,15 +40,15 @@ theme_set(theme_ipsum())
 set.seed(1234)
 ```
 
-
 I will adjust the cases to per 100,000, which requires information from the U.S. Census. This code pulls state-level population data from the Census API via `tidycensus`:
+
 ```{r}
 census_data <- get_acs(geography = "state", variables = "B01003_001", geometry = FALSE, year = 2020) %>% 
   select(state = NAME, population = estimate)
 ```
 
-
 This pulls the COVID-19 data from the [NYTimes GitHub page]():
+
 ```{r}
 #| echo: false
 #covid <- read_csv("posts/time-series-clustering-covid-19-cases/post_data/nytimes_covid_us_states.csv") %>% 
@@ -65,15 +67,17 @@ covid <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/maste
 ```
 
 I use the `tsibble` package to check if there are implicit gaps in the data. For example, if there was data for 2020-06-01 and 2020-06-03, there is an implicit gap because there is not data for 2020-06-02.
+
 ```{r}
 covid %>% 
   as_tsibble(index = date, key = state) %>% 
   count_gaps()
 ```
 
-Thankfully, there are not any such gaps. If  there were, I would have to impute values for the missing days.
+Thankfully, there are not any such gaps. If there were, I would have to impute values for the missing days.
 
 Since states experienced onset of COVID-19 at different times, I find the day each state hit 10 cases, and calculate `days_since_10th_case`, which I will use instead of `date`.
+
 ```{r}
 covid_10th_case <- covid %>% 
   filter(cases >= 10) %>% 
@@ -94,6 +98,7 @@ covid <- covid %>%
 ```
 
 Next I calculate `cases_per_capita`:
+
 ```{r}
 covid <- covid %>% 
   left_join(census_data) %>% 
@@ -102,6 +107,7 @@ covid <- covid %>%
 ```
 
 Next I scale the cases so that the mean is 0 and the standard deviation is 1. Each state has its own mean and standard deviation.
+
 ```{r}
 covid <- covid %>% 
   group_by(state) %>% 
@@ -110,6 +116,7 @@ covid <- covid %>%
 ```
 
 The result of this is that the clustering algorithm will focus on the *shape* of the line for each state instead of absolute values. This graph shows the difference:
+
 ```{r}
 covid %>% 
   pivot_longer(cols = contains("cases"), names_to = "metric", values_to = "value") %>% 
@@ -121,6 +128,7 @@ covid %>%
 ```
 
 `tsclust` requires that the input data be a series of lists, not a dataframe. `unstack` takes a `key` and `value` as arguments and turns the dataframe into a list of lists.
+
 ```{r}
 covid_list <- covid %>% 
   select(state, cases_per_capita_scaled) %>% 
@@ -128,6 +136,7 @@ covid_list <- covid %>%
 ```
 
 This loops through the clustering function 20 times and saves each output to a list. The first object groups the data into 2 clusters, the second object has 3 clusters, and it continues in that pattern.
+
 ```{r}
 cluster_dtw_h <- list()
 
@@ -152,6 +161,7 @@ The object that `tsclust` outputs has a complex structure that makes it difficul
 ### Cluster assigments
 
 This function pulls which cluster each state was assigned to, for each `kclust`.
+
 ```{r}
 get_cluster_assignments <- function(object, cluster_number){
   
@@ -175,6 +185,7 @@ glimpse(cluster_assignments)
 ```
 
 These graphs shows which states are more likely to be assigned to a different cluster, depending on the number of clusters.
+
 ```{r}
 #| fig-height: 12
 state_variance <- cluster_assignments %>% 
@@ -191,6 +202,7 @@ cluster_assignments %>%
        y = NULL) +
   theme(legend.position = "bottom", legend.direction = "horizontal")
 ```
+
 ```{r}
 #| fig-height: 12
 cluster_assignments %>% 
@@ -207,6 +219,7 @@ cluster_assignments %>%
 The number of singelton clusters (clusters with only one state) is an important metric for determining the optimal number of clusters. If a state is truly unique, a singleton cluster may be appropriate. Having 50 singleton clusters, however, would obviously be overfit.
 
 This shows that the number of singleton clusters increases as `kclust` increases.
+
 ```{r}
 cluster_singletons <- cluster_assignments %>% 
   count(kclust, cluster_assignment) %>% 
@@ -229,11 +242,13 @@ cluster_singletons %>%
 ```
 
 There is not a singleton cluster until `kclust` is 7.
+
 ```{r}
 cluster_singletons %>% 
   mutate(first_singleton = cumsum(min_cluster_population == 1) == 1) %>%
   filter(first_singleton == TRUE)
 ```
+
 ```{r}
 cluster_assignments %>% 
   count(kclust, cluster_assignment) %>% 
@@ -243,10 +258,10 @@ cluster_assignments %>%
   labs(y = "Cluster population")
 ```
 
-
 ### Cluster distance
 
 This function pulls the average distance of each cluster, for each value of `kclust`. Clusters with lower average distance are more similar, and those with higher average distance are less similar.
+
 ```{r}
 get_cluster_metrics <- function(object, cluster_number){
   
@@ -266,6 +281,7 @@ cluster_metrics
 ```
 
 This shows that 12 clusters may be the optimal number for `kclust`. Values greater than that begin to see diminishing returns.
+
 ```{r}
 cluster_metrics %>% 
   ggplot(aes(kclust, av_dist)) +
@@ -275,6 +291,7 @@ cluster_metrics %>%
   scale_size_continuous(range = c(.5, 4)) +
   labs(y = "Average distance")
 ```
+
 ```{r eval=FALSE, include=FALSE}
 cluster_metrics %>% 
   group_by(kclust) %>% 
@@ -285,6 +302,7 @@ cluster_metrics %>%
 ```
 
 This shows what the individual state time series data looks like when it is grouped into 12 clusters:
+
 ```{r}
 best_kclust <- 12
 
@@ -309,6 +327,7 @@ I think 13 clusters is appropriate, but there are obviously cases where individu
 ## Mapping
 
 The data is aggregated at the state level, which can easily be graphed with `ggplot2` and `tidycensus`.
+
 ```{r}
 map <- get_acs(geography = "state", variables = "B01003_001", geometry = TRUE, shift_geo = TRUE)
 
@@ -319,6 +338,7 @@ map %>%
 ```
 
 This joins the cluster assignments to the map object and summarizes the state polygons by region. This dissolves the state boundaries and creates polygons for each cluster.
+
 ```{r}
 map_cluster <- map %>% 
   left_join(cluster_assignments %>% 
@@ -338,6 +358,7 @@ state_clustered <- map %>%
 ```
 
 This code creates the map, and overlays the state boundaries on the cluster polygons.
+
 ```{r}
 map_cluster %>% 
   ggplot() +
@@ -351,6 +372,7 @@ map_cluster %>%
   theme(legend.position = "bottom",
         legend.direction = "horizontal")
 ```
+
 ```{r eval=FALSE, include=FALSE}
 cluster_assignments %>% 
   filter(kclust == best_kclust) %>% 
@@ -369,6 +391,6 @@ The singleton clusters for kclust of 12 are Vermont, Nebraska, and Hawaii. Nebra
 
 ### Sources
 
-* https://rpubs.com/esobolewska/dtw-time-series
-* http://www.rdatamining.com/examples/time-series-clustering-classification
-* http://rstudio-pubs-static.s3.amazonaws.com/398402_abe1a0343a4e4e03977de8f3791e96bb.html
+-   https://rpubs.com/esobolewska/dtw-time-series
+-   http://www.rdatamining.com/examples/time-series-clustering-classification
+-   http://rstudio-pubs-static.s3.amazonaws.com/398402_abe1a0343a4e4e03977de8f3791e96bb.html

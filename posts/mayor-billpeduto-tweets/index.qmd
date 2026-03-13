@@ -16,6 +16,7 @@ execute:
   echo: true
   warning: false
   message: false
+  freeze: true
 ---
 
 [Pittsburgh Mayor Bill Peduto uses Twitter](https://twitter.com/billpeduto) to communicate with his constituents, express his political opinions, and comment about Pittsburgh sports. I will use various R packages (mainly the [Tidyverse](https://www.tidyverse.org/), [Tidytext](https://www.tidytextmining.com/), and [rtweet](http://rtweet.info/)) to analyze how the Mayor uses Twitter.
