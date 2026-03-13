@@ -6,6 +6,7 @@ editor_options:
 execute:
   message: false
   warning: false
+  freeze: true
 image: featured.png
 format:
   html:

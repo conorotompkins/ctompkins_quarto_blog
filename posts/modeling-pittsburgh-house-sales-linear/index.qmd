@@ -18,6 +18,7 @@ execute:
   echo: true
   warning: false
   message: false
+  freeze: true
 ---
 
 In this post I will be modeling house (land parcel) sales in Pittsburgh. The data is from the WPRDC's [Parcels n'at](http://tools.wprdc.org/parcels-n-at/#) dashboard or [here](https://data.wprdc.org/dataset/property-assessments/resource/f2b8d575-e256-4718-94ad-1e12239ddb92).

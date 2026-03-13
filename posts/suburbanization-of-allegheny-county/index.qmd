@@ -10,6 +10,8 @@ author: Conor Tompkins
 lastmod: "`r Sys.time()`"
 featured: no
 image: featured.gif
+execute:
+    freeze: true
 
 projects: []
 ---

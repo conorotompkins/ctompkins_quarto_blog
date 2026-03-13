@@ -16,6 +16,7 @@ execute:
   echo: true
   warning: false
   message: false
+  freeze: true
 ---
 
 This post explores Allegheny County and Pennsylvania through census data. I use the tidycensus and sf packages to collect data from the census API and draw maps with the data.

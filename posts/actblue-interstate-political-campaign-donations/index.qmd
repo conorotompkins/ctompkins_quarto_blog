@@ -19,6 +19,7 @@ execute:
   echo: true
   warning: false
   message: false
+  freeze: true
 ---
 
 ActBlue is an online service that allows people to make donations to the political campaigns of Democractic candidates across the country. This post uses graph theory to analyze how political donations moved across states.

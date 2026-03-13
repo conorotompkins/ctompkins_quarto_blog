@@ -16,6 +16,7 @@ execute:
   echo: true
   warning: false
   message: false
+  freeze: true
 ---
 
 This map shows the commuter patterns in the [Northeast Megalopolis/Acela Corridor/BosWash metro area](https://en.wikipedia.org/wiki/Northeast_megalopolis). I pulled the data from the [Census Longitudinal Employer-Household Dynamics (LODES)](https://lehd.ces.census.gov/data/) system via the `{lehdr}` package. The map was created through the [Flowmap.blue](https://flowmap.blue/) tool, which makes interactive maps of movement between areas. Flowmap.blue also exposes a bunch of cool features, like animating and clustering connections, among others.

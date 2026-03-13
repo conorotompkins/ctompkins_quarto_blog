@@ -16,6 +16,7 @@ execute:
   echo: true
   warning: false
   message: false
+  freeze: true
 ---
 
 Note: high-res images of the main graphs from this post are available [here](https://raw.githubusercontent.com/conorotompkins/lodes/master/output/images/p1.png), [here](https://raw.githubusercontent.com/conorotompkins/lodes/master/output/images/p2.png), [here](https://raw.githubusercontent.com/conorotompkins/lodes/master/output/images/p3.png), and [here](https://raw.githubusercontent.com/conorotompkins/lodes/master/output/images/p4.png).

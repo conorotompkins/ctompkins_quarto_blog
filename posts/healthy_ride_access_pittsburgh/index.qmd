@@ -13,6 +13,8 @@ draft: false
 image: featured.png
 editor_options: 
   chunk_output_type: console
+execute:
+ freeze: true
 ---
 
 This is an interactive Leaflet map of Healthy Ride access in Pittsburgh. It counts how many Healthy Ride stations are within a 10 minute bike ride of a given location. This gives an estimation of how accessible the Healthy Ride service is in a given neighborhood (lighter green = more accessible). As you zoom in, individual bike stations will appear. Click the "full screen" button on the left to maximize your view.

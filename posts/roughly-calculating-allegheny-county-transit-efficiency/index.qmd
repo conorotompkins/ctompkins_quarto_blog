@@ -17,6 +17,7 @@ execute:
   echo: true
   warning: false
   message: false
+  freeze: true
 editor_options: 
   chunk_output_type: console
 ---

@@ -18,6 +18,7 @@ execute:
   echo: true
   message: false
   warning: false
+  freeze: true
 ---
 
 I recently ran across the [U.S. Census Bureau page for state-to-state migration flows](https://www.census.gov/data/tables/time-series/demo/geographic-mobility/state-to-state-migration.html). There's a lot of interesting analyses that can be done with a dataset like this. Unfortunately, when I opened up the .xls file, I realized that the data is not formatted in a way that makes it easy to analyze.

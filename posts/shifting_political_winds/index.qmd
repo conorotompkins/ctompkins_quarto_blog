@@ -12,6 +12,8 @@ lastmod: 2020-11-13T15:18:35-05:00
 featured: false
 draft: false
 image: featured.png
+execute:
+    freeze: true
 ---
 
 The purpose of this post is to recreate the "Shift from 2016" arrow map that the New York Times used to show which counties became more Democratic or Republican-leaning from 2016 to 2020. This is a screenshot of the [NYTimes figure](https://www.nytimes.com/interactive/2020/11/03/us/elections/results-president.html?name=styln-transition&region=TOP_BANNER&block=storyline_menu_recirc&action=click&pgtype=LegacyCollection&impression_id=fe1cabd0-2862-11eb-a601-c3124439c207&variant=show):

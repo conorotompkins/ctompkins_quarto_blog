@@ -12,6 +12,7 @@ tags:
 execute: 
   message: false
   warning: false
+  freeze: true
 editor_options: 
   chunk_output_type: console
 ---

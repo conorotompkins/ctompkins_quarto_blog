@@ -5,6 +5,8 @@ draft: true
 format:
   revealjs: default
 editor: visual
+execute:
+    freeze: true
 ---
 
 ## Pennsylvania
@@ -57,7 +59,7 @@ Kirtland's Warbler
 
 ## Colorado
 
-![](images/Screenshot 2024-12-04 at 18.45.50.png){fig-align="center"}
+![](images/Screenshot%202024-12-04%20at%2018.45.50.png){fig-align="center"}
 
 ------------------------------------------------------------------------
 
@@ -105,7 +107,7 @@ Mountain Bluebird
 
 Phoenix in June is not recommended!
 
-![](images/Screenshot 2024-12-04 at 18.36.56.png){fig-align="center"}
+![](images/Screenshot%202024-12-04%20at%2018.36.56.png){fig-align="center"}
 
 ------------------------------------------------------------------------
 
@@ -123,7 +125,7 @@ Great-tailed Grackle
 
 ## Cape May, NJ
 
-![](images/Screenshot 2024-12-04 at 18.39.31.png){fig-align="center"}
+![](images/Screenshot%202024-12-04%20at%2018.39.31.png){fig-align="center"}
 
 ------------------------------------------------------------------------
 
