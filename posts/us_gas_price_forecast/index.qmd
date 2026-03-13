@@ -1,0 +1,217 @@
+---
+title: Explaining US Gas prices and Brent Crude Oil
+author: Conor Tompkins
+slug: us_gas_prices_brent_crude
+categories: []
+tags: []
+subtitle: ''
+summary: ''
+authors: []
+featured: no
+draft: true
+image: featured.png
+execute: 
+  echo: true
+  warning: false
+  message: false
+  freeze: true
+lightbox: true
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(fpp3)
+library(tidyverse)
+library(fredr)
+library(janitor)
+#library(future)
+library(hrbrthemes)
+library(tictoc)
+library(arrow)
+
+theme_set(theme_ipsum())
+
+#plan(multisession)
+
+options(scipen = 999, digits = 4)
+```
+
+```{r}
+#| eval: false
+fred_df_raw <- c(
+  "brent_crude" = "DCOILBRENTEU",
+  "us_consumer_gas" = "GASREGW"
+) |>
+  map_dfr(fredr, .id = "series")
+```
+
+```{r}
+#| echo: false
+#| eval: false
+fred_df_raw |>
+  write_parquet(
+    "/Users/conorotompkins/Documents/github_repos/ctompkins_quarto_blog/posts/us_gas_price_forecast/data/oil_prices_time_series.parquet"
+  )
+```
+
+```{r}
+#| echo: false
+fred_df_raw <-
+  read_parquet(
+    "/Users/conorotompkins/Documents/github_repos/ctompkins_quarto_blog/posts/us_gas_price_forecast/data/oil_prices_time_series.parquet"
+  )
+```
+
+```{r}
+glimpse(fred_df_raw)
+```
+
+------------------------------------------------------------------------
+
+```{r}
+oil_prices <- fred_df_raw |>
+  select(series, date, value) |>
+  rename(price = value)
+
+aligned_time_window <- oil_prices |>
+  summarize(start_date = min(date), end_date = max(date), .by = series) |>
+  summarize(start_date = max(start_date), end_date = min(end_date))
+
+oil_prices <- oil_prices |>
+  filter(between(
+    date,
+    aligned_time_window$start_date,
+    aligned_time_window$end_date
+  ))
+
+oil_prices <- oil_prices |>
+  mutate(date_week = yearweek(date)) |>
+  summarize(price = mean(price, na.rm = TRUE), .by = c(series, date_week)) |>
+  arrange(series, date_week) |>
+  mutate(flag_imputed_price = is.na(price)) |>
+  fill(price, .by = series, .direction = "down")
+
+oil_prices <- as_tsibble(oil_prices, key = series, index = date_week)
+
+has_gaps(oil_prices) |> pull(.gaps) |> any() == FALSE
+
+oil_prices |>
+  filter(is.na(price)) |>
+  count(series)
+
+glimpse(oil_prices)
+```
+
+```{r}
+autoplot(oil_prices) +
+  facet_wrap(vars(series), scale = "free_y", ncol = 1) +
+  guides(color = "none")
+```
+
+This code decomposes the series into components of
+
+```{r}
+ts_components <- oil_prices |>
+  model(
+    stl = STL(
+      price ~ season(period = "1 year") # for weekly data, this maps to ~52
+    )
+  ) |>
+  components() |>
+  rename(year_effect = `season_1 year`)
+
+ts_components |>
+  select(
+    series,
+    date_week,
+    price,
+    trend,
+    year_effect,
+    remainder,
+    season_adjust
+  ) |>
+  pivot_longer(-c(series, date_week)) |>
+  mutate(
+    name = factor(
+      name,
+      levels = c(
+        "price",
+        "season_adjust",
+        "trend",
+        "year_effect",
+        "remainder"
+      )
+    )
+  ) |>
+  autoplot() +
+  facet_wrap(vars(name, series), scale = "free_y", ncol = 2) +
+  guides(color = "none")
+```
+
+The two series are highly correlated across various decompositions of the time series.
+
+```{r}
+ts_components |>
+  select(
+    series,
+    date_week,
+    price,
+    trend,
+    year_effect,
+    remainder,
+    season_adjust
+  ) |>
+  pivot_longer(-c(series, date_week)) |>
+  pivot_wider(names_from = series, values_from = value) |>
+  ggplot(aes(us_consumer_gas, brent_crude)) +
+  geom_point(size = .5, alpha = .3) +
+  facet_wrap(vars(name), scales = "free")
+```
+
+```{r}
+us_oil_price <- oil_prices |>
+  filter(series == "us_consumer_gas")
+
+ts_test <- us_oil_price |>
+  group_by(series) |>
+  slice_tail(prop = .01) |>
+  ungroup()
+
+us_oil_price |>
+  count(series)
+
+ts_train <- anti_join(us_oil_price, ts_test, by = join_by(series, date_week))
+
+ts_models <- ts_train |>
+  model(
+    naive = NAIVE(price),
+    dcmp = decomposition_model(
+      STL(log(price + 1) ~ season(period = "1 year")),
+      ETS(season_adjust ~ season("N"))
+    ),
+    dhr = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) # adjust K via AICc
+    )
+  )
+
+ts_models
+```
+
+```{r}
+test_fc <- ts_models |>
+  forecast(ts_test)
+
+test_fc
+```
+
+```{r}
+autoplot(test_fc, us_oil_price |> group_by(series) |> slice_tail(, prop = .2))
+```
+
+```{r}
+test_acc <- accuracy(test_fc, us_oil_price) |>
+  arrange(RMSE)
+
+test_acc
+```
