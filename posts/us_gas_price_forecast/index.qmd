@@ -25,14 +25,14 @@ library(fpp3)
 library(tidyverse)
 library(fredr)
 library(janitor)
-#library(future)
+library(future)
 library(hrbrthemes)
 library(tictoc)
 library(arrow)
 
 theme_set(theme_ipsum())
 
-#plan(multisession)
+plan(multisession)
 
 options(scipen = 999, digits = 4)
 ```
@@ -51,7 +51,7 @@ fred_df_raw <- c(
 #| eval: false
 fred_df_raw |>
   write_parquet(
-    "/Users/conorotompkins/Documents/github_repos/ctompkins_quarto_blog/posts/us_gas_price_forecast/data/oil_prices_time_series.parquet"
+    "/Users/conorotompkins/Documents/github_repos/ctompkins_quarto_blog/posts/us_gas_price_forecast/post_data/oil_prices_time_series.parquet"
   )
 ```
 
@@ -59,7 +59,7 @@ fred_df_raw |>
 #| echo: false
 fred_df_raw <-
   read_parquet(
-    "/Users/conorotompkins/Documents/github_repos/ctompkins_quarto_blog/posts/us_gas_price_forecast/data/oil_prices_time_series.parquet"
+    "/Users/conorotompkins/Documents/github_repos/ctompkins_quarto_blog/posts/us_gas_price_forecast/post_data/oil_prices_time_series.parquet"
   )
 ```
 
@@ -109,7 +109,7 @@ autoplot(oil_prices) +
   guides(color = "none")
 ```
 
-This code decomposes the series into components of
+This code decomposes the series into components.
 
 ```{r}
 ts_components <- oil_prices |>
@@ -170,19 +170,17 @@ ts_components |>
 ```
 
 ```{r}
-us_oil_price <- oil_prices |>
-  filter(series == "us_consumer_gas")
-
-ts_test <- us_oil_price |>
+ts_test <- oil_prices |>
   group_by(series) |>
   slice_tail(prop = .01) |>
   ungroup()
 
-us_oil_price |>
+oil_prices |>
   count(series)
 
-ts_train <- anti_join(us_oil_price, ts_test, by = join_by(series, date_week))
+ts_train <- anti_join(oil_prices, ts_test, by = join_by(series, date_week))
 
+tic()
 ts_models <- ts_train |>
   model(
     naive = NAIVE(price),
@@ -190,10 +188,21 @@ ts_models <- ts_train |>
       STL(log(price + 1) ~ season(period = "1 year")),
       ETS(season_adjust ~ season("N"))
     ),
-    dhr = ARIMA(
+    dhr3 = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 3) # adjust K via AICc
+    ),
+    dhr5 = ARIMA(
       log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) # adjust K via AICc
-    )
+    ),
+    dhr7 = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 7) # adjust K via AICc
+    ),
+    mean_4 = MEAN(price, window(4)),
+    mean_16 = MEAN(price, window(16),
+    mean_32 = MEAN(price, window(32),
+    mean_52 = MEAN(price, window(52))
   )
+toc()
 
 ts_models
 ```
@@ -206,12 +215,139 @@ test_fc
 ```
 
 ```{r}
-autoplot(test_fc, us_oil_price |> group_by(series) |> slice_tail(, prop = .2))
+test_acc <- accuracy(
+  test_fc,
+  oil_prices,
+  list(rmse = RMSE, crps_skill = skill_score(CRPS))
+) |>
+  arrange(series, desc(crps_skill)) |>
+  mutate(
+    .model = tidytext::reorder_within(
+      x = .model,
+      by = crps_skill,
+      within = series
+    )
+  )
+
+test_acc |>
+  ggplot(aes(x = crps_skill, y = .model)) +
+  geom_vline(xintercept = 0) +
+  geom_col() +
+  facet_wrap(vars(series), scales = "free") +
+  tidytext::scale_y_reordered()
 ```
 
 ```{r}
-test_acc <- accuracy(test_fc, us_oil_price) |>
-  arrange(RMSE)
+recent_history <- oil_prices |> group_by(series) |> slice_tail(n = 30)
 
-test_acc
+autoplot(test_fc, recent_history) +
+  facet_wrap(vars(series, .model), scales = "free_y", ncol = 7)
+```
+
+
+### Modelling US oil prices
+
+```{r}
+ts_cv <- oil_prices |>
+  filter(year(date_week) >= 2000) |>
+  filter(series == "us_consumer_gas") |>
+  stretch_tsibble(.step = 52 * 2, .init = 52 * 10)
+
+brent_crude_exo <- oil_prices |>
+  filter(series == "brent_crude") |>
+  as_tibble() |>
+  select(date_week, price) |>
+  rename(brent_crude = price)
+
+ts_cv <- left_join(ts_cv, brent_crude_exo)
+
+ts_cv
+
+ts_cv |>
+  as_tibble() |>
+  summarize(
+    start_date = min(date_week),
+    end_date = max(date_week),
+    .by = .id
+  ) |>
+  ggplot(aes(x = start_date, xend = end_date, y = .id)) +
+  geom_segment() +
+  scale_y_reverse() +
+  labs(x = "Time window", y = "Cross-validation chunk")
+```
+
+
+```{r}
+tic()
+models_cv_benchmark <- ts_cv |>
+  model(
+    naive = NAIVE(price),
+    dcmp = decomposition_model(
+      STL(log(price + 1) ~ season(period = "1 year")),
+      ETS(season_adjust ~ season("N"))
+    ),
+    dhr3 = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 3)
+    )
+  )
+
+models_cv_exo <- ts_cv |>
+  model(
+    dhr_bc = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 3) + brent_crude
+    ),
+    dhr_bc_lag1 = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 3) + lag(brent_crude, 1)
+    ),
+    dhr_bc_lag3 = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 3) + lag(brent_crude, 3)
+    ),
+    dhr_bc_lag5 = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 3) + lag(brent_crude, 5)
+    ),
+    dhr_bc_mean10 = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 3) +
+        slide_dbl(price + 1, ~ mean(.x), .before = 10)
+    ),
+    dhr_bc_mean20 = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 3) +
+        slide_dbl(price + 1, ~ mean(.x), .before = 20)
+    ),
+    dhr_bc_max10 = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 3) +
+        slide_dbl(price + 1, ~ max(.x), .before = 10)
+    ),
+    dhr_bc_max20 = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 3) +
+        slide_dbl(price + 1, ~ max(.x), .before = 20)
+    )
+  )
+
+models_cv_all <- left_join(models_cv_benchmark, models_cv_benchmark, by = join_by(.id, series))
+toc()
+
+models_cv_all
+```
+
+
+```{r}
+tic()
+cv_fc <- forecast(models_cv_all, ts_cv, horizon = 12)
+toc()
+
+tic()
+cv_acc <- accuracy(
+  cv_fc,
+  oil_prices,
+  list(rmse = RMSE, crps_skill = skill_score(CRPS))
+)
+toc()
+
+cv_acc |>
+  mutate(.model = fct_reorder(.model, crps_skill)) |>
+  ggplot(aes(x = crps_skill, y = .model)) +
+  geom_vline(xintercept = 0) +
+  geom_col() +
+  facet_wrap(vars(series), scales = "free") +
+  tidytext::scale_y_reordered()
 ```
