@@ -162,7 +162,7 @@ oil_comparison |>
 ```
 
 
-This code decomposes the series into components.
+This code decomposes the series into components and plots them.
 ```{r}
 ts_components <- oil_prices |>
   model(
@@ -219,8 +219,14 @@ ts_components |>
   geom_point(size = .5, alpha = .1) +
   facet_wrap(vars(name), scales = "free")
 ```
+```{r}
+#| echo: false
+cv_size <- 52 * 4
 
-This creates a test set of the last 104 weeks of each series, and a corresponding training set of the data before that time period. then I train models of various structures, which I will then forecast and find the accuracy to determine which model structure is most appropriate.
+cv_step <- 52 * 3
+```
+
+This cross-validates the `us_consumer_gas` series with chunks of `{r} cv_size` weeks of each series, stepping forward by `{r cv_step}` weeks. then I train models of various structures, which I will then forecast and find the accuracy to determine which model structure is most appropriate.
 ```{r}
 oil_prices |>
   count(series)
@@ -319,7 +325,7 @@ ts_models
 
 ```{r}
 test_fc <- ts_models |>
-  forecast(52)
+  forecast(h = 52)
 
 test_fc
 ```
@@ -331,7 +337,6 @@ test_acc <- accuracy(
   list(rmse = RMSE, crps_skill = skill_score(CRPS))
 ) |>
   arrange(series, desc(crps_skill))
-
 
 test_acc |>
   mutate(
@@ -349,27 +354,23 @@ test_acc |>
 ```
 
 ```{r}
-recent_history <- oil_prices |> group_by(series) |> slice_tail(n = 60)
-
-bc_acc <- test_acc |>
-  filter(series == "brent_crude") |>
-  pull(.model)
+recent_history <- oil_prices |> group_by(series) |> slice_tail(n = 60) |> ungroup()
 
 us_acc <- test_acc |>
   filter(series == "us_consumer_gas") |>
   pull(.model)
 
 test_fc |>
-  filter(series == "brent_crude") |>
-  mutate(.model = factor(.model, levels = bc_acc)) |>
-  autoplot(recent_history) +
-  facet_wrap(vars(series, .model), scales = "free_y")
-
-test_fc |>
-  filter(series == "us_consumer_gas") |>
+  filter(.id == max(.id)) |> 
   mutate(.model = factor(.model, levels = us_acc)) |>
-  autoplot(recent_history) +
-  facet_wrap(vars(series, .model), scales = "free_y")
+  autoplot(ts_cv) +
+  facet_wrap(vars(series, .model), scales = "free_y") +
+  guides(fill = "none", color = "none")
+
+test_fc |> 
+  filter(.model == us_acc[1]) |> 
+  autoplot(ts_cv) +
+  facet_wrap(vars(.id), scales = "free")
 ```
 
 ### Modelling US oil prices
@@ -377,17 +378,15 @@ test_fc |>
 #### Find reasonable horizon
 
 ```{r}
-
-```
-
-```{r}
 final_models <- ts_cv |>
   model(
-    naive = NAIVE(price),
-    dhr7_pdq = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 7) +
-        PDQ(0, 0, 0)
-    )
+    dcmp = decomposition_model(
+      STL(log(price + 1) ~ season(period = "1 year")),
+      ETS(season_adjust ~ season("N"))
+    ),
+    dhr5_free = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5)
+  )
   )
 
 # 4. Add horizon index
@@ -415,64 +414,53 @@ tic()
 models_cv_benchmark <- ts_cv |>
   model(
     naive = NAIVE(price),
-    dhr7_pdq = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 7) +
-        PDQ(0, 0, 0)
-    )
+    dhr5_free = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5)
   )
+    )
 
 models_cv_exo <- ts_cv |>
   model(
-    dhr7_pdq_bc = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 7) +
-        PDQ(0, 0, 0) +
+    dhr5_free_bc = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
         brent_crude
     ),
-    dhr7_pdq_bc_lag1 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 7) +
-        PDQ(0, 0, 0) +
+    dhr5_free_bc_lag1 = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
         brent_crude_lag1
     ),
-    dhr7_pdq_bc_lag5 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 7) +
-        PDQ(0, 0, 0) +
+    dhr5_free_bc_lag5 = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5)+
         brent_crude_lag5
     ),
-    dhr7_pdq_bc_lag10 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 7) +
-        PDQ(0, 0, 0) +
+    dhr5_free_bc_lag10 = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5)+
         brent_crude_lag10
     ),
-    dhr7_pdq_bc_mean10 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 7) +
-        PDQ(0, 0, 0) +
+    dhr5_free_bc_mean10 = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5)+
         brent_crude_mean10
     ),
-    dhr7_pdq_bc_mean30 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 7) +
-        PDQ(0, 0, 0) +
+    dhr5_free_bc_mean30 = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
         brent_crude_mean30
     ),
-    dhr7_pdq_bc_mean60 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 7) +
-        PDQ(0, 0, 0) +
+    dhr5_free_bc_mean60 = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
         brent_crude_mean60
     ),
-    dhr7_pdq_bc_max10 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 7) +
-        PDQ(0, 0, 0) +
+    dhr5_free_bc_max10 = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
         brent_crude_max10
     ),
-    dhr7_pdq_bc_max20 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 7) +
-        PDQ(0, 0, 0) +
+    dhr5_free_bc_max20 = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
         brent_crude_max20
     ),
-    dhr7_pdq_bc_max30 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 7) +
-        PDQ(0, 0, 0) +
+    dhr5_free_bc_max30 = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
         brent_crude_max30
-    ),
+    )
   )
 
 models_cv_all <- left_join(
@@ -540,7 +528,7 @@ ts_model_final <- ts_train_final |>
 final_fc_h <- 12
 
 generate_horizon_exo <- function(x, price_vec) {
-  horizon <- new_data(x, n = final_fc_h) |>
+  horizon <- new_data(x, n = price_vec) |>
     mutate(brent_crude = price_vec)
 
   bind_rows(x, horizon) |>
@@ -576,9 +564,6 @@ exo_scenarios <- scenarios(
 ) |>
   set_names(scenario_names)
 
-exo_scenarios
-
-
 scenario_fc <- ts_model_final |>
   forecast(exo_scenarios) |>
   mutate(
@@ -599,7 +584,7 @@ scenario_fc
 ggplot() +
   geom_line(
     data = ts_train_final |>
-      slice_tail(n = 12),
+      slice_tail(n = 52 * 2),
     aes(x = date_week, y = price, colour = "History"),
     color = "black"
   ) +
@@ -613,8 +598,17 @@ ggplot() +
     ),
     alpha = .3
   ) +
-  geom_line(
+    geom_line(
     data = scenario_fc,
     aes(x = date_week, y = .mean, colour = .scenario)
-  )
+  ) +
+    labs(title = glue("{final_fc_h} week forecast of US gas price at the pump"),
+    fill = "Scenarios",
+    color = "Scenarios") +
+      theme(legend.position = "bottom") +
+      scale_y_continuous(label = \(x) str_c("$", x))
+```
+
+```{r}
+
 ```
