@@ -18,9 +18,13 @@ execute:
 lightbox: true
 editor_options: 
   chunk_output_type: console
+format: 
+  html:
+    fig-width: 8
+    fig-height: 10
 ---
 
-in this post, I analyze the relationship between the Brent Crude Oil index and US gas prices at the pump. I use time series forecasting with exogenous variables to test whether Brent Crude is a useful predictor of US gas prices.
+In this post, I analyze the relationship between the Brent Crude Oil index and US gas prices at the pump. I use time series forecasting with exogenous variables to test whether Brent Crude is a useful predictor of US gas prices.
 ```{r}
 library(fpp3)
 library(tidyverse)
@@ -35,7 +39,13 @@ library(tidytext)
 library(glue)
 library(broom)
 
-theme_set(theme_ipsum())
+theme_set(
+  theme_ipsum() +
+    theme(
+      axis.line.x.bottom = element_line(linewidth = .2),
+      axis.line.y = element_line(linewidth = .2)
+    )
+)
 
 plan(multisession)
 
@@ -136,7 +146,15 @@ oil_comparison |>
   ggplot(aes(x = date_week, y = wow_pct_change, color = series)) +
   geom_line() +
   coord_cartesian(ylim = c(-.1, .1)) +
-  facet_wrap(vars(decade), scales = "free", ncol = 1)
+  facet_wrap(vars(decade), scales = "free", ncol = 1) +
+  labs(
+    title = "Week-over-week % change",
+    subtitle = "Brent Crude Oil and US Consumer Gas Price",
+    x = "Date",
+    y = "% change",
+    color = "Series"
+  ) +
+  scale_y_percent()
 ```
 
 A basic scatterplot of the WoW % change of the two indexes shows that there is not a strong relationship.
@@ -148,17 +166,33 @@ compare_wow <- oil_comparison |>
 compare_wow |>
   ggplot(aes(us_consumer_gas, brent_crude)) +
   geom_point(alpha = .1) +
-  geom_smooth(method = "lm")
+  geom_smooth(method = "lm") +
+  labs(
+    title = "Week-over-week % change",
+    subtitle = "Brent Crude Oil and US Consumer Gas Price",
+    x = "US Consumer Gas Price",
+    y = "Brent Crude Oil"
+  )
 
 lm(us_consumer_gas ~ brent_crude, compare_wow)
 ```
 
 This line graph of the indexed % change of each series shows that the two series were tightly coupled in the 2000s and 2020s, but diverged in the 19990s and 2010s.
 ```{r}
+first_week <- min(oil_prices$date_week)
+
 oil_comparison |>
-  ggplot(aes(date_week, price_indexed, color = series)) +
+  ggplot(aes(x = date_week, y = price_indexed, color = series)) +
   geom_line() +
-  facet_wrap(vars(decade), scales = "free", ncol = 1)
+  facet_wrap(vars(decade), scales = "free", ncol = 1) +
+  labs(
+    title = glue("Price of oil indexed to {first_week}"),
+    subtitle = "Brent Crude Oil and US Consumer Gas Price",
+    x = "Date",
+    y = "Index",
+    color = "Series"
+  ) +
+  scale_y_percent()
 ```
 
 
@@ -167,11 +201,11 @@ This code decomposes the series into components and plots them.
 ts_components <- oil_prices |>
   model(
     stl = STL(
-      price ~ season(period = "1 year") # for weekly data, this maps to ~52
+      price ~ season(period = "1 year")
     )
   ) |>
   components() |>
-  rename(year_effect = `season_1 year`)
+  rename(year_seasonality = `season_1 year`)
 
 ts_components |>
   select(
@@ -179,7 +213,7 @@ ts_components |>
     date_week,
     price,
     trend,
-    year_effect,
+    year_seasonality,
     remainder,
     season_adjust
   ) |>
@@ -191,7 +225,7 @@ ts_components |>
         "price",
         "season_adjust",
         "trend",
-        "year_effect",
+        "year_seasonality",
         "remainder"
       )
     )
@@ -209,16 +243,29 @@ ts_components |>
     date_week,
     price,
     trend,
-    year_effect,
+    year_seasonality,
     remainder,
     season_adjust
   ) |>
   pivot_longer(-c(series, date_week)) |>
   pivot_wider(names_from = series, values_from = value) |>
+  mutate(
+    name = factor(
+      name,
+      levels = c(
+        "price",
+        "season_adjust",
+        "trend",
+        "year_seasonality",
+        "remainder"
+      )
+    )
+  ) |>
   ggplot(aes(us_consumer_gas, brent_crude)) +
   geom_point(size = .5, alpha = .1) +
   facet_wrap(vars(name), scales = "free")
 ```
+
 ```{r}
 #| echo: false
 cv_size <- 52 * 4
@@ -226,14 +273,10 @@ cv_size <- 52 * 4
 cv_step <- 52 * 3
 ```
 
-This cross-validates the `us_consumer_gas` series with chunks of `{r} cv_size` weeks of each series, stepping forward by `{r cv_step}` weeks. then I train models of various structures, which I will then forecast and find the accuracy to determine which model structure is most appropriate.
+This cross-validates the `us_consumer_gas` series with chunks of `{r} cv_size` weeks of each series, stepping forward by `{r} cv_step` weeks. Then I train various models of different types, which I will then forecast and find the accuracy to determine which model structure is most appropriate.
 ```{r}
 oil_prices |>
   count(series)
-
-cv_size <- 52 * 4
-
-cv_step <- 52 * 3
 
 us_oil_prices <- oil_prices |>
   filter(date_week >= yearweek("2000 W1")) |>
@@ -279,9 +322,11 @@ ts_cv |>
 ```
 
 ```{r}
+#| cache: true
 tic()
 ts_models <- ts_cv |>
   model(
+    #simple models for benchmarking
     naive = NAIVE(price),
     dcmp = decomposition_model(
       STL(log(price + 1) ~ season(period = "1 year")),
@@ -289,6 +334,7 @@ ts_models <- ts_cv |>
     ),
     mean_16 = MEAN(price, window(16)),
     mean_52 = MEAN(price, window(52)),
+    #these ARIMA models constrain the seasonal PDQ
     dhr1_pdq = ARIMA(
       log(price + 1) ~ fourier(period = 365.25 / 7, K = 1) +
         PDQ(0, 0, 0)
@@ -305,6 +351,7 @@ ts_models <- ts_cv |>
       log(price + 1) ~ fourier(period = 365.25 / 7, K = 7) +
         PDQ(0, 0, 0)
     ),
+    #these ARIMA models let the ARIMA() function search the parameter space for optimal values of P, D, Q
     dhr1_free = ARIMA(
       log(price + 1) ~ fourier(period = 365.25 / 7, K = 1)
     ),
@@ -319,25 +366,39 @@ ts_models <- ts_cv |>
     )
   )
 toc()
+```
 
+```{r}
 ts_models
 ```
 
+Once the models are trained, I forecast 52 weeks ahead.
 ```{r}
+#| cache: true
+tic()
 test_fc <- ts_models |>
   forecast(h = 52)
-
-test_fc
+toc()
 ```
 
 ```{r}
+test_fc
+```
+
+Then I calculate the accuracy of those forecasts
+```{r}
+#| cache: true
+tic()
 test_acc <- accuracy(
   test_fc,
   oil_prices,
   list(rmse = RMSE, crps_skill = skill_score(CRPS))
 ) |>
   arrange(series, desc(crps_skill))
+toc()
+```
 
+```{r}
 test_acc |>
   mutate(
     .model = reorder_within(
@@ -354,30 +415,46 @@ test_acc |>
 ```
 
 ```{r}
-recent_history <- oil_prices |> group_by(series) |> slice_tail(n = 60) |> ungroup()
+recent_history <- oil_prices |>
+  group_by(series) |>
+  slice_tail(n = 60) |>
+  ungroup()
 
 us_acc <- test_acc |>
   filter(series == "us_consumer_gas") |>
   pull(.model)
 
 test_fc |>
-  filter(.id == max(.id)) |> 
+  filter(.id == max(.id)) |>
   mutate(.model = factor(.model, levels = us_acc)) |>
   autoplot(ts_cv) +
-  facet_wrap(vars(series, .model), scales = "free_y") +
-  guides(fill = "none", color = "none")
+  facet_wrap(vars(.model), scales = "free_y") +
+  guides(fill = "none", color = "none") +
+  labs(
+    title = "Cross-validated forecasts",
+    subtitle = "Arranged most to least accurate",
+    x = "Date",
+    y = "Price"
+  )
 
-test_fc |> 
-  filter(.model == us_acc[1]) |> 
+test_fc |>
+  filter(.model == us_acc[1]) |>
   autoplot(ts_cv) +
-  facet_wrap(vars(.id), scales = "free")
+  facet_wrap(vars(.id), scales = "free") +
+  labs(
+    title = glue("Cross-validated forecasts of {us_acc[1]} model"),
+    x = "Date",
+    y = "Price"
+  )
 ```
 
 ### Modelling US oil prices
 
 #### Find reasonable horizon
 
+Based on the cross-validated accuracy, the `dhr5_free` did the best. This code calculates the accuracy of `dhr5_free` and the best benchmark model `dcmp` at each index of the forecast horizon.
 ```{r}
+#| cache: true
 final_models <- ts_cv |>
   model(
     dcmp = decomposition_model(
@@ -386,7 +463,7 @@ final_models <- ts_cv |>
     ),
     dhr5_free = ARIMA(
       log(price + 1) ~ fourier(period = 365.25 / 7, K = 5)
-  )
+    )
   )
 
 # 4. Add horizon index
@@ -399,25 +476,82 @@ fc_h <- final_models |>
 
 # 5. Accuracy by horizon
 acc_by_h <- accuracy(fc_h, oil_prices, by = c("h", ".model")) # one row per horizon & model
-
-acc_by_h |>
-  select(h, .model, RMSE, MAPE) |>
-  pivot_longer(-c(.model, h)) |>
-  ggplot(aes(x = h, y = value, color = .model)) +
-  geom_line() +
-  facet_wrap(vars(name), scales = "free_y", ncol = 1)
 ```
 
+```{r}
+acc_by_h |>
+  select(h, .model, RMSE, MAPE) |>
+  pivot_longer(-c(h, .model)) |>
+  ggplot(aes(x = h, y = value, color = .model)) +
+  geom_line() +
+  facet_wrap(vars(name), scales = "free_y", ncol = 1) +
+  labs(
+    title = "Forecast error across forecast horizon",
+    x = "Forecast horizon (weeks)",
+    y = "Error",
+    color = "Model"
+  )
+```
 
 ```{r}
+#Accuracy by horizon and .id
+acc_by_h_id <- fc_h |>
+  as_tibble() |>
+  rename(price_fc = price) |>
+  left_join(
+    oil_prices |>
+      as_tibble() |>
+      rename(price_actual = price),
+    by = c("series", "date_week")
+  ) |>
+  mutate(
+    error = price_actual - price_fc,
+    abs_err = abs(error),
+    ape = abs_err / price_actual # fractional (0–1); *100 for %
+  ) |>
+  group_by(.model, .id, h) |>
+  summarise(
+    RMSE = sqrt(mean(error^2, na.rm = TRUE)),
+    .groups = "drop"
+  )
+
+acc_by_h_id
+```
+
+Breaking the error graph out by cross-validation `.id` shows a similar pattern.
+```{r}
+#try a boxplot or ribbon chart instead of just line
+#group by h, .model, .id
+acc_by_h_id |>
+  select(.id, h, .model, RMSE) |>
+  ggplot(aes(x = h, y = RMSE, fill = .model, group = c(h))) +
+  geom_boxplot() +
+  facet_wrap(vars(.model), scales = "free_y", ncol = 1) +
+  labs(
+    title = "Forecast error (RMSE) across forecast horizon",
+    subtitle = "By cross-validation chunk",
+    x = "Forecast horizon (weeks)",
+    y = "RMSE",
+    fill = "Model"
+  )
+```
+
+Based on RMSE and MAPE, a reasonable horizon is 12 weeks. The error increases significantly after that. Interestingly, `dcmp` and `dhr5_free` have similar curves until week ~32, when the error for `dhr5_free` decreases faster than `dcmp`.
+
+Next I train additional models based on `dhr5_free` that consider various transformation of Brent Crude Oil as exogenous predictors.
+```{r}
+#| cache: true
 tic()
 models_cv_benchmark <- ts_cv |>
   model(
-    naive = NAIVE(price),
+    dcmp = decomposition_model(
+      STL(log(price + 1) ~ season(period = "1 year")),
+      ETS(season_adjust ~ season("N"))
+    ),
     dhr5_free = ARIMA(
       log(price + 1) ~ fourier(period = 365.25 / 7, K = 5)
-  )
     )
+  )
 
 models_cv_exo <- ts_cv |>
   model(
@@ -430,15 +564,15 @@ models_cv_exo <- ts_cv |>
         brent_crude_lag1
     ),
     dhr5_free_bc_lag5 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5)+
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
         brent_crude_lag5
     ),
     dhr5_free_bc_lag10 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5)+
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
         brent_crude_lag10
     ),
     dhr5_free_bc_mean10 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5)+
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
         brent_crude_mean10
     ),
     dhr5_free_bc_mean30 = ARIMA(
@@ -469,12 +603,15 @@ models_cv_all <- left_join(
   by = join_by(.id, series)
 )
 toc()
+```
 
+```{r}
 models_cv_all
 ```
 
-
+Next I forecast the models 12 weeks ahead and find the accuracy.
 ```{r}
+#| cache: true
 tic()
 cv_fc <- forecast(models_cv_all, ts_cv, horizon = 12)
 toc()
@@ -484,41 +621,53 @@ cv_acc <- accuracy(
   cv_fc,
   oil_prices,
   list(rmse = RMSE, crps_skill = skill_score(CRPS))
-)
+) |>
+  arrange(desc(crps_skill))
 toc()
 
 cv_acc
+```
+
+```{r}
+best_model <- cv_acc |>
+  slice_head(n = 1) |>
+  pull(.model)
 
 cv_acc |>
   mutate(.model = fct_reorder(.model, crps_skill)) |>
   ggplot(aes(crps_skill, .model)) +
   geom_vline(xintercept = 0) +
   geom_col() +
-  facet_wrap(vars(series), scales = "free") +
   scale_y_reordered() +
-  coord_cartesian(xlim = c(-1, 1))
+  coord_cartesian(xlim = c(-1, 1)) +
+  labs(
+    title = "Cross-validated forecast accuracy",
+    subtitle = "US Consumer Gas Price",
+    x = "CRPS Skill",
+    y = NULL
+  )
 ```
 
-
+This shows the last cross-validation forecast of the best model `{r} best_model`.
 ```{r}
 cv_fc |>
-  filter(.id == max(.id), .model == "dhr7_pdq_bc_mean10") |>
+  filter(.id == max(.id), .model == best_model) |>
   autoplot(ts_cv)
 ```
 
-
+Finally, I refit `{r} best_model` against the entire training set and set up some future scenarios of Brent Crude Oil to use as predictors.
 ```{r}
+#| cache: true
 ts_train_final <- oil_prices |>
   filter(date_week >= yearweek("2000 W1")) |>
   filter(series == "us_consumer_gas") |>
-  slice_tail(n = cv_size) |>
+  #slice_tail(n = cv_size) |>
   left_join(brent_crude_exo, by = join_by(date_week))
 
 ts_model_final <- ts_train_final |>
   model(
-    dhr7_pdq_bc_mean10 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 7) +
-        PDQ(0, 0, 0) +
+    dhr5_free_bc_mean10 = ARIMA(
+      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
         brent_crude_mean10
     )
   )
@@ -528,7 +677,7 @@ ts_model_final <- ts_train_final |>
 final_fc_h <- 12
 
 generate_horizon_exo <- function(x, price_vec) {
-  horizon <- new_data(x, n = price_vec) |>
+  horizon <- new_data(x, n = final_fc_h) |>
     mutate(brent_crude = price_vec)
 
   bind_rows(x, horizon) |>
@@ -581,10 +730,12 @@ scenario_fc <- ts_model_final |>
 
 scenario_fc
 
+scenario_legend_text <- "Brent Crude Oil scenario"
+
 ggplot() +
   geom_line(
     data = ts_train_final |>
-      slice_tail(n = 52 * 2),
+      slice_tail(n = 52 * .5),
     aes(x = date_week, y = price, colour = "History"),
     color = "black"
   ) +
@@ -598,17 +749,18 @@ ggplot() +
     ),
     alpha = .3
   ) +
-    geom_line(
+  geom_line(
     data = scenario_fc,
     aes(x = date_week, y = .mean, colour = .scenario)
   ) +
-    labs(title = glue("{final_fc_h} week forecast of US gas price at the pump"),
-    fill = "Scenarios",
-    color = "Scenarios") +
-      theme(legend.position = "bottom") +
-      scale_y_continuous(label = \(x) str_c("$", x))
-```
-
-```{r}
-
+  labs(
+    title = glue("{final_fc_h} week forecast of US gas price at the pump"),
+    x = "Date",
+    y = "Price",
+    fill = scenario_legend_text,
+    color = scenario_legend_text
+  ) +
+  theme(legend.position = "bottom") +
+  scale_x_yearweek(date_breaks = "4 weeks") +
+  scale_y_continuous(label = \(x) str_c("$", x))
 ```
