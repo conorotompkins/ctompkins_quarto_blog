@@ -22,10 +22,13 @@ format:
   html:
     fig-width: 8
     fig-height: 10
+    code-fold: true
+    code-summary: "Show the code"
 ---
 
 In this post, I analyze the relationship between the Brent Crude Oil index and US gas prices at the pump. I use time series forecasting with exogenous variables to test whether Brent Crude is a useful predictor of US gas prices.
 ```{r}
+#| label: setup
 library(fpp3)
 library(tidyverse)
 library(fredr)
@@ -57,6 +60,7 @@ set.seed(1234)
 This code pulls the data from FRED.
 ```{r}
 #| eval: false
+#| label: pull-data-1
 fred_df_raw <- c(
   "brent_crude" = "DCOILBRENTEU", #brent crude
   "us_consumer_gas" = "GASREGW" #us gas price
@@ -67,6 +71,7 @@ fred_df_raw <- c(
 ```{r}
 #| echo: false
 #| eval: false
+#| label: pull-data-2
 fred_df_raw |>
   write_parquet(
     "/Users/conorotompkins/Documents/github_repos/ctompkins_quarto_blog/posts/us_gas_price_forecast/post_data/oil_prices_time_series.parquet"
@@ -75,6 +80,7 @@ fred_df_raw |>
 
 ```{r}
 #| echo: false
+#| label: pull-data-3
 fred_df_raw <-
   read_parquet(
     "/Users/conorotompkins/Documents/github_repos/ctompkins_quarto_blog/posts/us_gas_price_forecast/post_data/oil_prices_time_series.parquet"
@@ -83,11 +89,13 @@ fred_df_raw <-
 
 The results from FRED are stored in a dataframe (series, date, value)
 ```{r}
+#| label: glimpse-fred
 glimpse(fred_df_raw)
 ```
 
 Here I clean up the dataframe and filter it so the begining and end of each series align. Brent Crude is measured daily, while the US gas price is measured weekly, so I aggregate the data to the year-week level.
 ```{r}
+#| label: summarize-fred
 oil_prices <- fred_df_raw |>
   select(series, date, value) |>
   rename(price = value)
@@ -123,6 +131,7 @@ glimpse(oil_prices)
 
 This plots the two series in a faceted chart. They follow each other closely.
 ```{r}
+#| label: plot-oil
 autoplot(oil_prices) +
   facet_wrap(vars(series), scale = "free_y", ncol = 1) +
   guides(color = "none")
@@ -130,6 +139,7 @@ autoplot(oil_prices) +
 
 This calculates the week-over-week % change, and a % change indexed to the first observation, for each series. The WoW graph shows that US gas prices follow the Brent Crude index, but does not have as extreme highs and lows.
 ```{r}
+#| label: oil-comparison
 oil_comparison <- oil_prices |>
   as_tibble() |>
   mutate(
@@ -145,7 +155,6 @@ oil_comparison <- oil_prices |>
 oil_comparison |>
   ggplot(aes(x = date_week, y = wow_pct_change, color = series)) +
   geom_line() +
-  coord_cartesian(ylim = c(-.1, .1)) +
   facet_wrap(vars(decade), scales = "free", ncol = 1) +
   labs(
     title = "Week-over-week % change",
@@ -159,6 +168,9 @@ oil_comparison |>
 
 A basic scatterplot of the WoW % change of the two indexes shows that there is not a strong relationship.
 ```{r}
+#| fig-width: 8
+#| fig-height: 8
+#| label: compare_wow
 compare_wow <- oil_comparison |>
   select(series, date_week, wow_pct_change) |>
   pivot_wider(names_from = series, values_from = wow_pct_change)
@@ -179,6 +191,7 @@ lm(us_consumer_gas ~ brent_crude, compare_wow)
 
 This line graph of the indexed % change of each series shows that the two series were tightly coupled in the 2000s and 2020s, but diverged in the 19990s and 2010s.
 ```{r}
+#| label: plot-index
 first_week <- min(oil_prices$date_week)
 
 oil_comparison |>
@@ -198,6 +211,7 @@ oil_comparison |>
 
 This code decomposes the series into components and plots them.
 ```{r}
+#| label: ts-components
 ts_components <- oil_prices |>
   model(
     stl = STL(
@@ -237,6 +251,9 @@ ts_components |>
 
 The two series are highly correlated across various decompositions of the time series.
 ```{r}
+#| fig-width: 10
+#| fig-height: 10
+#| label: ts-components-plot1
 ts_components |>
   select(
     series,
@@ -268,6 +285,7 @@ ts_components |>
 
 ```{r}
 #| echo: false
+#| label: cv-size
 cv_size <- 52 * 4
 
 cv_step <- 52 * 3
@@ -275,9 +293,7 @@ cv_step <- 52 * 3
 
 This cross-validates the `us_consumer_gas` series with chunks of `{r} cv_size` weeks of each series, stepping forward by `{r} cv_step` weeks. Then I train various models of different types, which I will then forecast and find the accuracy to determine which model structure is most appropriate.
 ```{r}
-oil_prices |>
-  count(series)
-
+#| label: cv-oil
 us_oil_prices <- oil_prices |>
   filter(date_week >= yearweek("2000 W1")) |>
   filter(series == "us_consumer_gas")
@@ -323,8 +339,9 @@ ts_cv |>
 
 ```{r}
 #| cache: true
+#| label: ts-models
 tic()
-ts_models <- ts_cv |>
+ts_models_benchmark <- ts_cv |>
   model(
     #simple models for benchmarking
     naive = NAIVE(price),
@@ -333,61 +350,81 @@ ts_models <- ts_cv |>
       ETS(season_adjust ~ season("N"))
     ),
     mean_16 = MEAN(price, window(16)),
-    mean_52 = MEAN(price, window(52)),
+    mean_52 = MEAN(price, window(52))
+  )
+
+ts_models_lm <- ts_cv |>
+  model(
+    #linear models
+    tslm_k1 = TSLM(log(price + 1) ~ fourier(365.25 / 7, K = 1)),
+    tslm_k3 = TSLM(log(price + 1) ~ fourier(365.25 / 7, K = 3)),
+    tslm_k5 = TSLM(log(price + 1) ~ fourier(365.25 / 7, K = 5)),
+    tslm_k7 = TSLM(log(price + 1) ~ fourier(365.25 / 7, K = 7))
+  )
+
+ts_models_dhr <- ts_cv |>
+  model(
     #these ARIMA models constrain the seasonal PDQ
-    dhr1_pdq = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 1) +
+    dhr_k1_pdq = ARIMA(
+      log(price + 1) ~ fourier(365.25 / 7, K = 1) +
         PDQ(0, 0, 0)
     ),
-    dhr3_pdq = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 3) +
+    dhr_k3_pdq = ARIMA(
+      log(price + 1) ~ fourier(365.25 / 7, K = 3) +
         PDQ(0, 0, 0)
     ),
-    dhr5_pdq = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
+    dhr_k5_pdq = ARIMA(
+      log(price + 1) ~ fourier(365.25 / 7, K = 5) +
         PDQ(0, 0, 0)
     ),
-    dhr7_pdq = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 7) +
+    dhr_k7_pdq = ARIMA(
+      log(price + 1) ~ fourier(365.25 / 7, K = 7) +
         PDQ(0, 0, 0)
     ),
     #these ARIMA models let the ARIMA() function search the parameter space for optimal values of P, D, Q
-    dhr1_free = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 1)
+    dhr_k1_free = ARIMA(
+      log(price + 1) ~ fourier(365.25 / 7, K = 1)
     ),
-    dhr3_free = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 3)
+    dhr_k3_free = ARIMA(
+      log(price + 1) ~ fourier(365.25 / 7, K = 3)
     ),
-    dhr5_free = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5)
+    dhr_k5_free = ARIMA(
+      log(price + 1) ~ fourier(365.25 / 7, K = 5)
     ),
-    dhr7_free = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 7)
+    dhr_k7_free = ARIMA(
+      log(price + 1) ~ fourier(365.25 / 7, K = 7)
     )
   )
 toc()
+
+ts_models_combined <- list(ts_models_benchmark, ts_models_lm, ts_models_dhr) |>
+  reduce(left_join, by = join_by(.id, series))
 ```
 
 ```{r}
-ts_models
+#| label: glimpse-models
+glimpse(ts_models_combined)
 ```
 
 Once the models are trained, I forecast 52 weeks ahead.
 ```{r}
 #| cache: true
+#| label: forecast-52
 tic()
-test_fc <- ts_models |>
+test_fc <- ts_models_combined |>
   forecast(h = 52)
 toc()
 ```
 
 ```{r}
+#| label: test-fc
 test_fc
 ```
 
 Then I calculate the accuracy of those forecasts
 ```{r}
 #| cache: true
+#| label: test-acc
 tic()
 test_acc <- accuracy(
   test_fc,
@@ -399,6 +436,7 @@ toc()
 ```
 
 ```{r}
+#| label: test-acc-plot
 test_acc |>
   mutate(
     .model = reorder_within(
@@ -410,11 +448,12 @@ test_acc |>
   ggplot(aes(x = crps_skill, y = .model)) +
   geom_vline(xintercept = 0) +
   geom_col() +
-  facet_wrap(vars(series), scales = "free") +
-  scale_y_reordered()
+  scale_y_reordered() +
+  labs(title = "Cross-validated forecast accuracy")
 ```
 
 ```{r}
+#| label: test-fc-plot
 recent_history <- oil_prices |>
   group_by(series) |>
   slice_tail(n = 60) |>
@@ -455,14 +494,15 @@ test_fc |>
 Based on the cross-validated accuracy, the `dhr5_free` did the best. This code calculates the accuracy of `dhr5_free` and the best benchmark model `dcmp` at each index of the forecast horizon.
 ```{r}
 #| cache: true
+#| label: final-models
 final_models <- ts_cv |>
   model(
     dcmp = decomposition_model(
       STL(log(price + 1) ~ season(period = "1 year")),
       ETS(season_adjust ~ season("N"))
     ),
-    dhr5_free = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5)
+    dhr_k5_free = ARIMA(
+      log(price + 1) ~ fourier(365.25 / 7, K = 5)
     )
   )
 
@@ -479,6 +519,7 @@ acc_by_h <- accuracy(fc_h, oil_prices, by = c("h", ".model")) # one row per hori
 ```
 
 ```{r}
+#| label: acc-by-h
 acc_by_h |>
   select(h, .model, RMSE, MAPE) |>
   pivot_longer(-c(h, .model)) |>
@@ -494,6 +535,7 @@ acc_by_h |>
 ```
 
 ```{r}
+#| label: acc-by-h-id
 #Accuracy by horizon and .id
 acc_by_h_id <- fc_h |>
   as_tibble() |>
@@ -520,6 +562,7 @@ acc_by_h_id
 
 Breaking the error graph out by cross-validation `.id` shows a similar pattern.
 ```{r}
+#| label: acc-by-h-id-plot
 #try a boxplot or ribbon chart instead of just line
 #group by h, .model, .id
 acc_by_h_id |>
@@ -541,6 +584,7 @@ Based on RMSE and MAPE, a reasonable horizon is 12 weeks. The error increases si
 Next I train additional models based on `dhr5_free` that consider various transformation of Brent Crude Oil as exogenous predictors.
 ```{r}
 #| cache: true
+#| label: models-cv-all
 tic()
 models_cv_benchmark <- ts_cv |>
   model(
@@ -548,51 +592,51 @@ models_cv_benchmark <- ts_cv |>
       STL(log(price + 1) ~ season(period = "1 year")),
       ETS(season_adjust ~ season("N"))
     ),
-    dhr5_free = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5)
+    dhr_k5_free = ARIMA(
+      log(price + 1) ~ fourier(365.25 / 7, K = 5)
     )
   )
 
 models_cv_exo <- ts_cv |>
   model(
-    dhr5_free_bc = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
+    dhr_k5_free_bc = ARIMA(
+      log(price + 1) ~ fourier(365.25 / 7, K = 5) +
         brent_crude
     ),
-    dhr5_free_bc_lag1 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
+    dhr_k5_free_bc_lag1 = ARIMA(
+      log(price + 1) ~ fourier(365.25 / 7, K = 5) +
         brent_crude_lag1
     ),
-    dhr5_free_bc_lag5 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
+    dhr_k5_free_bc_lag5 = ARIMA(
+      log(price + 1) ~ fourier(365.25 / 7, K = 5) +
         brent_crude_lag5
     ),
-    dhr5_free_bc_lag10 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
+    dhr_k5_free_bc_lag10 = ARIMA(
+      log(price + 1) ~ fourier(365.25 / 7, K = 5) +
         brent_crude_lag10
     ),
-    dhr5_free_bc_mean10 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
+    dhr_k5_free_bc_mean10 = ARIMA(
+      log(price + 1) ~ fourier(365.25 / 7, K = 5) +
         brent_crude_mean10
     ),
-    dhr5_free_bc_mean30 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
+    dhr_k5_free_bc_mean30 = ARIMA(
+      log(price + 1) ~ fourier(365.25 / 7, K = 5) +
         brent_crude_mean30
     ),
-    dhr5_free_bc_mean60 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
+    dhr_k5_free_bc_mean60 = ARIMA(
+      log(price + 1) ~ fourier(365.25 / 7, K = 5) +
         brent_crude_mean60
     ),
-    dhr5_free_bc_max10 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
+    dhr_k5_free_bc_max10 = ARIMA(
+      log(price + 1) ~ fourier(365.25 / 7, K = 5) +
         brent_crude_max10
     ),
-    dhr5_free_bc_max20 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
+    dhr_k5_free_bc_max20 = ARIMA(
+      log(price + 1) ~ fourier(365.25 / 7, K = 5) +
         brent_crude_max20
     ),
-    dhr5_free_bc_max30 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
+    dhr_k5_free_bc_max30 = ARIMA(
+      log(price + 1) ~ fourier(365.25 / 7, K = 5) +
         brent_crude_max30
     )
   )
@@ -606,12 +650,14 @@ toc()
 ```
 
 ```{r}
-models_cv_all
+#| label: models-cv-all
+glimpse(models_cv_all)
 ```
 
 Next I forecast the models 12 weeks ahead and find the accuracy.
 ```{r}
 #| cache: true
+#| label: cv_fc
 tic()
 cv_fc <- forecast(models_cv_all, ts_cv, horizon = 12)
 toc()
@@ -629,6 +675,7 @@ cv_acc
 ```
 
 ```{r}
+#| label: cv-acc-plot
 best_model <- cv_acc |>
   slice_head(n = 1) |>
   pull(.model)
@@ -650,6 +697,7 @@ cv_acc |>
 
 This shows the last cross-validation forecast of the best model `{r} best_model`.
 ```{r}
+#| label: cv-acc-plot2
 cv_fc |>
   filter(.id == max(.id), .model == best_model) |>
   autoplot(ts_cv)
@@ -658,6 +706,7 @@ cv_fc |>
 Finally, I refit `{r} best_model` against the entire training set and set up some future scenarios of Brent Crude Oil to use as predictors.
 ```{r}
 #| cache: true
+#| label: ts-model-final
 ts_train_final <- oil_prices |>
   filter(date_week >= yearweek("2000 W1")) |>
   filter(series == "us_consumer_gas") |>
@@ -666,14 +715,15 @@ ts_train_final <- oil_prices |>
 
 ts_model_final <- ts_train_final |>
   model(
-    dhr5_free_bc_mean10 = ARIMA(
-      log(price + 1) ~ fourier(period = 365.25 / 7, K = 5) +
+    dhr_k5_free_bc_mean10 = ARIMA(
+      log(price + 1) ~ fourier(365.25 / 7, K = 5) +
         brent_crude_mean10
     )
   )
 ```
 
 ```{r}
+#| label: scenarios
 final_fc_h <- 12
 
 generate_horizon_exo <- function(x, price_vec) {
