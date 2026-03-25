@@ -1,5 +1,5 @@
 ---
-title: Explaining US Gas prices and Brent Crude Oil
+title: Forecasting US gas prices with Brent Crude Oil
 author: Conor Tompkins
 slug: us_gas_prices_brent_crude
 categories: []
@@ -831,6 +831,7 @@ ggplot() +
   ) +
   labs(
     title = glue("{final_fc_h} week forecast of US gas price at the pump"),
+    subtitle = "Shaded area shows upper and lower bounds of forecast range",
     x = "Date",
     y = "Price",
     fill = legend_text,
