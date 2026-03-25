@@ -20,13 +20,12 @@ editor_options:
   chunk_output_type: console
 format: 
   html:
-    fig-width: 8
-    fig-height: 10
     code-fold: true
     code-summary: "Show the code"
 ---
 
 In this post, I analyze the relationship between the Brent Crude Oil index and US gas prices at the pump. I use time series forecasting with exogenous variables to test whether Brent Crude is a useful predictor of US gas prices.
+
 ```{r}
 #| label: setup
 library(fpp3)
@@ -42,13 +41,11 @@ library(tidytext)
 library(glue)
 library(broom)
 
-theme_set(
-  theme_ipsum() +
-    theme(
-      axis.line.x.bottom = element_line(linewidth = .2),
-      axis.line.y = element_line(linewidth = .2)
-    )
-)
+toc_quiet <- TRUE
+
+custom_theme <- theme_bw(base_size = 14)
+
+theme_set(custom_theme)
 
 plan(multisession)
 
@@ -57,7 +54,8 @@ options(scipen = 999, digits = 4)
 set.seed(1234)
 ```
 
-This code pulls the data from FRED.
+This code pulls the data from [FRED](https://fred.stlouisfed.org/).
+
 ```{r}
 #| eval: false
 #| label: pull-data-1
@@ -87,13 +85,10 @@ fred_df_raw <-
   )
 ```
 
-The results from FRED are stored in a dataframe (series, date, value)
-```{r}
-#| label: glimpse-fred
-glimpse(fred_df_raw)
-```
+### Exploratory data analysis
 
-Here I clean up the dataframe and filter it so the begining and end of each series align. Brent Crude is measured daily, while the US gas price is measured weekly, so I aggregate the data to the year-week level.
+The results from FRED are stored in a dataframe (series, date, value). Here I clean up the dataframe and filter it so the begining and end of each series align. Brent Crude is measured daily, while the US gas price is measured weekly, so I aggregate the data to the year-week level.
+
 ```{r}
 #| label: summarize-fred
 oil_prices <- fred_df_raw |>
@@ -122,24 +117,25 @@ oil_prices <- as_tsibble(oil_prices, key = series, index = date_week)
 
 has_gaps(oil_prices) |> pull(.gaps) |> any() == FALSE
 
-oil_prices |>
-  filter(is.na(price)) |>
-  count(series)
-
 glimpse(oil_prices)
 ```
 
 This plots the two series in a faceted chart. They follow each other closely.
+
 ```{r}
 #| label: plot-oil
 autoplot(oil_prices) +
   facet_wrap(vars(series), scale = "free_y", ncol = 1) +
-  guides(color = "none")
+  guides(color = "none") +
+  scale_y_continuous(label = ~ str_c("$", .x)) +
+  labs(x = "Date", y = "Price")
 ```
 
 This calculates the week-over-week % change, and a % change indexed to the first observation, for each series. The WoW graph shows that US gas prices follow the Brent Crude index, but does not have as extreme highs and lows.
+
 ```{r}
 #| label: oil-comparison
+#| fig-height: 10
 oil_comparison <- oil_prices |>
   as_tibble() |>
   mutate(
@@ -163,13 +159,14 @@ oil_comparison |>
     y = "% change",
     color = "Series"
   ) +
-  scale_y_percent()
+  scale_y_percent() +
+  theme(legend.position = "top")
 ```
 
 A basic scatterplot of the WoW % change of the two indexes shows that there is not a strong relationship.
+
 ```{r}
-#| fig-width: 8
-#| fig-height: 8
+#| fig-height: 6
 #| label: compare_wow
 compare_wow <- oil_comparison |>
   select(series, date_week, wow_pct_change) |>
@@ -190,8 +187,10 @@ lm(us_consumer_gas ~ brent_crude, compare_wow)
 ```
 
 This line graph of the indexed % change of each series shows that the two series were tightly coupled in the 2000s and 2020s, but diverged in the 19990s and 2010s.
+
 ```{r}
 #| label: plot-index
+#| fig-height: 10
 first_week <- min(oil_prices$date_week)
 
 oil_comparison |>
@@ -205,13 +204,15 @@ oil_comparison |>
     y = "Index",
     color = "Series"
   ) +
-  scale_y_percent()
+  scale_y_percent() +
+  theme(legend.position = "top")
 ```
 
-
 This code decomposes the series into components and plots them.
+
 ```{r}
 #| label: ts-components
+#| fig-height: 10
 ts_components <- oil_prices |>
   model(
     stl = STL(
@@ -219,7 +220,7 @@ ts_components <- oil_prices |>
     )
   ) |>
   components() |>
-  rename(year_seasonality = `season_1 year`)
+  rename(weekly_seasonality = `season_1 year`)
 
 ts_components |>
   select(
@@ -227,7 +228,7 @@ ts_components |>
     date_week,
     price,
     trend,
-    year_seasonality,
+    weekly_seasonality,
     remainder,
     season_adjust
   ) |>
@@ -239,7 +240,7 @@ ts_components |>
         "price",
         "season_adjust",
         "trend",
-        "year_seasonality",
+        "weekly_seasonality",
         "remainder"
       )
     )
@@ -250,9 +251,8 @@ ts_components |>
 ```
 
 The two series are highly correlated across various decompositions of the time series.
+
 ```{r}
-#| fig-width: 10
-#| fig-height: 10
 #| label: ts-components-plot1
 ts_components |>
   select(
@@ -260,7 +260,7 @@ ts_components |>
     date_week,
     price,
     trend,
-    year_seasonality,
+    weekly_seasonality,
     remainder,
     season_adjust
   ) |>
@@ -273,7 +273,7 @@ ts_components |>
         "price",
         "season_adjust",
         "trend",
-        "year_seasonality",
+        "weekly_seasonality",
         "remainder"
       )
     )
@@ -283,6 +283,8 @@ ts_components |>
   facet_wrap(vars(name), scales = "free")
 ```
 
+### Modelling US oil price
+
 ```{r}
 #| echo: false
 #| label: cv-size
@@ -291,9 +293,12 @@ cv_size <- 52 * 4
 cv_step <- 52 * 3
 ```
 
-This cross-validates the `us_consumer_gas` series with chunks of `{r} cv_size` weeks of each series, stepping forward by `{r} cv_step` weeks. Then I train various models of different types, which I will then forecast and find the accuracy to determine which model structure is most appropriate.
+This cross-validates the `us_consumer_gas` series with chunks of 4 years (`{r} cv_size` weeks) of each series, stepping forward by 3 years (`{r} cv_step` weeks). The chunks overlap each other by 1 year. Then I train various models of different types, which I will then forecast and find the accuracy to determine which model structure is most appropriate.
+
 ```{r}
 #| label: cv-oil
+#| fig-width: 6
+#| fig-height: 4
 us_oil_prices <- oil_prices |>
   filter(date_week >= yearweek("2000 W1")) |>
   filter(series == "us_consumer_gas")
@@ -322,9 +327,6 @@ brent_crude_exo <- oil_prices |>
 ts_cv <- left_join(ts_cv, brent_crude_exo)
 
 ts_cv |>
-  count(.id)
-
-ts_cv |>
   as_tibble() |>
   summarize(
     start_date = min(date_week),
@@ -336,6 +338,8 @@ ts_cv |>
   scale_y_reverse() +
   labs(x = "Time window", y = "Cross-validation chunk")
 ```
+
+Here I use log(price + 1) to constrain the forecasts to be positive. I use fourier terms like `fourier(365.25 / 7, k = x)` to represent the impact of intra-year weekly seasonality without having to make \~52 dummy variables. K varies how "smooth" the representation is. Higher values of K fit the model closer to the variance in the data, and lower values of K use a simpler pattern.
 
 ```{r}
 #| cache: true
@@ -395,7 +399,7 @@ ts_models_dhr <- ts_cv |>
       log(price + 1) ~ fourier(365.25 / 7, K = 7)
     )
   )
-toc()
+toc(quiet = toc_quiet)
 
 ts_models_combined <- list(ts_models_benchmark, ts_models_lm, ts_models_dhr) |>
   reduce(left_join, by = join_by(.id, series))
@@ -407,21 +411,18 @@ glimpse(ts_models_combined)
 ```
 
 Once the models are trained, I forecast 52 weeks ahead.
+
 ```{r}
 #| cache: true
 #| label: forecast-52
 tic()
 test_fc <- ts_models_combined |>
   forecast(h = 52)
-toc()
+toc(quiet = toc_quiet)
 ```
 
-```{r}
-#| label: test-fc
-test_fc
-```
+Then I calculate the accuracy of those forecasts. I calculate the root mean squared error and the "skill score" of CRPS (continuous ranked probability score). CRPS measures how well the forecast distribution fits the observed data, and skill_score() compares that to the CRPS of a naive model. Think of `crps_skill` like the % improvement over a benchmark model.
 
-Then I calculate the accuracy of those forecasts
 ```{r}
 #| cache: true
 #| label: test-acc
@@ -432,11 +433,12 @@ test_acc <- accuracy(
   list(rmse = RMSE, crps_skill = skill_score(CRPS))
 ) |>
   arrange(series, desc(crps_skill))
-toc()
+toc(quiet = toc_quiet)
 ```
 
 ```{r}
 #| label: test-acc-plot
+#| fig-height: 5
 test_acc |>
   mutate(
     .model = reorder_within(
@@ -446,19 +448,19 @@ test_acc |>
     )
   ) |>
   ggplot(aes(x = crps_skill, y = .model)) +
-  geom_vline(xintercept = 0) +
   geom_col() +
+  scale_x_percent() +
   scale_y_reordered() +
-  labs(title = "Cross-validated forecast accuracy")
+  labs(
+    title = "Cross-validated forecast accuracy",
+    x = "CRPS Skill",
+    y = "Model"
+  )
 ```
 
 ```{r}
 #| label: test-fc-plot
-recent_history <- oil_prices |>
-  group_by(series) |>
-  slice_tail(n = 60) |>
-  ungroup()
-
+#| fig-height: 6
 us_acc <- test_acc |>
   filter(series == "us_consumer_gas") |>
   pull(.model)
@@ -487,11 +489,10 @@ test_fc |>
   )
 ```
 
-### Modelling US oil prices
-
-#### Find reasonable horizon
+#### Finding the horizon
 
 Based on the cross-validated accuracy, the `dhr5_free` did the best. This code calculates the accuracy of `dhr5_free` and the best benchmark model `dcmp` at each index of the forecast horizon.
+
 ```{r}
 #| cache: true
 #| label: final-models
@@ -521,21 +522,21 @@ acc_by_h <- accuracy(fc_h, oil_prices, by = c("h", ".model")) # one row per hori
 ```{r}
 #| label: acc-by-h
 acc_by_h |>
-  select(h, .model, RMSE, MAPE) |>
-  pivot_longer(-c(h, .model)) |>
-  ggplot(aes(x = h, y = value, color = .model)) +
+  ggplot(aes(x = h, y = RMSE, color = .model)) +
+  geom_vline(xintercept = 12, lty = 2) +
   geom_line() +
-  facet_wrap(vars(name), scales = "free_y", ncol = 1) +
   labs(
     title = "Forecast error across forecast horizon",
     x = "Forecast horizon (weeks)",
-    y = "Error",
+    y = "Error (RMSE)",
     color = "Model"
-  )
+  ) +
+  theme(legend.position = "top")
 ```
 
 ```{r}
 #| label: acc-by-h-id
+
 #Accuracy by horizon and .id
 acc_by_h_id <- fc_h |>
   as_tibble() |>
@@ -556,19 +557,21 @@ acc_by_h_id <- fc_h |>
     RMSE = sqrt(mean(error^2, na.rm = TRUE)),
     .groups = "drop"
   )
-
-acc_by_h_id
 ```
 
 Breaking the error graph out by cross-validation `.id` shows a similar pattern.
+
 ```{r}
 #| label: acc-by-h-id-plot
+#| fig-height: 8
+
 #try a boxplot or ribbon chart instead of just line
 #group by h, .model, .id
 acc_by_h_id |>
   select(.id, h, .model, RMSE) |>
   ggplot(aes(x = h, y = RMSE, fill = .model, group = c(h))) +
   geom_boxplot() +
+  geom_vline(xintercept = 12, lty = 2) +
   facet_wrap(vars(.model), scales = "free_y", ncol = 1) +
   labs(
     title = "Forecast error (RMSE) across forecast horizon",
@@ -576,15 +579,25 @@ acc_by_h_id |>
     x = "Forecast horizon (weeks)",
     y = "RMSE",
     fill = "Model"
-  )
+  ) +
+  theme(legend.position = "top")
 ```
 
-Based on RMSE and MAPE, a reasonable horizon is 12 weeks. The error increases significantly after that. Interestingly, `dcmp` and `dhr5_free` have similar curves until week ~32, when the error for `dhr5_free` decreases faster than `dcmp`.
+Based on RMSE, 12 weeks is a reasonable forecast horizon. The error increases significantly after that.
 
-Next I train additional models based on `dhr5_free` that consider various transformation of Brent Crude Oil as exogenous predictors.
+Interestingly, the error curve for `dcmp` continues to increase after week \~20, while `dhr5_free` stabilizes (but the variation, as indicated by the boxplot, increases). Then the error curve for `dcmp` decreases after week \~32. My hypothesis for this is that short-term variance in US oil price is driven by events, but long-term variance is driven by the global oil market, the push and pull of supply and demand, and long-term structural aspects of the global economy. It may be easier for a model without exogenous variables to forecast what the price of oil will be in 52 weeks than in 32 weeks.
+
+#### Forecasting with Brent Crude Oil as exogenous predictor
+
+Next I train additional models based on `dhr5_free` that consider various transformation of Brent Crude Oil as exogenous predictors, in addition to the US oil price time series itself. The choices in these transformations are somewhat arbitrary, and could be tested more rigorously.
+
+-   Models with `bc_lag` at the end use a weekly lag of Brent Crude as a predictor. "lag1" means that it uses last week's Brent Crude Oil to predict this week's US oil price.
+-   Models with `bc_mean` at the end use a trailing rolling average of Brent Crude Oil as an predictor. "mean10" means that it uses a 10 week trailing rolling average of Brent Crude Oil to predict this week's US oil price.
+-   Models with `bc_max` at the end use a trailing rolling maximum of Brent Crude Oil as an predictor. "max10" means that it uses a 10 week trailing rolling high of Brent Crude Oil to predict this week's US oil price.
+
 ```{r}
 #| cache: true
-#| label: models-cv-all
+#| label: models-cv-exo
 tic()
 models_cv_benchmark <- ts_cv |>
   model(
@@ -599,7 +612,7 @@ models_cv_benchmark <- ts_cv |>
 
 models_cv_exo <- ts_cv |>
   model(
-    dhr_k5_free_bc = ARIMA(
+    dhr_k5_free_bc_lag0 = ARIMA(
       log(price + 1) ~ fourier(365.25 / 7, K = 5) +
         brent_crude
     ),
@@ -646,21 +659,22 @@ models_cv_all <- left_join(
   models_cv_exo,
   by = join_by(.id, series)
 )
-toc()
+toc(quiet = toc_quiet)
 ```
 
 ```{r}
-#| label: models-cv-all
+#| label: models-cv-all-glimpse
 glimpse(models_cv_all)
 ```
 
 Next I forecast the models 12 weeks ahead and find the accuracy.
+
 ```{r}
 #| cache: true
-#| label: cv_fc
+#| label: cv-fc-acc
 tic()
 cv_fc <- forecast(models_cv_all, ts_cv, horizon = 12)
-toc()
+toc(quiet = toc_quiet)
 
 tic()
 cv_acc <- accuracy(
@@ -669,21 +683,24 @@ cv_acc <- accuracy(
   list(rmse = RMSE, crps_skill = skill_score(CRPS))
 ) |>
   arrange(desc(crps_skill))
-toc()
-
-cv_acc
+toc(quiet = toc_quiet)
 ```
 
 ```{r}
-#| label: cv-acc-plot
+#| echo: false
 best_model <- cv_acc |>
   slice_head(n = 1) |>
   pull(.model)
+```
 
+The model (`{r} best_model`) that uses a 10-week moving average of Brent Crude Oil as a predictor has the best `crps_skill`.
+
+```{r}
+#| label: cv-acc-plot
+#| fig-height: 6
 cv_acc |>
   mutate(.model = fct_reorder(.model, crps_skill)) |>
   ggplot(aes(crps_skill, .model)) +
-  geom_vline(xintercept = 0) +
   geom_col() +
   scale_y_reordered() +
   coord_cartesian(xlim = c(-1, 1)) +
@@ -695,7 +712,10 @@ cv_acc |>
   )
 ```
 
-This shows the last cross-validation forecast of the best model `{r} best_model`.
+The model that uses a trailing 60-week average of Brent Crude Oil performs terribly (the bar actually goes off the chart). I interpret this to mean that there are diminishing returns to the amount of "history" included in the model.
+
+This shows the last cross-validation forecast of the best model (`{r} best_model`).
+
 ```{r}
 #| label: cv-acc-plot2
 cv_fc |>
@@ -703,14 +723,20 @@ cv_fc |>
   autoplot(ts_cv)
 ```
 
-Finally, I refit `{r} best_model` against the entire training set and set up some future scenarios of Brent Crude Oil to use as predictors.
+### Scenario forecasts
+
+Finally, I refit `{r} best_model` against the entire training set and set up some future scenarios of Brent Crude Oil to use as predictors. I create the following 12-week scenarios:
+
+-   20% decrease in Brent Crude Oil price over 12 weeks
+-   Brent Crude Oil stabilizes at the current price
+-   20% increase in Brent Crude Oil price over 12 weeks
+
 ```{r}
 #| cache: true
 #| label: ts-model-final
 ts_train_final <- oil_prices |>
   filter(date_week >= yearweek("2000 W1")) |>
   filter(series == "us_consumer_gas") |>
-  #slice_tail(n = cv_size) |>
   left_join(brent_crude_exo, by = join_by(date_week))
 
 ts_model_final <- ts_train_final |>
@@ -724,6 +750,8 @@ ts_model_final <- ts_train_final |>
 
 ```{r}
 #| label: scenarios
+#| fig-width: 8
+#| fig-height: 6
 final_fc_h <- 12
 
 generate_horizon_exo <- function(x, price_vec) {
@@ -742,9 +770,9 @@ last_price <- oil_prices |>
   pull(price)
 
 scenario_names <- c(
-  glue("Decrease to ${last_price * .8}"),
-  glue("Stabilize at ${last_price}"),
-  glue("Increase to ${last_price * 1.2}")
+  glue("Decrease to ${round(last_price * .8, 2)}"),
+  glue("Stabilize at ${round(last_price, 2)}"),
+  glue("Increase to ${round(last_price * 1.2, 2)}")
 )
 
 exo_scenarios <- scenarios(
@@ -778,9 +806,7 @@ scenario_fc <- ts_model_final |>
     price_upper = intervals$upper
   )
 
-scenario_fc
-
-scenario_legend_text <- "Brent Crude Oil scenario"
+legend_text <- "Brent Crude Oil scenario"
 
 ggplot() +
   geom_line(
@@ -807,10 +833,17 @@ ggplot() +
     title = glue("{final_fc_h} week forecast of US gas price at the pump"),
     x = "Date",
     y = "Price",
-    fill = scenario_legend_text,
-    color = scenario_legend_text
+    fill = legend_text,
+    color = legend_text
   ) +
-  theme(legend.position = "bottom") +
-  scale_x_yearweek(date_breaks = "4 weeks") +
-  scale_y_continuous(label = \(x) str_c("$", x))
+  scale_x_yearweek(
+    date_breaks = "6 weeks"
+  ) +
+  scale_y_continuous(label = \(x) str_c("$", x)) +
+  theme(
+    legend.position = "bottom",
+    legend.title.position = "top"
+  )
 ```
+
+This model forecasts that US oil prices will increase for the next \~7 weeks regardless of the scenario. Prices remain above \$4 per gallon in the average outcome for all scenarios. This is likely because the global oil supply chain has already been severely constrained, and even in a best case scenario it would take weeks for oil to transit from its origin to consumer markets.
