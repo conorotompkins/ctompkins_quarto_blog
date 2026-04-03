@@ -26,6 +26,8 @@ format:
 
 In this post, I analyze the relationship between the Brent Crude Oil index and US gas prices at the pump. I use time series forecasting with exogenous variables to test whether Brent Crude is a useful predictor of US gas prices.
 
+Setup code:
+
 ```{r}
 #| label: setup
 library(fpp3)
@@ -40,6 +42,7 @@ library(arrow)
 library(tidytext)
 library(glue)
 library(broom)
+library(ggrepel)
 
 toc_quiet <- TRUE
 
@@ -131,7 +134,7 @@ autoplot(oil_prices) +
   labs(x = "Date", y = "Price")
 ```
 
-This calculates the week-over-week % change, and a % change indexed to the first observation, for each series. The WoW graph shows that US gas prices follow the Brent Crude index, but does not have as extreme highs and lows.
+This calculates the week-over-week % change and a % change indexed to the first observation, for each series. The WoW graph shows that US gas prices follow the Brent Crude index, but does not have as extreme highs and lows.
 
 ```{r}
 #| label: oil-comparison
@@ -180,13 +183,14 @@ compare_wow |>
     title = "Week-over-week % change",
     subtitle = "Brent Crude Oil and US Consumer Gas Price",
     x = "US Consumer Gas Price",
-    y = "Brent Crude Oil"
+    y = "Brent Crude Oil",
+    caption = "Axis ranges are not equal"
   )
 
 lm(us_consumer_gas ~ brent_crude, compare_wow)
 ```
 
-This line graph of the indexed % change of each series shows that the two series were tightly coupled in the 2000s and 2020s, but diverged in the 19990s and 2010s.
+This line graph of the indexed % change of each series shows that the two series were tightly coupled in the 2000s and 2020s, but diverged in the 1990s and 2010s.
 
 ```{r}
 #| label: plot-index
@@ -247,7 +251,8 @@ ts_components |>
   ) |>
   autoplot() +
   facet_wrap(vars(name, series), scale = "free_y", ncol = 2) +
-  guides(color = "none")
+  guides(color = "none") +
+  theme(axis.text.x = element_text(size = 8))
 ```
 
 The two series are highly correlated across various decompositions of the time series.
@@ -297,7 +302,7 @@ This cross-validates the `us_consumer_gas` series with chunks of 4 years (`{r} c
 
 ```{r}
 #| label: cv-oil
-#| fig-width: 6
+#| fig-width: 8
 #| fig-height: 4
 us_oil_prices <- oil_prices |>
   filter(date_week >= yearweek("2000 W1")) |>
@@ -339,7 +344,7 @@ ts_cv |>
   labs(x = "Time window", y = "Cross-validation chunk")
 ```
 
-Here I use log(price + 1) to constrain the forecasts to be positive. I use fourier terms like `fourier(365.25 / 7, k = x)` to represent the impact of intra-year weekly seasonality without having to make \~52 dummy variables. K varies how "smooth" the representation is. Higher values of K fit the model closer to the variance in the data, and lower values of K use a simpler pattern.
+Here I use log(price + 1) to constrain the forecasts to be positive. I use fourier terms like `fourier(365.25 / 7, k = x)` to represent the impact of within-year weekly seasonality without having to make \~52 dummy variables. K varies how "smooth" the representation is. Higher values of K fit the model closer to the variance in the data, and lower values of K use a simpler pattern.
 
 ```{r}
 #| cache: true
@@ -368,6 +373,7 @@ ts_models_lm <- ts_cv |>
 
 ts_models_dhr <- ts_cv |>
   model(
+    #dhr means dynamic harmonic regression
     #these ARIMA models constrain the seasonal PDQ
     dhr_k1_pdq = ARIMA(
       log(price + 1) ~ fourier(365.25 / 7, K = 1) +
@@ -459,8 +465,11 @@ test_acc |>
 ```
 
 ```{r}
+#| echo: false
+#| eval: false
 #| label: test-fc-plot
-#| fig-height: 6
+#| fig-height: 8
+#| fig-width: 8
 us_acc <- test_acc |>
   filter(series == "us_consumer_gas") |>
   pull(.model)
@@ -470,23 +479,70 @@ test_fc |>
   mutate(.model = factor(.model, levels = us_acc)) |>
   autoplot(ts_cv) +
   facet_wrap(vars(.model), scales = "free_y") +
-  guides(fill = "none", color = "none") +
+  guides(
+    fill = "none",
+    color = "none",
+    fill_ramp = guide_legend(title = "Prediction interval")
+  ) +
   labs(
     title = "Cross-validated forecasts",
     subtitle = "Arranged most to least accurate",
     x = "Date",
     y = "Price"
-  )
+  ) +
+  theme(legend.position = "bottom")
 
 test_fc |>
   filter(.model == us_acc[1]) |>
   autoplot(ts_cv) +
   facet_wrap(vars(.id), scales = "free") +
+  guides(fill_ramp = guide_legend(title = "Prediction interval")) +
   labs(
     title = glue("Cross-validated forecasts of {us_acc[1]} model"),
     x = "Date",
     y = "Price"
-  )
+  ) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| echo: false
+#| eval: false
+#| label: test_plot_test
+#| fig-height: 8
+#| fig-width: 8
+
+fc_index <- test_fc |>
+  filter(.id == max(.id)) |>
+  distinct(date_week)
+
+recent_history <- us_oil_prices |>
+  semi_join(fc_index)
+
+# ts_cv is your full original tsibble (actuals)
+ggplot() +
+  # full actuals in every facet
+  autolayer(oil_prices) +
+  # CV forecasts (one slice, faceted by model)
+  autolayer(
+    test_fc |>
+      filter(.id == max(.id)) |>
+      mutate(.model = factor(.model, levels = us_acc)),
+    ts_cv
+  ) +
+  facet_wrap(vars(.model, .id), scales = "free_y") +
+  guides(
+    fill = "none",
+    color = "none",
+    fill_ramp = guide_legend(title = "Prediction interval")
+  ) +
+  labs(
+    title = "Cross-validated forecasts",
+    subtitle = "Arranged most to least accurate",
+    x = "Date",
+    y = "Price"
+  ) +
+  theme(legend.position = "bottom")
 ```
 
 #### Finding the horizon
@@ -526,11 +582,12 @@ acc_by_h |>
   geom_vline(xintercept = 12, lty = 2) +
   geom_line() +
   labs(
-    title = "Forecast error across forecast horizon",
+    title = "Avg. Forecast error across forecast horizon",
     x = "Forecast horizon (weeks)",
     y = "Error (RMSE)",
     color = "Model"
   ) +
+  scale_y_continuous(label = \(x) str_c("$", x)) +
   theme(legend.position = "top")
 ```
 
@@ -563,29 +620,38 @@ Breaking the error graph out by cross-validation `.id` shows a similar pattern.
 
 ```{r}
 #| label: acc-by-h-id-plot
-#| fig-height: 8
-
-#try a boxplot or ribbon chart instead of just line
-#group by h, .model, .id
 acc_by_h_id |>
   select(.id, h, .model, RMSE) |>
-  ggplot(aes(x = h, y = RMSE, fill = .model, group = c(h))) +
-  geom_boxplot() +
+  group_by(.model, h) |>
+  summarise(
+    lower = quantile(RMSE, 0.25, na.rm = TRUE),
+    median = median(RMSE, na.rm = TRUE),
+    upper = quantile(RMSE, 0.75, na.rm = TRUE)
+  ) |>
+  ggplot(aes(x = h, y = median, color = .model)) +
+  geom_ribbon(
+    aes(ymin = lower, ymax = upper, fill = .model),
+    alpha = 0.4,
+    lwd = .1
+  ) +
+  geom_line(linewidth = 0.8) +
   geom_vline(xintercept = 12, lty = 2) +
-  facet_wrap(vars(.model), scales = "free_y", ncol = 1) +
   labs(
     title = "Forecast error (RMSE) across forecast horizon",
-    subtitle = "By cross-validation chunk",
+    subtitle = "Median and 25/75th percentiles by forecast horizon",
     x = "Forecast horizon (weeks)",
-    y = "RMSE",
-    fill = "Model"
+    y = "RMSE"
   ) +
+  guides(fill = "none", color = "none") +
+  scale_y_continuous(labels = \(x) str_c("$", x)) +
   theme(legend.position = "top")
 ```
 
-Based on RMSE, 12 weeks is a reasonable forecast horizon. The error increases significantly after that.
+The two models have similar error trajectories over the first 8 weeks, but significantly diverage over the next 20 weeks. The error for `dcmp` increases much more rapidly than `dhr5_free`. Based on RMSE, 12 weeks is a reasonable forecast horizon for `dhr5_free`.
 
-Interestingly, the error curve for `dcmp` continues to increase after week \~20, while `dhr5_free` stabilizes (but the variation, as indicated by the boxplot, increases). Then the error curve for `dcmp` decreases after week \~32. My hypothesis for this is that short-term variance in US oil price is driven by events, but long-term variance is driven by the global oil market, the push and pull of supply and demand, and long-term structural aspects of the global economy. It may be easier for a model without exogenous variables to forecast what the price of oil will be in 52 weeks than in 32 weeks.
+Interestingly, the error curve for `dcmp` continues to increase after week \~20, while `dhr5_free` stabilizes. Then the error curve for `dcmp` decreases after week \~32. The variance in the error of `dhr5_free` increases, as indicated by the wider IQR in the boxplot. This variance is driven by outliers from one cross-validation forecast. Further cross-validation could help smooth that out, but I don't have the compute power for that at hand.
+
+My hypothesis for this is that in the short-term, US oil price is driven by events, but long-term variance is driven by the global oil market, the push and pull of supply and demand, and long-term structural aspects of the global economy. It may be easier for a model without exogenous variables to forecast what the price of oil will be in 52 weeks than in 32 weeks.
 
 #### Forecasting with Brent Crude Oil as exogenous predictor
 
@@ -672,8 +738,11 @@ Next I forecast the models 12 weeks ahead and find the accuracy.
 ```{r}
 #| cache: true
 #| label: cv-fc-acc
+horizon_data <- new_data(ts_cv, 12) |>
+  left_join(brent_crude_exo, by = "date_week")
+
 tic()
-cv_fc <- forecast(models_cv_all, ts_cv, horizon = 12)
+cv_fc <- forecast(models_cv_all, horizon_data)
 toc(quiet = toc_quiet)
 
 tic()
@@ -693,7 +762,7 @@ best_model <- cv_acc |>
   pull(.model)
 ```
 
-The model (`{r} best_model`) that uses a 10-week moving average of Brent Crude Oil as a predictor has the best `crps_skill`.
+The model (`{r} best_model`) that uses a 10-week moving average of Brent Crude Oil as a predictor has the best `crps_skill`. `{r} best_model` provides a ~5 percentage point increase in accuracy over the "vanilla" `dhr_k5_free` model, while most of the other models with exogenous variables do worse than `dhr_k5_free`.
 
 ```{r}
 #| label: cv-acc-plot
@@ -702,25 +771,57 @@ cv_acc |>
   mutate(.model = fct_reorder(.model, crps_skill)) |>
   ggplot(aes(crps_skill, .model)) +
   geom_col() +
+  scale_x_percent() +
   scale_y_reordered() +
-  coord_cartesian(xlim = c(-1, 1)) +
+  coord_cartesian(xlim = c(.75, 1)) +
   labs(
     title = "Cross-validated forecast accuracy",
     subtitle = "US Consumer Gas Price",
     x = "CRPS Skill",
-    y = NULL
+    y = "Model"
   )
 ```
 
-The model that uses a trailing 60-week average of Brent Crude Oil performs terribly (the bar actually goes off the chart). I interpret this to mean that there are diminishing returns to the amount of "history" included in the model.
+```{r}
+cv_acc |>
+  ggplot(aes(crps_skill, rmse)) +
+  geom_point() +
+  geom_label_repel(aes(label = .model)) +
+  scale_x_percent() +
+  scale_y_reverse(label = \(x) str_c("$", x)) +
+  labs(
+    title = "Cross-validated forecast accuracy",
+    subtitle = "US Consumer Gas Price",
+    caption = "Y axis reversed",
+    x = "CRPS Skill",
+    y = "RMSE ($)"
+  )
+```
 
 This shows the last cross-validation forecast of the best model (`{r} best_model`).
 
 ```{r}
-#| label: cv-acc-plot2
+#| label: cv-fc-plot2
+fc_window <- cv_fc |>
+  filter(.model == best_model, .id == max(.id)) |>
+  distinct(date_week)
+
 cv_fc |>
-  filter(.id == max(.id), .model == best_model) |>
-  autoplot(ts_cv)
+  filter(.model == best_model, .id == max(.id)) |>
+  autoplot() +
+  autolayer(us_oil_prices |> semi_join(fc_window)) +
+  facet_wrap(vars(.id, .model)) +
+  scale_y_continuous(label = \(x) str_c("$", x)) +
+  guides(fill_ramp = guide_legend(title = "Prediction interval")) +
+  labs(
+    title = "Cross-validated forecast",
+    subtitle = "Black line shows actual price",
+    x = "Date",
+    y = "Price"
+  ) +
+  theme(
+    legend.position = "bottom"
+  )
 ```
 
 ### Scenario forecasts
@@ -770,9 +871,9 @@ last_price <- oil_prices |>
   pull(price)
 
 scenario_names <- c(
-  glue("Decrease to ${round(last_price * .8, 2)}"),
+  glue("20% decrease to ${round(last_price * .8, 2)}"),
   glue("Stabilize at ${round(last_price, 2)}"),
-  glue("Increase to ${round(last_price * 1.2, 2)}")
+  glue("20% increase to ${round(last_price * 1.2, 2)}")
 )
 
 exo_scenarios <- scenarios(
@@ -847,4 +948,8 @@ ggplot() +
   )
 ```
 
-This model forecasts that US oil prices will increase for the next \~7 weeks regardless of the scenario. Prices remain above \$4 per gallon in the average outcome for all scenarios. This is likely because the global oil supply chain has already been severely constrained, and even in a best case scenario it would take weeks for oil to transit from its origin to consumer markets.
+This model forecasts that US oil prices will increase for the next \~7 weeks regardless of the scenario. The high end of the "Increase" scenario is \> \$5.50. Prices remain above \$4 per gallon in the average outcome for all scenarios. This is likely because the global oil supply chain has already been severely constrained, and even in a best case scenario it would take weeks for oil to transit from its origin to consumer markets.
+
+#### Future extension
+
+A possible improvement on this method is to include the release of oil from the IEA (International Energy Agency) oil reserves. Oil is released from these reserves to reduce pressure on supply, which should decrease the price. This function is similar to a stock market circuit-breaker (link) or time-outs in basketball (link).
