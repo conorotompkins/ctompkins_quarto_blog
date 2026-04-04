@@ -24,7 +24,7 @@ format:
     code-summary: "Show the code"
 ---
 
-In this post, I analyze the relationship between the [Brent Crude Oil index](https://fred.stlouisfed.org/series/DCOILBRENTEU) and US gas prices at the pump [GASREGW](https://fred.stlouisfed.org/series/GASREGW/) (BC). I use time series forecasting with exogenous variables to test whether BC is a useful predictor of the price of gas in the US.
+In this post, I analyze the relationship between the [Brent Crude oil index](https://fred.stlouisfed.org/series/DCOILBRENTEU) (BC) and US gas prices at the pump [GASREGW](https://fred.stlouisfed.org/series/GASREGW/). I use time series forecasting with exogenous variables to test whether BC is a useful predictor of the price of gas in the US.
 
 Setup code:
 
@@ -142,7 +142,7 @@ This calculates the week-over-week % change and a % change indexed to the first 
 oil_comparison <- oil_prices |>
   as_tibble() |>
   mutate(
-    wow_pct_change = (price - lag(price)) / price,
+    wow_pct_change = (price - lag(price)) / lag(price),
     price_indexed = price / first(price),
     .by = series
   ) |>
@@ -166,7 +166,7 @@ oil_comparison |>
   theme(legend.position = "top")
 ```
 
-A basic scatterplot of the WoW % change of the two series shows that there is not a strong relationship.
+A basic scatterplot of the WoW % change of the two series shows that there is a positive relationship, but does not show an obvious effect.
 
 ```{r}
 #| fig-height: 6
@@ -212,7 +212,7 @@ oil_comparison |>
   theme(legend.position = "top")
 ```
 
-This code decomposes the series into time series components and plots them. The 
+This code decomposes the series into time series components and plots them. The "remainder" component is what cannot be explained by trend or weekly seasonality.
 
 ```{r}
 #| label: ts-components
@@ -464,87 +464,6 @@ test_acc |>
 
 The dynamic harmonic regression models (`dhr`) clearly outperform all the other models.
 
-```{r}
-#| echo: false
-#| eval: false
-#| label: test-fc-plot
-#| fig-height: 8
-#| fig-width: 8
-us_acc <- test_acc |>
-  filter(series == "us_consumer_gas") |>
-  pull(.model)
-
-test_fc |>
-  filter(.id == max(.id)) |>
-  mutate(.model = factor(.model, levels = us_acc)) |>
-  autoplot(ts_cv) +
-  facet_wrap(vars(.model), scales = "free_y") +
-  guides(
-    fill = "none",
-    color = "none",
-    fill_ramp = guide_legend(title = "Prediction interval")
-  ) +
-  labs(
-    title = "Cross-validated forecasts",
-    subtitle = "Arranged most to least accurate",
-    x = "Date",
-    y = "Price"
-  ) +
-  theme(legend.position = "bottom")
-
-test_fc |>
-  filter(.model == us_acc[1]) |>
-  autoplot(ts_cv) +
-  facet_wrap(vars(.id), scales = "free") +
-  guides(fill_ramp = guide_legend(title = "Prediction interval")) +
-  labs(
-    title = glue("Cross-validated forecasts of {us_acc[1]} model"),
-    x = "Date",
-    y = "Price"
-  ) +
-  theme(legend.position = "bottom")
-```
-
-```{r}
-#| echo: false
-#| eval: false
-#| label: test_plot_test
-#| fig-height: 8
-#| fig-width: 8
-
-fc_index <- test_fc |>
-  filter(.id == max(.id)) |>
-  distinct(date_week)
-
-recent_history <- us_oil_prices |>
-  semi_join(fc_index)
-
-# ts_cv is your full original tsibble (actuals)
-ggplot() +
-  # full actuals in every facet
-  autolayer(oil_prices) +
-  # CV forecasts (one slice, faceted by model)
-  autolayer(
-    test_fc |>
-      filter(.id == max(.id)) |>
-      mutate(.model = factor(.model, levels = us_acc)),
-    ts_cv
-  ) +
-  facet_wrap(vars(.model, .id), scales = "free_y") +
-  guides(
-    fill = "none",
-    color = "none",
-    fill_ramp = guide_legend(title = "Prediction interval")
-  ) +
-  labs(
-    title = "Cross-validated forecasts",
-    subtitle = "Arranged most to least accurate",
-    x = "Date",
-    y = "Price"
-  ) +
-  theme(legend.position = "bottom")
-```
-
 #### Finding the horizon
 
 Based on the cross-validated accuracy, the `dhr5_free` did the best. This code calculates the accuracy of `dhr5_free` and the best benchmark model `dcmp` at each index of the forecast horizon.
@@ -659,7 +578,7 @@ acc_percentiles |>
 
 The two models have similar error trajectories over the first 8 weeks, but significantly diverage over the next ~25 weeks. The error for `dcmp` increases much more rapidly than `dhr5_free`. `dhr5_free` also has much lower error variance. Based on RMSE, 12 weeks is a reasonable forecast horizon for `dhr5_free`.
 
-Interestingly, the error curve for `dcmp` continues to increase after week \~20, while `dhr5_free` stabilizes. Then the error curve for `dcmp` decreases after week \~32. The variance in the error of `dhr5_free` increases, as indicated by the wider interquartile range in the line graph. This variance is driven by outliers from one cross-validation forecast. Further cross-validation could help smooth that out, but I don't have the compute power for that at hand.
+Interestingly, the error curve for `dcmp` continues to increase after week \~20, while `dhr5_free` stabilizes. Then the error curve for `dcmp` decreases after week \~32. The variance in the error of both models increases, as indicated by the wider interquartile range in the line graph. This variance is driven by outliers from one cross-validation forecast. Further cross-validation could help smooth that out, but I don't have the compute power for that at hand.
 
 My hypothesis for this is that in the short-term, the US gas price is driven by events, but long-term variance is driven by the global oil market, the push and pull of supply and demand, and long-term structural aspects of the global economy. It may be easier for a model without exogenous variables to forecast what the price of oil will be in 52 weeks than in 32 weeks.
 
@@ -772,7 +691,7 @@ best_model <- cv_acc |>
   pull(.model)
 ```
 
-The model (`{r} best_model`) that uses a 10-week moving average of BC as a predictor has the best `crps_skill`. `{r} best_model` provides a ~5 percentage point increase in accuracy over the "vanilla" `dhr_k5_free` model, while most of the other models with exogenous variables do worse than `dhr_k5_free`.
+The model (`{r} best_model`) that uses a 10-week moving average of BC as a predictor has the best `crps_skill`. `{r} best_model` provides a ~5 percentage point increase in accuracy over the "vanilla" `dhr_k5_free` model, while most of the other models with exogenous variables do worse than `dhr_k5_free`. This shows that the relationship between the price of gas in the US and BC is not straightforward.
 
 ```{r}
 #| label: cv-acc-plot
@@ -783,7 +702,7 @@ cv_acc |>
   geom_col() +
   scale_x_percent() +
   scale_y_reordered() +
-  coord_cartesian(xlim = c(.75, 1)) +
+  coord_cartesian(xlim = c(.8, .95)) +
   labs(
     title = "Cross-validated forecast accuracy",
     subtitle = "US Consumer Gas Price",
@@ -808,7 +727,7 @@ cv_acc |>
   )
 ```
 
-This shows the last cross-validation forecast of the best model (`{r} best_model`).
+This shows the last cross-validation forecast of the best model (`{r} best_model`). The average (indicated by the blue line) closely follows the observed data (black line), and the observed data do not fall outside the prediction intervals. This reinforces that the model performs well in terms of CRPS skill score.
 
 ```{r}
 #| label: cv-fc-plot2
@@ -864,7 +783,7 @@ model_terms |>
   geom_col()
 ```
 
-Then I set up some future scenarios of Brent Crude to use as predictors. I create the following 12-week scenarios:
+Then I set up some future scenarios of Brent Crude (BC) to use as predictors for a true forecast. I create the following 12-week scenarios:
 
 -   20% decrease in BC price over 12 weeks
 -   BC stabilizes at the current price
@@ -972,4 +891,4 @@ This model forecasts that the US gas price will increase for the next \~7 weeks 
 
 #### Future extension
 
-A possible improvement on this method is to include the release of oil from the IEA (International Energy Agency) oil reserves. Oil is released from these reserves to reduce pressure on supply, which should decrease the price. This function is similar to a [stock market circuit-breaker](https://www.investopedia.com/terms/c/circuitbreaker.asp) or [time-outs in basketball](https://arxiv.org/abs/2011.11691).
+A possible improvement on this method is to include the release of oil from the IEA (International Energy Agency) oil reserves as a term in the model. Oil is released from these reserves to reduce pressure on supply, which should decrease the price. This function is probably similar to a [stock market circuit-breaker](https://www.investopedia.com/terms/c/circuitbreaker.asp) or [time-outs in basketball](https://arxiv.org/abs/2011.11691).
