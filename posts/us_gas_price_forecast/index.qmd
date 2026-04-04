@@ -501,7 +501,7 @@ acc_by_h |>
   geom_vline(xintercept = 12, lty = 2) +
   geom_line() +
   labs(
-    title = "Avg. Forecast error across forecast horizon",
+    title = "Avg. forecast error across forecast horizon",
     x = "Forecast horizon (weeks)",
     y = "Error (RMSE)",
     color = "Model"
@@ -743,7 +743,7 @@ cv_fc |>
   scale_y_continuous(label = \(x) str_c("$", x)) +
   guides(fill_ramp = guide_legend(title = "Prediction interval")) +
   labs(
-    title = "Cross-validated forecast",
+    title = "Last cross-validation forecast",
     subtitle = "Black line shows actual price",
     x = "Date",
     y = "Price"
