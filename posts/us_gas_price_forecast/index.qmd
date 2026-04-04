@@ -24,7 +24,7 @@ format:
     code-summary: "Show the code"
 ---
 
-In this post, I analyze the relationship between the Brent Crude Oil index and US gas prices at the pump. I use time series forecasting with exogenous variables to test whether Brent Crude is a useful predictor of US gas prices.
+In this post, I analyze the relationship between the [Brent Crude Oil index](https://fred.stlouisfed.org/series/DCOILBRENTEU) and US gas prices at the pump [GASREGW](https://fred.stlouisfed.org/series/GASREGW/) (BC). I use time series forecasting with exogenous variables to test whether BC is a useful predictor of the price of gas in the US.
 
 Setup code:
 
@@ -90,7 +90,7 @@ fred_df_raw <-
 
 ### Exploratory data analysis
 
-The results from FRED are stored in a dataframe (series, date, value). Here I clean up the dataframe and filter it so the begining and end of each series align. Brent Crude is measured daily, while the US gas price is measured weekly, so I aggregate the data to the year-week level.
+The results from FRED are stored in a dataframe (series, date, value). Here I clean up the dataframe and filter it so the begining and end of each series align. BC is measured daily, while the US gas price is measured weekly, so I aggregate the data to the year-week level.
 
 ```{r}
 #| label: summarize-fred
@@ -134,7 +134,7 @@ autoplot(oil_prices) +
   labs(x = "Date", y = "Price")
 ```
 
-This calculates the week-over-week % change and a % change indexed to the first observation, for each series. The WoW graph shows that US gas prices follow the Brent Crude index, but does not have as extreme highs and lows.
+This calculates the week-over-week % change and a % change indexed to the first observation, for each series. The WoW graph shows that the US gas price follows BC, but does not have as extreme highs and lows.
 
 ```{r}
 #| label: oil-comparison
@@ -166,7 +166,7 @@ oil_comparison |>
   theme(legend.position = "top")
 ```
 
-A basic scatterplot of the WoW % change of the two indexes shows that there is not a strong relationship.
+A basic scatterplot of the WoW % change of the two series shows that there is not a strong relationship.
 
 ```{r}
 #| fig-height: 6
@@ -212,7 +212,7 @@ oil_comparison |>
   theme(legend.position = "top")
 ```
 
-This code decomposes the series into components and plots them.
+This code decomposes the series into time series components and plots them. The 
 
 ```{r}
 #| label: ts-components
@@ -224,6 +224,7 @@ ts_components <- oil_prices |>
     )
   ) |>
   components() |>
+  select(-season_adjust) |>
   rename(weekly_seasonality = `season_1 year`)
 
 ts_components |>
@@ -233,8 +234,7 @@ ts_components |>
     price,
     trend,
     weekly_seasonality,
-    remainder,
-    season_adjust
+    remainder
   ) |>
   pivot_longer(-c(series, date_week)) |>
   mutate(
@@ -242,7 +242,6 @@ ts_components |>
       name,
       levels = c(
         "price",
-        "season_adjust",
         "trend",
         "weekly_seasonality",
         "remainder"
@@ -252,6 +251,7 @@ ts_components |>
   autoplot() +
   facet_wrap(vars(name, series), scale = "free_y", ncol = 2) +
   guides(color = "none") +
+  labs(x = "Date") +
   theme(axis.text.x = element_text(size = 8))
 ```
 
@@ -266,8 +266,7 @@ ts_components |>
     price,
     trend,
     weekly_seasonality,
-    remainder,
-    season_adjust
+    remainder
   ) |>
   pivot_longer(-c(series, date_week)) |>
   pivot_wider(names_from = series, values_from = value) |>
@@ -276,7 +275,6 @@ ts_components |>
       name,
       levels = c(
         "price",
-        "season_adjust",
         "trend",
         "weekly_seasonality",
         "remainder"
@@ -288,7 +286,7 @@ ts_components |>
   facet_wrap(vars(name), scales = "free")
 ```
 
-### Modelling US oil price
+### Modelling US gas price
 
 ```{r}
 #| echo: false
@@ -298,7 +296,7 @@ cv_size <- 52 * 4
 cv_step <- 52 * 3
 ```
 
-This cross-validates the `us_consumer_gas` series with chunks of 4 years (`{r} cv_size` weeks) of each series, stepping forward by 3 years (`{r} cv_step` weeks). The chunks overlap each other by 1 year. Then I train various models of different types, which I will then forecast and find the accuracy to determine which model structure is most appropriate.
+For cross-validatation, I break the `us_consumer_gas` series into chunks of 4 years (`{r} cv_size` weeks) of each series, stepping forward by 3 years (`{r} cv_step` weeks). The chunks overlap each other by 1 year. Then I train various models of different types, which I will then forecast and measure their accuracy to determine which model structure is most appropriate.
 
 ```{r}
 #| label: cv-oil
@@ -344,7 +342,7 @@ ts_cv |>
   labs(x = "Time window", y = "Cross-validation chunk")
 ```
 
-Here I use log(price + 1) to constrain the forecasts to be positive. I use fourier terms like `fourier(365.25 / 7, k = x)` to represent the impact of within-year weekly seasonality without having to make \~52 dummy variables. K varies how "smooth" the representation is. Higher values of K fit the model closer to the variance in the data, and lower values of K use a simpler pattern.
+I use `log(price + 1)` to constrain the forecasts to be positive. I use fourier terms like `fourier(365.25 / 7, k = x)` to represent the impact of within-year weekly seasonality without having to make \~52 dummy variables. K varies how "smooth" the representation is. Higher values of K fit the model closer to the variance in the data, and lower values of K use a simpler pattern.
 
 ```{r}
 #| cache: true
@@ -427,7 +425,7 @@ test_fc <- ts_models_combined |>
 toc(quiet = toc_quiet)
 ```
 
-Then I calculate the accuracy of those forecasts. I calculate the root mean squared error and the "skill score" of CRPS (continuous ranked probability score). CRPS measures how well the forecast distribution fits the observed data, and skill_score() compares that to the CRPS of a naive model. Think of `crps_skill` like the % improvement over a benchmark model.
+Then I calculate the accuracy of those forecasts. I calculate the root mean squared error and the "skill score" of CRPS (continuous ranked probability score). CRPS measures how well the forecast distribution fits the observed data, and `skill_score()` compares that to the CRPS of a naive model. Think of `crps_skill` like the % improvement over a benchmark model.
 
 ```{r}
 #| cache: true
@@ -463,6 +461,8 @@ test_acc |>
     y = "Model"
   )
 ```
+
+The dynamic harmonic regression models (`dhr`) clearly outperform all the other models.
 
 ```{r}
 #| echo: false
@@ -620,25 +620,35 @@ Breaking the error graph out by cross-validation `.id` shows a similar pattern.
 
 ```{r}
 #| label: acc-by-h-id-plot
-acc_by_h_id |>
+acc_percentiles <- acc_by_h_id |>
   select(.id, h, .model, RMSE) |>
   group_by(.model, h) |>
-  summarise(
-    lower = quantile(RMSE, 0.25, na.rm = TRUE),
-    median = median(RMSE, na.rm = TRUE),
-    upper = quantile(RMSE, 0.75, na.rm = TRUE)
+  reframe(
+    quants = quantile(RMSE, probs = c(.1, .25, .5, .75, .95)),
+    quant_labs = c("10%", "25%", "50%", "75%", "90%")
   ) |>
-  ggplot(aes(x = h, y = median, color = .model)) +
+  pivot_wider(names_from = quant_labs, values_from = quants)
+```
+
+```{r}
+#| eval: true
+acc_percentiles |>
+  ggplot(aes(x = h, color = .model)) +
   geom_ribbon(
-    aes(ymin = lower, ymax = upper, fill = .model),
+    aes(ymin = `10%`, ymax = `90%`, fill = .model),
+    alpha = 0.2,
+    lwd = .1
+  ) +
+  geom_ribbon(
+    aes(ymin = `25%`, ymax = `75%`, fill = .model),
     alpha = 0.4,
     lwd = .1
   ) +
-  geom_line(linewidth = 0.8) +
+  geom_line(aes(y = `50%`), linewidth = 0.8) +
   geom_vline(xintercept = 12, lty = 2) +
   labs(
     title = "Forecast error (RMSE) across forecast horizon",
-    subtitle = "Median and 25/75th percentiles by forecast horizon",
+    subtitle = "Median and 10/25/75/90th percentiles by forecast horizon",
     x = "Forecast horizon (weeks)",
     y = "RMSE"
   ) +
@@ -647,19 +657,19 @@ acc_by_h_id |>
   theme(legend.position = "top")
 ```
 
-The two models have similar error trajectories over the first 8 weeks, but significantly diverage over the next 20 weeks. The error for `dcmp` increases much more rapidly than `dhr5_free`. Based on RMSE, 12 weeks is a reasonable forecast horizon for `dhr5_free`.
+The two models have similar error trajectories over the first 8 weeks, but significantly diverage over the next ~25 weeks. The error for `dcmp` increases much more rapidly than `dhr5_free`. `dhr5_free` also has much lower error variance. Based on RMSE, 12 weeks is a reasonable forecast horizon for `dhr5_free`.
 
-Interestingly, the error curve for `dcmp` continues to increase after week \~20, while `dhr5_free` stabilizes. Then the error curve for `dcmp` decreases after week \~32. The variance in the error of `dhr5_free` increases, as indicated by the wider IQR in the boxplot. This variance is driven by outliers from one cross-validation forecast. Further cross-validation could help smooth that out, but I don't have the compute power for that at hand.
+Interestingly, the error curve for `dcmp` continues to increase after week \~20, while `dhr5_free` stabilizes. Then the error curve for `dcmp` decreases after week \~32. The variance in the error of `dhr5_free` increases, as indicated by the wider interquartile range in the line graph. This variance is driven by outliers from one cross-validation forecast. Further cross-validation could help smooth that out, but I don't have the compute power for that at hand.
 
-My hypothesis for this is that in the short-term, US oil price is driven by events, but long-term variance is driven by the global oil market, the push and pull of supply and demand, and long-term structural aspects of the global economy. It may be easier for a model without exogenous variables to forecast what the price of oil will be in 52 weeks than in 32 weeks.
+My hypothesis for this is that in the short-term, the US gas price is driven by events, but long-term variance is driven by the global oil market, the push and pull of supply and demand, and long-term structural aspects of the global economy. It may be easier for a model without exogenous variables to forecast what the price of oil will be in 52 weeks than in 32 weeks.
 
 #### Forecasting with Brent Crude Oil as exogenous predictor
 
-Next I train additional models based on `dhr5_free` that consider various transformation of Brent Crude Oil as exogenous predictors, in addition to the US oil price time series itself. The choices in these transformations are somewhat arbitrary, and could be tested more rigorously.
+Next I train additional models based on `dhr5_free` that consider various transformation of Brent Crude (BC) as exogenous predictors, in addition to the US gas price time series itself. The choices in these transformations are somewhat arbitrary, and could be tested more rigorously.
 
--   Models with `bc_lag` at the end use a weekly lag of Brent Crude as a predictor. "lag1" means that it uses last week's Brent Crude Oil to predict this week's US oil price.
--   Models with `bc_mean` at the end use a trailing rolling average of Brent Crude Oil as an predictor. "mean10" means that it uses a 10 week trailing rolling average of Brent Crude Oil to predict this week's US oil price.
--   Models with `bc_max` at the end use a trailing rolling maximum of Brent Crude Oil as an predictor. "max10" means that it uses a 10 week trailing rolling high of Brent Crude Oil to predict this week's US oil price.
+-   Models with `bc_lag` at the end use a weekly lag of BC as a predictor. "lag1" means that it uses last week's BC to predict this week's US gas price.
+-   Models with `bc_mean` at the end use a trailing rolling average of BC as an predictor. "mean10" means that it uses a 10 week trailing rolling average of BC to predict this week's US gas price.
+-   Models with `bc_max` at the end use a trailing rolling maximum of BC as an predictor. "max10" means that it uses a 10 week trailing rolling high of BC to predict this week's US gas price.
 
 ```{r}
 #| cache: true
@@ -762,7 +772,7 @@ best_model <- cv_acc |>
   pull(.model)
 ```
 
-The model (`{r} best_model`) that uses a 10-week moving average of Brent Crude Oil as a predictor has the best `crps_skill`. `{r} best_model` provides a ~5 percentage point increase in accuracy over the "vanilla" `dhr_k5_free` model, while most of the other models with exogenous variables do worse than `dhr_k5_free`.
+The model (`{r} best_model`) that uses a 10-week moving average of BC as a predictor has the best `crps_skill`. `{r} best_model` provides a ~5 percentage point increase in accuracy over the "vanilla" `dhr_k5_free` model, while most of the other models with exogenous variables do worse than `dhr_k5_free`.
 
 ```{r}
 #| label: cv-acc-plot
@@ -810,7 +820,7 @@ cv_fc |>
   filter(.model == best_model, .id == max(.id)) |>
   autoplot() +
   autolayer(us_oil_prices |> semi_join(fc_window)) +
-  facet_wrap(vars(.id, .model)) +
+  facet_wrap(vars(.model)) +
   scale_y_continuous(label = \(x) str_c("$", x)) +
   guides(fill_ramp = guide_legend(title = "Prediction interval")) +
   labs(
@@ -826,12 +836,7 @@ cv_fc |>
 
 ### Scenario forecasts
 
-Finally, I refit `{r} best_model` against the entire training set and set up some future scenarios of Brent Crude Oil to use as predictors. I create the following 12-week scenarios:
-
--   20% decrease in Brent Crude Oil price over 12 weeks
--   Brent Crude Oil stabilizes at the current price
--   20% increase in Brent Crude Oil price over 12 weeks
-
+Finally, I refit `{r} best_model` against the entire training set. The following chart shows the estimate for each term in the model. Even though the estimate for `brent_crude_mean10` is relatively lower than the other terms, the cross-validation results show that it is a meaningful variable in terms of predictive power.
 ```{r}
 #| cache: true
 #| label: ts-model-final
@@ -847,8 +852,23 @@ ts_model_final <- ts_train_final |>
         brent_crude_mean10
     )
   )
+
+model_terms <- ts_model_final |>
+  tidy() |>
+  select(term, estimate) |>
+  mutate(estimate = round(estimate, 4))
+
+model_terms |>
+  mutate(term = fct_reorder(term, estimate)) |>
+  ggplot(aes(x = estimate, y = term)) +
+  geom_col()
 ```
 
+Then I set up some future scenarios of Brent Crude to use as predictors. I create the following 12-week scenarios:
+
+-   20% decrease in BC price over 12 weeks
+-   BC stabilizes at the current price
+-   20% increase in BC price over 12 weeks
 ```{r}
 #| label: scenarios
 #| fig-width: 8
@@ -948,8 +968,8 @@ ggplot() +
   )
 ```
 
-This model forecasts that US oil prices will increase for the next \~7 weeks regardless of the scenario. The high end of the "Increase" scenario is \> \$5.50. Prices remain above \$4 per gallon in the average outcome for all scenarios. This is likely because the global oil supply chain has already been severely constrained, and even in a best case scenario it would take weeks for oil to transit from its origin to consumer markets.
+This model forecasts that the US gas price will increase for the next \~7 weeks regardless of the scenario. The high end of the "Increase" scenario is \> \$5.50. Prices remain above \$4 per gallon in the average outcome for all scenarios. This is likely because the global oil supply chain has already been severely constrained, and even in a best case scenario it would take weeks for oil to transit from its origin to consumer markets.
 
 #### Future extension
 
-A possible improvement on this method is to include the release of oil from the IEA (International Energy Agency) oil reserves. Oil is released from these reserves to reduce pressure on supply, which should decrease the price. This function is similar to a stock market circuit-breaker (link) or time-outs in basketball (link).
+A possible improvement on this method is to include the release of oil from the IEA (International Energy Agency) oil reserves. Oil is released from these reserves to reduce pressure on supply, which should decrease the price. This function is similar to a [stock market circuit-breaker](https://www.investopedia.com/terms/c/circuitbreaker.asp) or [time-outs in basketball](https://arxiv.org/abs/2011.11691).
