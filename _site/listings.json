@@ -2,6 +2,8 @@
   {
     "listing": "/index.html",
     "items": [
+      "/posts/us_gas_price_forecast/index.html",
+      "/posts/3rbc_slide_slam_2024/index.html",
       "/posts/us-labor-participation/index.html",
       "/posts/ebird-habitat-clustering/index.html",
       "/posts/spatial-clustering-pittsburgh/index.html",
