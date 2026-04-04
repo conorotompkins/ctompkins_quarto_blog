@@ -758,7 +758,7 @@ $ year          &lt;dbl&gt; 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2019
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp("https:\/\/ctompkins\.netlify\.app\/");
+        var filterRegex = new RegExp("https:\/\/ctompkins\.netlify\.app");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
