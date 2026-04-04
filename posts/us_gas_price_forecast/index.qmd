@@ -8,7 +8,7 @@ subtitle: ''
 summary: ''
 authors: []
 featured: no
-draft: true
+draft: false
 image: featured.png
 execute: 
   echo: true
