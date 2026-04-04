@@ -7,3 +7,4 @@
 
 post_data
 **/*.quarto_ipynb
+posts/**/index_cache/
