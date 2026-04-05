@@ -7,8 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Conor Tompkins">
+<meta name="dcterms.date" content="2026-04-04">
 
-<title>Forecasting US gas prices with Brent Crude Oil – Conor Tompkins</title>
+<title>Forecasting the price of gas in the US with Brent Crude Oil – Conor Tompkins</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -168,8 +169,13 @@ gtag('config', 'G-7TL8ET415E', { 'anonymize_ip': true});
 <header id="title-block-header" class="quarto-title-block default page-columns page-full">
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
-      <h1 class="title">Forecasting US gas prices with Brent Crude Oil</h1>
-                      </div>
+      <h1 class="title">Forecasting the price of gas in the US with Brent Crude Oil</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">R</div>
+                <div class="quarto-category">oil</div>
+                <div class="quarto-category">forecasting</div>
+              </div>
+                  </div>
   </div>
     
   
@@ -178,10 +184,16 @@ gtag('config', 'G-7TL8ET415E', { 'anonymize_ip': true});
       <div>
       <div class="quarto-title-meta-heading">Author</div>
       <div class="quarto-title-meta-contents">
-               <p> </p>
+               <p>Conor Tompkins </p>
             </div>
     </div>
       
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">April 4, 2026</p>
+      </div>
+    </div>
     
       
     </div>
@@ -198,7 +210,7 @@ gtag('config', 'G-7TL8ET415E', { 'anonymize_ip': true});
 
 
 
-<p>In this post, I analyze the relationship between the <a href="https://fred.stlouisfed.org/series/DCOILBRENTEU">Brent Crude oil index</a> (BC) and US gas prices at the pump <a href="https://fred.stlouisfed.org/series/GASREGW/">GASREGW</a>. I use time series forecasting with exogenous variables to test whether BC is a useful predictor of the price of gas in the US.</p>
+<p>In this post, I analyze the relationship between the <a href="https://fred.stlouisfed.org/series/DCOILBRENTEU">Brent Crude oil index</a> (BC) and <a href="https://fred.stlouisfed.org/series/GASREGW/">US gas prices at the pump</a>. I use time series forecasting with exogenous variables to test whether BC is a useful predictor of the price of gas in the US.</p>
 <p>Setup code:</p>
 <div class="cell">
 <details class="code-fold">
