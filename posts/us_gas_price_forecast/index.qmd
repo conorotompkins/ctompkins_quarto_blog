@@ -1,15 +1,11 @@
 ---
-title: Forecasting US gas prices with Brent Crude Oil
+title: Forecasting the price of gas in the US with Brent Crude Oil
 author: Conor Tompkins
 slug: us_gas_prices_brent_crude
-categories: []
-tags: []
-subtitle: ''
-summary: ''
-authors: []
-featured: no
+categories: [R, oil, forecasting]
 draft: false
 image: featured.png
+date: 2026-04-04
 execute: 
   echo: true
   warning: false
@@ -24,7 +20,7 @@ format:
     code-summary: "Show the code"
 ---
 
-In this post, I analyze the relationship between the [Brent Crude oil index](https://fred.stlouisfed.org/series/DCOILBRENTEU) (BC) and US gas prices at the pump [GASREGW](https://fred.stlouisfed.org/series/GASREGW/). I use time series forecasting with exogenous variables to test whether BC is a useful predictor of the price of gas in the US.
+In this post, I analyze the relationship between the [Brent Crude oil index](https://fred.stlouisfed.org/series/DCOILBRENTEU) (BC) and [US gas prices at the pump](https://fred.stlouisfed.org/series/GASREGW/). I use time series forecasting with exogenous variables to test whether BC is a useful predictor of the price of gas in the US.
 
 Setup code:
 
