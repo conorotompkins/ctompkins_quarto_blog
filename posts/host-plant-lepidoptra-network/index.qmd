@@ -1,0 +1,143 @@
+---
+title: "Network Analysis of relationships between host plants and North American Lepidoptra"
+author: Conor Tompkins
+slug: host-plant-lepidoptra-network
+categories: [R, nature, network analysis, butterflies]
+draft: true
+image: featured.png
+date: 2026-08-03
+execute: 
+  echo: true
+  warning: false
+  message: false
+  freeze: true
+lightbox: true
+editor_options: 
+  chunk_output_type: console
+format: 
+  html:
+    code-fold: true
+    code-summary: "Show the code"
+---
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(janitor)
+library(tidygraph)
+library(ggraph)
+
+plant_lep_df_raw <- read_excel(
+  "posts/host-plant-lepidoptra-network/data/zookeys_-1261-101-s001.xlsx",
+  skip = 1
+) |>
+  clean_names()
+
+
+plant_lep_df_raw
+```
+
+
+```{r}
+glimpse(plant_lep_df_raw)
+```
+
+```{r}
+#top leps in terms of host plants
+top_lep_hosts <- plant_lep_df_raw |>
+  select(lep_common_name, count_host_plant_genera) |>
+  mutate(count_host_plant_genera = parse_number(count_host_plant_genera))
+
+top_lep_hosts |>
+  ggplot(aes(count_host_plant_genera)) +
+  geom_histogram()
+
+top_lep_hosts |>
+  filter(count_host_plant_genera == max(count_host_plant_genera, na.rm = TRUE))
+```
+
+```{r}
+common_name_target <- tibble(
+  lep_common_name = c(
+    "Monarch",
+    "Spicebush Swallowtail",
+    "Eastern Tiger Swallowtail",
+    "Virginian Tiger Moth, Yellow Woolybear Moth, Yellow Bear",
+    "Fall Armyworm Moth"
+  )
+)
+
+plant_lep_df <- plant_lep_df_raw |>
+  mutate(
+    host_genera = str_squish(host_genera),
+    ud_lep_number = as.character(ud_lep_number)
+  ) |>
+  #semi_join(common_name_target, by = "lep_common_name") |>
+  #select(lep_common_name, host_genera) |>
+  separate_rows(host_genera, sep = " ") |>
+  select(
+    host_genera,
+    ud_lep_number,
+    lep_common_name,
+    species_complete_binomial_nomenclature
+  ) |>
+  drop_na(host_genera, ud_lep_number)
+
+view(plant_lep_df)
+```
+
+ 
+```{r}
+network <- plant_lep_df |>
+  select(host_genera, ud_lep_number) |>
+  as_tbl_graph(directed = TRUE)
+
+network
+
+common_name_lookup <- plant_lep_df |>
+  distinct(
+    ud_lep_number,
+    species_complete_binomial_nomenclature,
+    lep_common_name
+  ) |>
+  semi_join(common_name_target)
+
+common_name_lookup |>
+  semi_join(common_name_target)
+```
+
+
+```{r}
+plot(network)
+```
+
+```{r}
+network |>
+  activate(nodes) |>
+  as_tibble() |>
+  view()
+```
+```{r}
+network |>
+  activate(nodes) |>
+  left_join(
+    common_name_lookup,
+    by = c("name" = "ud_lep_number")
+  ) |>
+  ggraph(layout = "fr") +
+  geom_node_point()
+
+network |>
+  activate(nodes) |>
+  left_join(
+    common_name_lookup,
+    by = c("name" = "ud_lep_number")
+  ) |>
+  ggraph(layout = "fr") +
+  #geom_edge_bend() +
+  geom_node_point() +
+  geom_node_label(aes(
+    filter = name %in% common_name_lookup$ud_lep_number,
+    label = str_wrap(lep_common_name, 14)
+  ))
+```
