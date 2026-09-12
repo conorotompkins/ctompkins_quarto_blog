@@ -28,25 +28,38 @@ library(tidygraph)
 library(ggraph)
 
 plant_lep_df_raw <- read_excel(
-  "posts/host-plant-lepidoptra-network/data/zookeys_-1261-101-s001.xlsx",
+  "posts/host-plant-lepidoptra-network/post_data/zookeys_-1261-101-s001.xlsx",
   skip = 1
 ) |>
   clean_names()
-
-
-plant_lep_df_raw
 ```
-
 
 ```{r}
 glimpse(plant_lep_df_raw)
 ```
 
 ```{r}
-#top leps in terms of host plants
-top_lep_hosts <- plant_lep_df_raw |>
-  select(lep_common_name, count_host_plant_genera) |>
+plant_lep_df <- plant_lep_df_raw |>
+  mutate(
+    host_genera = str_squish(host_genera),
+    ud_lep_number = as.character(ud_lep_number)
+  ) |>
   mutate(count_host_plant_genera = parse_number(count_host_plant_genera))
+
+glimpse(plant_lep_df)
+
+plant_lep_df |>
+  count(lep_family, sort = TRUE)
+
+plant_lep_df |>
+  filter(lep_family == "Nymphalidae") |>
+  count(lep_subfamily)
+```
+
+```{r}
+#top leps in terms of host plants
+top_lep_hosts <- plant_lep_df |>
+  select(lep_common_name, count_host_plant_genera)
 
 top_lep_hosts |>
   ggplot(aes(count_host_plant_genera)) +
@@ -67,12 +80,22 @@ common_name_target <- tibble(
   )
 )
 
-plant_lep_df <- plant_lep_df_raw |>
+lep_range_state_province <- plant_lep_df |>
+  select(ud_lep_number, lep_common_name, range_state_province) |>
+  filter(range_state_province != "[strays]") |>
   mutate(
-    host_genera = str_squish(host_genera),
-    ud_lep_number = as.character(ud_lep_number)
+    range_state_province = str_remove_all(range_state_province, "&"),
+    range_state_province = str_squish(range_state_province)
   ) |>
+  separate_rows(range_state_province, sep = " ")
+
+pa_lep_hosts <- plant_lep_df |>
+  filter(lep_family == "Nymphalidae") |>
   #semi_join(common_name_target, by = "lep_common_name") |>
+  semi_join(
+    lep_range_state_province |> filter(range_state_province == "PA"),
+    by = "ud_lep_number"
+  ) |>
   #select(lep_common_name, host_genera) |>
   separate_rows(host_genera, sep = " ") |>
   select(
@@ -83,18 +106,17 @@ plant_lep_df <- plant_lep_df_raw |>
   ) |>
   drop_na(host_genera, ud_lep_number)
 
-view(plant_lep_df)
+glimpse(pa_lep_hosts)
 ```
 
- 
 ```{r}
-network <- plant_lep_df |>
+network <- pa_lep_hosts |>
   select(host_genera, ud_lep_number) |>
   as_tbl_graph(directed = TRUE)
 
 network
 
-common_name_lookup <- plant_lep_df |>
+common_name_lookup <- pa_lep_hosts |>
   distinct(
     ud_lep_number,
     species_complete_binomial_nomenclature,
@@ -102,10 +124,8 @@ common_name_lookup <- plant_lep_df |>
   ) |>
   semi_join(common_name_target)
 
-common_name_lookup |>
-  semi_join(common_name_target)
+common_name_lookup
 ```
-
 
 ```{r}
 plot(network)
@@ -117,6 +137,7 @@ network |>
   as_tibble() |>
   view()
 ```
+
 ```{r}
 network |>
   activate(nodes) |>
@@ -125,7 +146,7 @@ network |>
     by = c("name" = "ud_lep_number")
   ) |>
   ggraph(layout = "fr") +
-  geom_node_point()
+  geom_node_point(alpha = .1)
 
 network |>
   activate(nodes) |>
@@ -134,10 +155,10 @@ network |>
     by = c("name" = "ud_lep_number")
   ) |>
   ggraph(layout = "fr") +
-  #geom_edge_bend() +
+  geom_edge_bend() +
   geom_node_point() +
   geom_node_label(aes(
-    filter = name %in% common_name_lookup$ud_lep_number,
+    filter = name %in% pa_lep_hosts$ud_lep_number,
     label = str_wrap(lep_common_name, 14)
   ))
 ```
