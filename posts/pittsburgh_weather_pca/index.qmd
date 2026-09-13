@@ -1,0 +1,193 @@
+---
+title: "Pittsburgh Weather PCA"
+format: html
+---
+
+```{r}
+library(tidyverse)
+library(broom)
+library(openmeteo)
+library(arrow)
+library(paletteer)
+library(ggrepel)
+
+options(scipen = 999, digits = 4)
+
+theme_set(theme_bw())
+```
+
+```{r}
+#| eval: false
+
+location <- "Pittsburgh, PA"
+
+weather_data <- weather_history(
+  location = location,
+  start = "1980-01-01",
+  end = "2026-09-10",
+  daily = weather_variables()$daily_history_vars
+) |>
+  mutate(location = location, .before = 1)
+
+write_parquet(
+  weather_data,
+  "posts/pittsburgh_weather_pca/post_data/weather_data.parquet"
+)
+```
+
+```{r}
+weather_data <- read_parquet(
+  "posts/pittsburgh_weather_pca/post_data/weather_data.parquet"
+)
+```
+
+```{r}
+glimpse(weather_data)
+
+weather_data$daily_weather_code |> summary()
+```
+
+```{r}
+drop_bad_cols <- function(x) {
+  bad_cols <- x |>
+    pivot_longer(
+      cols = everything(),
+      names_to = "column_name",
+      values_to = "value"
+    ) |>
+    summarize(is_constant = n_distinct(value) == 1, .by = column_name) |>
+    filter(is_constant == TRUE) |>
+    distinct(column_name) |>
+    pull(column_name)
+
+  print(str_c("dropping ", str_c(bad_cols, collapse = ", ")))
+
+  x <- select(x, -all_of(bad_cols))
+}
+```
+
+```{r}
+pca_fit <- weather_data |>
+  select(where(is.numeric)) |>
+  select(-daily_weather_code) |>
+  drop_bad_cols() |>
+  prcomp(scale = TRUE)
+```
+
+```{r}
+weather_data_pca <- pca_fit |>
+  augment(weather_data) |>
+  rename_with(~ str_replace(.x, "^.fittedPC", "pc_"))
+
+pca_fit |>
+  tidy(matrix = "eigenvalues") |>
+  ggplot(aes(PC, percent)) +
+  geom_col() +
+  scale_x_continuous(breaks = 1:9) +
+  scale_y_continuous(
+    labels = scales::percent_format(),
+    expand = expansion(mult = c(0, 0.01))
+  )
+```
+
+```{r}
+weather_data_pca |>
+  mutate(month = month(date, label = TRUE, abbr = TRUE)) |>
+  ggplot(aes(pc_1, pc_2, color = month)) +
+  geom_point(size = 1.5, alpha = .1) +
+  scale_color_paletteer_d("jcolors::pal12") +
+  coord_fixed()
+
+weather_data_pca |>
+  mutate(month = month(date, label = TRUE, abbr = TRUE)) |>
+  ggplot(aes(pc_1, pc_3, color = month)) +
+  geom_point(size = 1.5, alpha = .1) +
+  scale_color_paletteer_d("jcolors::pal12") +
+  coord_fixed()
+```
+
+```{r}
+# define arrow style for plotting
+arrow_style <- arrow(
+  angle = 20,
+  ends = "first",
+  type = "closed",
+  length = grid::unit(8, "pt")
+)
+
+pca_fit |>
+  tidy(matrix = "rotation") |>
+  group_by(PC) |>
+  slice_max(abs(value), n = 5) |>
+  filter(PC %in% c(1:5)) |>
+  view()
+
+# plot rotation matrix
+pca_rot <- pca_fit |>
+  tidy(matrix = "rotation") |>
+  pivot_wider(names_from = "PC", names_prefix = "PC", values_from = "value")
+
+pca_rot |>
+  #mutate(text = str_wrap(column, width = 0)) |>
+  ggplot(aes(PC1, PC2)) +
+  geom_segment(xend = 0, yend = 0, arrow = arrow_style) +
+  geom_text_repel(
+    aes(label = column)
+  ) +
+  scale_x_continuous(expand = expansion(mult = .2)) +
+  scale_y_continuous(expand = expansion(mult = .2))
+```
+
+```{r}
+pca_rot |>
+  #mutate(text = str_wrap(column, width = 0)) |>
+  ggplot(aes(PC1, PC3)) +
+  geom_segment(xend = 0, yend = 0, arrow = arrow_style) +
+  geom_text_repel(
+    aes(label = column)
+  ) +
+  scale_x_continuous(expand = expansion(mult = .2)) +
+  scale_y_continuous(expand = expansion(mult = .2))
+```
+
+```{r}
+pca_rot |>
+  #mutate(text = str_wrap(column, width = 0)) |>
+  ggplot(aes(PC1, PC4)) +
+  geom_segment(xend = 0, yend = 0, arrow = arrow_style) +
+  geom_text_repel(
+    aes(label = column)
+  ) +
+  scale_x_continuous(expand = expansion(mult = .2)) +
+  scale_y_continuous(expand = expansion(mult = .2))
+```
+
+```{r}
+weather_data_pca_time <- weather_data_pca |>
+  select(date, starts_with("pc_")) |>
+  mutate(
+    decade = year(date) %/% 10,
+    decade = str_c(decade, "0's"),
+    year = year(date),
+    yday = yday(date)
+  )
+
+weather_data_pca_time |>
+  select(date, decade, pc_1:pc_5) |>
+  pivot_longer(cols = starts_with("pc_")) |>
+  ggplot(aes(date, value, color = name)) +
+  geom_line() +
+  facet_wrap(vars(decade), ncol = 1, scales = "free_x")
+```
+
+
+```{r}
+weather_data_pca_time |>
+  select(yday, year, pc_1:pc_5) |>
+  pivot_longer(cols = starts_with("pc_")) |>
+  ggplot(aes(yday, value)) +
+  #geom_point(aes(color = year), alpha = .01) +
+  geom_smooth(color = "black") +
+  scale_color_viridis_c() +
+  facet_wrap(vars(name), ncol = 1, scales = "free_y")
+```
