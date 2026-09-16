@@ -10,6 +10,8 @@ library(openmeteo)
 library(arrow)
 library(paletteer)
 library(ggrepel)
+library(scales)
+library(tidyclust)
 
 options(scipen = 999, digits = 4)
 
@@ -44,7 +46,8 @@ weather_data <- read_parquet(
 ```{r}
 glimpse(weather_data)
 
-weather_data$daily_weather_code |> summary()
+weather_data |>
+  summarize(start = min(date), end = max(date))
 ```
 
 ```{r}
@@ -77,33 +80,53 @@ pca_fit <- weather_data |>
 ```{r}
 weather_data_pca <- pca_fit |>
   augment(weather_data) |>
-  rename_with(~ str_replace(.x, "^.fittedPC", "pc_"))
+  rename_with(~ str_replace(.x, "^.fittedPC", "pc_")) |>
+  mutate(month = month(date, label = TRUE, abbr = TRUE))
 
-pca_fit |>
-  tidy(matrix = "eigenvalues") |>
+pca_values <- pca_fit |>
+  tidy(matrix = "eigenvalues")
+
+pca_values |>
   ggplot(aes(PC, percent)) +
   geom_col() +
-  scale_x_continuous(breaks = 1:9) +
+  scale_x_continuous(breaks = 1:nrow(pca_values)) +
   scale_y_continuous(
-    labels = scales::percent_format(),
+    labels = percent_format(),
     expand = expansion(mult = c(0, 0.01))
-  )
+  ) +
+  theme(panel.grid.minor = element_blank())
 ```
 
 ```{r}
 weather_data_pca |>
-  mutate(month = month(date, label = TRUE, abbr = TRUE)) |>
   ggplot(aes(pc_1, pc_2, color = month)) +
   geom_point(size = 1.5, alpha = .1) +
   scale_color_paletteer_d("jcolors::pal12") +
+  guides(color = guide_legend(override.aes = list(alpha = 1))) +
   coord_fixed()
 
 weather_data_pca |>
-  mutate(month = month(date, label = TRUE, abbr = TRUE)) |>
   ggplot(aes(pc_1, pc_3, color = month)) +
   geom_point(size = 1.5, alpha = .1) +
   scale_color_paletteer_d("jcolors::pal12") +
+  guides(color = guide_legend(override.aes = list(alpha = 1))) +
   coord_fixed()
+
+weather_data_pca |>
+  ggplot(aes(pc_2, pc_3, color = month)) +
+  geom_point(size = 1.5, alpha = .1) +
+  scale_color_paletteer_d("jcolors::pal12") +
+  guides(color = guide_legend(override.aes = list(alpha = 1))) +
+  coord_fixed()
+
+weather_data_pca |>
+  select(month, pc_1:pc_10) |>
+  pivot_longer(-c(month, pc_1)) |>
+  mutate(name = fct_inorder(name)) |>
+  ggplot(aes(pc_1, value, color = month)) +
+  geom_point(alpha = .1, size = .5) +
+  facet_wrap(vars(name), scales = "free") +
+  guides(color = guide_legend(override.aes = list(alpha = 1)))
 ```
 
 ```{r}
@@ -128,38 +151,29 @@ pca_rot <- pca_fit |>
   pivot_wider(names_from = "PC", names_prefix = "PC", values_from = "value")
 
 pca_rot |>
-  #mutate(text = str_wrap(column, width = 0)) |>
-  ggplot(aes(PC1, PC2)) +
-  geom_segment(xend = 0, yend = 0, arrow = arrow_style) +
-  geom_text_repel(
-    aes(label = column)
-  ) +
-  scale_x_continuous(expand = expansion(mult = .2)) +
-  scale_y_continuous(expand = expansion(mult = .2))
-```
+  distinct(column)
 
-```{r}
-pca_rot |>
-  #mutate(text = str_wrap(column, width = 0)) |>
-  ggplot(aes(PC1, PC3)) +
-  geom_segment(xend = 0, yend = 0, arrow = arrow_style) +
-  geom_text_repel(
-    aes(label = column)
-  ) +
-  scale_x_continuous(expand = expansion(mult = .2)) +
-  scale_y_continuous(expand = expansion(mult = .2))
-```
+graph_pca_rot <- function(pca_df, x, y) {
+  pca_df |>
+    mutate(text = str_replace_all(column, "_", " ") |> str_wrap(16)) |>
+    ggplot(aes(.data[[x]], .data[[y]])) +
+    geom_segment(xend = 0, yend = 0, arrow = arrow_style) +
+    geom_label(
+      aes(label = text),
+      size = 2
+    ) +
+    scale_x_continuous(expand = expansion(mult = .2)) +
+    scale_y_continuous(expand = expansion(mult = .2))
+}
 
-```{r}
 pca_rot |>
-  #mutate(text = str_wrap(column, width = 0)) |>
-  ggplot(aes(PC1, PC4)) +
-  geom_segment(xend = 0, yend = 0, arrow = arrow_style) +
-  geom_text_repel(
-    aes(label = column)
-  ) +
-  scale_x_continuous(expand = expansion(mult = .2)) +
-  scale_y_continuous(expand = expansion(mult = .2))
+  graph_pca_rot("PC1", "PC2")
+
+pca_rot |>
+  graph_pca_rot("PC1", "PC3")
+
+pca_rot |>
+  graph_pca_rot("PC1", "PC4")
 ```
 
 ```{r}
@@ -172,6 +186,23 @@ weather_data_pca_time <- weather_data_pca |>
     yday = yday(date)
   )
 
+quantile_df <- function(x, probs = c(0.25, 0.5, 0.75)) {
+  tibble(
+    val = quantile(x, probs, na.rm = TRUE),
+    quant = probs
+  )
+}
+
+historical_range <- weather_data_pca_time |>
+  filter(year(date) < 2000) |>
+  select(date, yday, pc_1:pc_5) |>
+  pivot_longer(cols = starts_with("pc_")) |>
+  reframe(quantile_df(value), .by = c(yday, name)) |>
+  pivot_wider(names_from = quant, values_from = val, names_prefix = "pct_") |>
+  arrange(name, yday)
+
+historical_range
+
 weather_data_pca_time |>
   select(date, decade, pc_1:pc_5) |>
   pivot_longer(cols = starts_with("pc_")) |>
@@ -180,14 +211,152 @@ weather_data_pca_time |>
   facet_wrap(vars(decade), ncol = 1, scales = "free_x")
 ```
 
+```{r}
+weather_data_pca_time |>
+  select(yday, year, decade, pc_1:pc_5) |>
+  pivot_longer(cols = starts_with("pc_")) |>
+  ggplot(aes(yday, value, group = year)) +
+  geom_ribbon(
+    data = historical_range,
+    aes(x = yday, ymin = pct_0.25, ymax = pct_0.75),
+    alpha = .3,
+    inherit.aes = FALSE
+  ) +
+  geom_smooth(aes(group = decade, color = decade), lwd = .5) +
+  facet_wrap(vars(name), ncol = 1, scales = "free_y") +
+  labs(
+    title = "Decadal PC value vs. 1980-2000 historical range (25-65 percentile)",
+    x = "Day of year",
+    y = "PCA value",
+    color = "Decade"
+  )
+```
 
 ```{r}
 weather_data_pca_time |>
   select(yday, year, pc_1:pc_5) |>
   pivot_longer(cols = starts_with("pc_")) |>
   ggplot(aes(yday, value)) +
-  #geom_point(aes(color = year), alpha = .01) +
   geom_smooth(color = "black") +
   scale_color_viridis_c() +
   facet_wrap(vars(name), ncol = 1, scales = "free_y")
+```
+
+### Clustering
+
+
+```{r}
+glimpse(weather_data_pca_time)
+
+hc_spec <- hier_clust(
+  num_clusters = 4,
+  linkage_method = "ward.D2"
+)
+
+hc_fit <- hc_spec |>
+  fit(
+    ~.,
+    data = weather_data_pca_time |>
+      filter(date < "2026-01-01") |>
+      select(starts_with("pc_"))
+  )
+
+hc_fit |>
+  summary()
+
+hc_fit$fit |> plot()
+```
+
+
+```{r}
+cluster_assignments <- weather_data_pca_time |>
+  filter(date < "2026-01-01") |>
+  bind_cols(extract_cluster_assignment(hc_fit))
+
+cluster_assignments |>
+  distinct(.cluster)
+
+seasons <- c("Winter", "Rainy??", "Spring/Fall", "Summer")
+
+cluster_labels <- tibble(
+  .cluster = c(str_c("Cluster", 1:4, sep = "_") |> factor()),
+  .cluster_label = factor(
+    seasons,
+    levels = seasons
+  )
+)
+
+cluster_assignments <- left_join(cluster_assignments, cluster_labels)
+
+levels(cluster_assignments$.cluster)
+
+levels(cluster_assignments$cluster_label)
+
+cluster_pal_test <- scales::hue_pal()(4)
+
+show_col(cluster_pal_test)
+
+cluster_pal_test
+
+cluster_labels
+
+cluster_pal <- c(
+  "Winter" = "#00BFC4",
+  "Rainy??" = "#C77CFF",
+  "Summer" = "#F8766D",
+  "Spring/Fall" = "#7CAE00"
+)
+
+show_col(cluster_pal)
+
+cluster_assignments |>
+  ggplot(aes(x = yday, y = year, fill = .cluster_label)) +
+  geom_tile() +
+  scale_x_continuous(expand = expansion(0)) +
+  scale_y_reverse(expand = expansion(0)) +
+  scale_fill_manual(values = cluster_pal)
+
+cluster_assignments |>
+  filter(decade == "2020's") |>
+  ggplot(aes(x = yday, y = year, fill = .cluster_label)) +
+  geom_tile() +
+  scale_x_continuous(expand = expansion(0)) +
+  scale_y_reverse(expand = expansion(0)) +
+  scale_fill_manual(values = cluster_pal)
+```
+
+```{r}
+cluster_summary <- cluster_assignments |>
+  summarize(
+    avg_start = mean(min(yday)),
+    avg_end = mean(max(yday)),
+    days = n(),
+    .by = c(.cluster, year)
+  ) |>
+  left_join(cluster_labels)
+
+cluster_summary |>
+  ggplot(aes(x = year, y = days, fill = .cluster_label)) +
+  geom_area() +
+  scale_fill_manual(values = cluster_pal)
+
+cluster_summary |>
+  pivot_longer(cols = -c(.cluster, .cluster_label, year)) |>
+  ggplot(aes(x = year, y = value, color = .cluster_label)) +
+  geom_line() +
+  facet_wrap(vars(name), scales = "free_y", ncol = 1) +
+  scale_color_manual(values = cluster_pal)
+```
+
+```{r}
+cluster_centroids <- extract_centroids(hc_fit) |>
+  left_join(cluster_labels)
+
+cluster_assignments |>
+  ggplot(aes(pc_1, pc_2)) +
+  geom_point(aes(color = .cluster), alpha = .1) +
+  geom_label(
+    data = cluster_centroids,
+    aes(label = .cluster_label, fill = .cluster_label)
+  )
 ```
