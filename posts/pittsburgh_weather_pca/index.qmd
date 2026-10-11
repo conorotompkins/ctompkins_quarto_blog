@@ -6,7 +6,7 @@ format:
     code-summary: "Show the code"
 ---
 
-In this post I will explore the long-term weather history of Pittsburgh and apply EDA. I use the Open-Meteo free weather API to pull weather variables.
+In this post I will explore the long-term weather history of Pittsburgh. I use the Open-Meteo free weather API to pull weather variables.
 
 My approach is to select a repesentative sample of the weather variables to reduce redundancy while conserving signal, apply PCA to the remaining variables, feed those into a clustering algorithm, and examine the results.
 
@@ -23,6 +23,11 @@ library(corrr)
 library(glue)
 library(patchwork)
 library(ggforce)
+library(slider)
+# ggraph
+library(ggraph)
+library(tidygraph)
+library(patchwork)
 
 set.seed(1234)
 
@@ -31,8 +36,23 @@ options(scipen = 999, digits = 4)
 theme_set(theme_bw())
 ```
 
-Here I set up the timeframe I want to pull data for. As I show a little later, not all the variables are available for the entire timeframe.
-```{r define_weather_target}
+These are the weather variables available from the API. I use the "ERA5" model, which uses reanalysis to infer the weather data for older periods of time.
+```{r}
+weather_variables()$daily_history_vars
+```
+
+There is a download limit on the API, so I write a function to download the results and save it to parquet. Since it takes me multiple days to download data for the full timeline, I expected to hit the API limit. The fuction checks if the file for that decade has already been downloaded, and skips those decades. I ran into some issues with missing data, so I ended up downloading a sample of the data to check for missingness before fetching the complete dataset.
+```{r}
+#| eval: false
+# pull ERA5 model reanalysis
+#https://open-meteo.com/en/docs/historical-weather-api
+
+#https://archive-api.open-meteo.com/v1/archive?latitude=52.52&longitude=13.41&start_date=2026-09-12&end_date=2026-09-26&daily=temperature_2m_mean&hourly=temperature_2m&models=era5
+
+#https://archive-api.open-meteo.com/v1/archive?latitude=40.44&longitude=-79.99&start_date=1940-01-01&end_date=1940-01-31&daily=temperature_2m_mean&models=era5
+
+# set up the timeframe I want to pull data for
+
 my_location <- "Pittsburgh, PA"
 
 year_start <- 1940
@@ -46,23 +66,7 @@ date_target_year <- tibble(
   end = start
 )
 
-weather_variables()$daily_history_vars
-```
-
-Through iterative testing, I found that all of the variables are available starting 1950-01-01, so I use that as my starting point.
-```{r}
-#| eval: false
-#try to pull ERA5 model reanalysis
-#https://open-meteo.com/en/docs/historical-weather-api
-
-#https://archive-api.open-meteo.com/v1/archive?latitude=52.52&longitude=13.41&start_date=2026-09-12&end_date=2026-09-26&daily=temperature_2m_mean&hourly=temperature_2m&models=era5
-
-#https://archive-api.open-meteo.com/v1/archive?latitude=40.44&longitude=-79.99&start_date=1940-01-01&end_date=1940-01-31&daily=temperature_2m_mean&models=era5
-
-date_target_year <- date_target_year |>
-  filter(start >= "2018-01-01")
-
-# define function to pull a sample of the data from the Open-Meteo API for each decade
+# define function to pull a sample of the data from the Open-Meteo API
 get_weather_data_test <- function(start, end) {
   filename <- glue(
     "/Users/conorotompkins/Documents/github_repos/ctompkins_quarto_blog/posts/pittsburgh_weather_pca/post_data/era5/test/test_era5_{start}.parquet"
@@ -91,14 +95,6 @@ pwalk(
   .f = get_weather_data_test
 )
 
-list.files("posts/pittsburgh_weather_pca/post_data/era5/test")
-
-open_dataset(
-  "posts/pittsburgh_weather_pca/post_data/era5/test"
-) |>
-  collect() |>
-  view()
-
 vars_missing <- open_dataset(
   "posts/pittsburgh_weather_pca/post_data/era5/test"
 ) |>
@@ -110,8 +106,7 @@ vars_missing |>
   filter(pct_missing != 0)
 ```
 
-1940-01-01 is missing data, so I will pull data starting in 1941.
-
+1940-01-01 is missing data, so I will pull data starting in 1941. I split the API calls by decade to work with the API limit.
 ```{r}
 #| eval: false
 year_start <- 1940
@@ -195,7 +190,7 @@ weather_data <- open_dataset(
   collect() |>
   mutate(
     decade = year(date) %/% 10,
-    decade = str_c(decade, "0's"),
+    decade = str_c(decade, "0s"),
     year = year(date),
     yday = yday(date),
     month = month(date, label = TRUE, abbr = TRUE),
@@ -207,6 +202,7 @@ weather_data <- open_dataset(
 glimpse(weather_data)
 ```
 
+I run some data quality checks to make sure the data is ready for analysis.
 ```{r}
 # each date is unique
 weather_data |>
@@ -216,21 +212,21 @@ weather_data |>
   nrow() ==
   0
 
+# the most recent observations are NA because of the era5 model choice. expected.
 weather_data |>
   filter(if_any(everything(), is.na)) |>
   distinct(date)
 
 weather_data <- weather_data |>
-  filter(date < "2026-09-25") # the most recent observations are NA because of the era5 model choice. expected.
+  filter(date < "2026-09-25")
 
 weather_data |>
   summarize(start = min(date), end = max(date))
 
 weather_data |>
   count(decade)
-```
 
-```{r}
+#no missing data
 weather_data |>
   rowwise() |>
   summarize(pct_na = mean(is.na(pick(everything())))) |>
@@ -238,6 +234,7 @@ weather_data |>
   pull() ==
   0
 
+# dates are sequential
 weather_data |>
   select(date) |>
   mutate(check = (date - lag(date)) == 1) |>
@@ -270,8 +267,6 @@ Set up historical/recent cutoff
 ```{r}
 year_cutoff <- 1990
 
-glimpse(weather_data)
-
 weather_data_hist <- weather_data |>
   filter(year < year_cutoff)
 
@@ -281,7 +276,7 @@ weather_data_recent <- weather_data |>
 
 Some variables are highly correlated with other variables. While PCA will decorrelate and create orthagonal components, there will still be redundancy in the components because of the highly correlated input variables. In this code, I examine potentially redundant variables and remove them from the dataframe.
 ```{r}
-weather_vars <- weather_data_hist |>
+weather_vars <- weather_data |>
   select(daily_temperature_2m_mean:daily_soil_temperature_28_to_100cm_mean)
 
 weather_vars_cor <- weather_vars |>
@@ -320,7 +315,7 @@ weather_vars |>
   network_plot(min_cor = .5)
 ```
 
-
+Here I select specific variables that are representative of the full set.
 ```{r}
 pca_inputs <- weather_data |>
   select(
@@ -369,11 +364,14 @@ pca_inputs |>
     x = "Correlation",
     y = "Variables"
   )
-
-pca_fit <- prcomp(pca_inputs, scale = TRUE)
 ```
 
+As expected, the extent of correlation between the subsetted variables is much lower.
+
+Here I fit PCA to the weather data. The first 4 components explain most of the variance, so I will focus on those.
 ```{r}
+pca_fit <- prcomp(pca_inputs, scale = TRUE)
+
 pca_values <- pca_fit |>
   tidy(matrix = "eigenvalues")
 
@@ -390,11 +388,10 @@ pca_values |>
 weather_data_pca <- pca_fit |>
   augment(weather_data) |>
   rename_with(~ str_replace(.x, "^.fittedPC", "pc")) |>
-  select(all_of(names(weather_data_hist)), pc1:pc5)
-
-glimpse(weather_data_pca)
+  select(all_of(names(weather_data_hist)), pc1:pc4)
 ```
 
+Next, I examine the variables that make up each component and assign labels that explain each component.
 ```{r}
 # define arrow style for plotting
 arrow_style <- arrow(
@@ -409,7 +406,7 @@ pca_rot <- pca_fit |>
   tidy(matrix = "rotation") |>
   pivot_wider(names_from = "PC", names_prefix = "PC", values_from = "value") |>
   rename_with(str_to_lower) |>
-  select(column, pc1:pc5)
+  select(column, pc1:pc4)
 
 pca_rot_df_pos <- pca_rot |>
   pivot_longer(cols = -column, names_to = "pc", values_to = "pc_value") |>
@@ -434,8 +431,7 @@ pc_labels <- list(
   pc1 = "PC1: Warm, sunny & dry (+) vs. cloudy & wet soil (-)",
   pc2 = "PC2: Warm, humid & rainy (+) vs. sunny/high pressure (-)",
   pc3 = "PC3: Humid/high pressure (+) vs. windy (-)",
-  pc4 = "PC4: Wet soil & rainy (+) vs. snowy (-)",
-  pc5 = "PC5: Wet soil & snow (+) vs. windy (-)"
+  pc4 = "PC4: Wet soil & rainy (+) vs. snowy (-)"
 )
 
 pc_labels_df <- enframe(pc_labels, name = "pc", value = "pc_label") |>
@@ -451,6 +447,7 @@ pc_label <- function(x) {
 pc_label("pc1")
 ```
 
+These scatter plots show the rotation values of the weather variables that are most integral to each principal component.
 ```{r}
 graph_pca_rot <- function(pca_df, x, y) {
   pca_points_x <- pca_rot_df |>
@@ -519,21 +516,46 @@ pca_rot |>
 
 pca_rot |>
   graph_pca_rot("pc1", "pc4")
-
-pca_rot |>
-  graph_pca_rot("pc1", "pc5")
 ```
 
+Next I graph the principal components over time. PCs 1, 2, and 3 have clearly changed over time. PC 4 is very noisy, but also decreased.
 ```{r}
 weather_data_pca |>
-  select(date, pc1:pc5) |>
+  select(date, pc1:pc4) |>
   pivot_longer(cols = starts_with("pc"), names_to = "pc") |>
   left_join(pc_labels_df) |>
   ggplot(aes(date, value)) +
   geom_smooth() +
+  geom_smooth(method = "lm", color = "black", se = FALSE) +
   geom_vline(xintercept = str_c(year_cutoff, "-01-01") |> ymd()) +
-  facet_wrap(vars(str_wrap(pc_label, 40)), scales = "free_y")
+  facet_wrap(vars(str_wrap(pc_label, 40)), scales = "free_y") +
+  labs(
+    title = "Pittsburgh has gotten warmer and rainier over the past 80 years",
+    subtitle = "Principle components time series",
+    x = "Date",
+    y = "PC value"
+  )
+```
 
+This polar chart shows the cyclicality of the components by decade. The circular axis is the day of the year (starting at day 1), and the axis going away from the center is the value of the principle component.
+```{r}
+weather_pca_long <- weather_data_pca |>
+  select(yday, year, decade, pc1:pc4) |>
+  pivot_longer(cols = starts_with("pc"), names_to = "pc") |>
+  left_join(pc_labels_df, by = "pc")
+
+weather_pca_long |>
+  #filter(yday <= 365) |>
+  ggplot(aes(yday, value, color = decade)) +
+  geom_smooth(se = FALSE) +
+  scale_color_viridis_d() +
+  coord_polar() +
+  facet_wrap(vars(str_wrap(pc_label, 20)), scales = "free_y") +
+  labs(x = "Day of year", y = "PC value", color = "Decade")
+```
+
+Then I show the time series of the weather variables for each component.
+```{r}
 pc_column_line_plot <- function(x) {
   pc_cols <- pca_rot_df |>
     filter(pc == x) |>
@@ -542,13 +564,13 @@ pc_column_line_plot <- function(x) {
   weather_data_pca |>
     select(year, month, all_of(pc_cols)) |>
     pivot_longer(cols = all_of(pc_cols)) |>
-    mutate(name = str_replace_all(name, "_", " ") |> str_wrap(16)) |>
+    mutate(name = str_replace_all(name, "_", " ") |> str_wrap(20)) |>
     ggplot(aes(x = year, y = value)) +
     geom_smooth(aes(color = month, group = month), se = FALSE, lwd = .75) +
     geom_smooth(color = "black", lwd = 2) +
     geom_vline(xintercept = year_cutoff) +
     facet_wrap(vars(name), scales = "free") +
-    labs(title = pc_label(x))
+    labs(title = pc_label(x), subtitle = "Black line represents overall trend")
 }
 
 pc_column_line_plot("pc1")
@@ -562,45 +584,58 @@ pc_column_line_plot("pc4")
 pc_column_line_plot("pc5")
 ```
 
+These scatter plots show the first component vs. principal components 2-4. There are not distinct non-overalapping groupings, and the months represent gradients of a continuous signal, not discrete categories. This reinforces that weather in Pittsburgh is highly variable and is not representable by distinct clusters.
 ```{r}
-pca_scatter <- function(pca_df, x, y) {
+weather_data_pca |>
+  select(month, pc1:pc4) |>
+  pivot_longer(-c(month, pc1), names_to = "pc") |>
+  left_join(pc_labels_df) |>
+  mutate(pc_label = fct_inorder(pc_label)) |>
+  ggplot(aes(pc1, value, color = month)) +
+  geom_point(alpha = .1, size = .5) +
+  facet_wrap(vars(pc_label), scales = "free_y", ncol = 1) +
+  guides(color = guide_legend(override.aes = list(alpha = 1))) +
+  labs(
+    title = "PC1 vs PCs 2:4",
+    x = pc_label("pc1"),
+    y = "Other PC value",
+    color = "Month"
+  )
+```
+The sharp non-linear curve downward along PC4 shows that very snowy days are very distinct compared to other weather patterns.
+
+```{r}
+pca_scatter <- function(pca_df, x, y, color_var) {
   pca_df |>
-    ggplot(aes(.data[[x]], .data[[y]], color = month)) +
+    ggplot(aes(.data[[x]], .data[[y]], color = .data[[color_var]])) +
+    geom_vline(xintercept = 0) +
+    geom_hline(yintercept = 0) +
     geom_point(size = 1.5, alpha = .1) +
-    #scale_color_paletteer_d("jcolors::pal12") +
+    facet_wrap(vars(decade)) +
     guides(color = guide_legend(override.aes = list(alpha = 1))) +
-    coord_fixed() +
     labs(
       x = pc_label(x) |> str_wrap(70),
+      y = str_to_upper(y),
       subtitle = pc_label(y) |> str_wrap(70),
       color = "Month"
     )
 }
 
-pca_scatter(weather_data_pca, "pc1", "pc2")
+pca_scatter(weather_data_pca, "pc1", "pc2", "month")
 
-pca_scatter(weather_data_pca, "pc1", "pc3")
+pca_scatter(weather_data_pca, "pc1", "pc3", "month")
 
-pca_scatter(weather_data_pca, "pc2", "pc3")
-
-weather_data_pca |>
-  select(month, pc1:pc5) |>
-  pivot_longer(-c(month, pc1)) |>
-  mutate(name = fct_inorder(name)) |>
-  ggplot(aes(pc1, value, color = month)) +
-  geom_point(alpha = .1, size = .5) +
-  facet_wrap(vars(name), scales = "free") +
-  guides(color = guide_legend(override.aes = list(alpha = 1))) +
-  labs(title = "PC1 vs PCs 2:4", x = "PC 1", y = "Other PC", color = "Month")
+pca_scatter(weather_data_pca, "pc1", "pc4", "month")
 ```
 
+This shows the components by decade, with the historical range annotated in grey.
 ```{r}
 weather_data_hist_pca <- weather_data_pca |>
-  filter(date < year_cutoff) |>
+  filter(year < year_cutoff) |>
   select(date, month, decade, yday, year, starts_with("pc"))
 
 weather_data_recent_pca <- weather_data_pca |>
-  filter(date >= year_cutoff) |>
+  filter(year >= year_cutoff) |>
   select(date, month, decade, yday, year, starts_with("pc"))
 
 quantile_df <- function(x, probs = c(0.25, 0.5, 0.75)) {
@@ -611,27 +646,19 @@ quantile_df <- function(x, probs = c(0.25, 0.5, 0.75)) {
 }
 
 historical_range <- weather_data_hist_pca |>
-  select(date, yday, pc1:pc5) |>
+  select(date, yday, pc1:pc4) |>
   pivot_longer(cols = starts_with("pc"), names_to = "pc") |>
   reframe(quantile_df(value), .by = c(yday, pc)) |>
   pivot_wider(names_from = quant, values_from = val, names_prefix = "pct_") |>
   arrange(pc, yday) |>
   left_join(pc_labels_df, by = "pc")
-```
 
-```{r}
-weather_pca_long <- weather_data_pca |>
-  select(yday, year, decade, pc1:pc5) |>
+weather_pca_recent_long <- weather_data_recent_pca |>
+  select(yday, year, decade, pc1:pc4) |>
   pivot_longer(cols = starts_with("pc"), names_to = "pc") |>
   left_join(pc_labels_df, by = "pc")
 
-weather_pca_long |>
-  ggplot(aes(yday, value)) +
-  geom_smooth(color = "black") +
-  scale_color_viridis_c() +
-  facet_wrap(vars(pc_label), ncol = 1, scales = "free_y")
-
-weather_pca_long |>
+weather_pca_recent_long |>
   ggplot(aes(yday, value, group = year)) +
   geom_ribbon(
     data = historical_range,
@@ -639,7 +666,7 @@ weather_pca_long |>
     alpha = .3,
     inherit.aes = FALSE
   ) +
-  geom_smooth(aes(group = decade, color = decade), lwd = .5) +
+  geom_smooth(aes(group = decade, color = decade), lwd = 1, se = FALSE) +
   facet_wrap(vars(pc_label), ncol = 1, scales = "free_y") +
   scale_color_viridis_d() +
   labs(
@@ -652,15 +679,27 @@ weather_pca_long |>
 
 ### Analyze distributions
 ```{r}
-weather_pca_long |>
-  #left_join(pc_labels_df) |>
+hist_dist <- weather_data_hist_pca |>
+  pivot_longer(cols = starts_with("pc"), names_to = "pc") |>
+  left_join(pc_labels_df)
+
+weather_pca_recent_long |>
   mutate(era = ifelse(year >= year_cutoff, "recent", "historical")) |>
-  ggplot(aes(value, fill = era)) +
+  ggplot(aes(value, fill = decade)) +
+  geom_density(
+    data = hist_dist,
+    aes(x = value),
+    inherit.aes = FALSE,
+    fill = "black"
+  ) +
   geom_density(alpha = .5) +
-  facet_wrap(vars(pc_label), scales = "free", ncol = 1)
+  facet_wrap(vars(pc_label), scales = "free", ncol = 1) +
+  scale_fill_viridis_d()
 ```
 
 ### Clustering
+
+In this section, I use the principal components to group the days into clusters. First, I sample the data and cluster it with a variety of methods. I then visually compare the dendrograms to find which method created the most reasonable-looking clusters.
 ```{r}
 # test multiple clustering algorithms
 
@@ -675,8 +714,6 @@ methods <- c(
   "centroid"
 )
 
-#methods <- c("ward.D2", "centroid")
-
 cluster_specs <- map(
   methods,
   ~ hier_clust(
@@ -688,13 +725,12 @@ cluster_specs <- map(
 
 cluster_specs
 
-#fit on historical data
 fit_cluster <- function(x) {
   x |>
     fit(
-      ~ pc1 + pc2 + pc3 + pc4 + pc5,
+      ~ pc1 + pc2 + pc3 + pc4,
       data = weather_data_pca |>
-        select(year, month, pc1:pc5) |>
+        select(year, month, pc1:pc4) |>
         group_by(year, month) |>
         slice_sample(prop = .3) |> #hclust is slow with large data, so sample
         ungroup() |>
@@ -709,6 +745,9 @@ names(fitted_clusters)
 ```
 
 ```{r}
+#| eval: false
+#| echo: false
+
 # base R plotting
 plot_tree <- function(x) {
   x$fit |> plot(labels = FALSE)
@@ -724,11 +763,6 @@ dev.off()
 ```
 
 ```{r}
-# ggraph
-library(ggraph)
-library(tidygraph)
-library(patchwork)
-
 method_tbl <- tibble(method = methods, cluster_fit = fitted_clusters)
 
 get_dendrogram <- function(x) {
@@ -851,16 +885,17 @@ plot_cut_dendrogram <- function(
 
 plot_cut_dendrogram <- possibly(plot_cut_dendrogram)
 
+# is this redundant? can i just use the fit from method_tbl?
 hc_fit <- hier_clust(
   num_clusters = 4,
   linkage_method = "ward.D2"
 ) |>
   fit(
-    ~ pc1 + pc2 + pc3 + pc4 + pc5,
+    ~ pc1 + pc2 + pc3 + pc4,
     data = weather_data_pca |>
-      select(year, month, pc1:pc5) |>
+      select(year, month, pc1:pc4) |>
       group_by(year, month) |>
-      slice_sample(prop = .2) |> #hclust is slow with large data, so sample
+      slice_sample(prop = .3) |> #hclust is slow with large data, so sample
       ungroup() |>
       select(-c(year, month))
   )
