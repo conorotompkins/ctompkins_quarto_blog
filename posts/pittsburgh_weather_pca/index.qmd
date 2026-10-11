@@ -1,11 +1,16 @@
 ---
-title: "Pittsburgh Weather PCA"
-format: html
+title: "Pittsburgh Weather Exploration"
+format:
+  html:
+    code-fold: true
+    code-summary: "Show the code"
 ---
 
-In this post I will examine the weather history of Pittsburgh, apply PCA to the continuous variables, feed those into a clustering algorithm, and examine the clusters. I train the PCA and clustering on a historical dataset, and then predict the PCA and clusters onto recent data. This makes the PCA and clusters in the context of the historical data.
+In this post I will explore the long-term weather history of Pittsburgh and apply EDA. I use the Open-Meteo free weather API to pull weather variables.
 
-```{r}
+My approach is to select a repesentative sample of the weather variables to reduce redundancy while conserving signal, apply PCA to the remaining variables, feed those into a clustering algorithm, and examine the results.
+
+```{r setup}
 library(tidyverse)
 library(broom)
 library(openmeteo)
@@ -14,7 +19,10 @@ library(paletteer)
 library(ggrepel)
 library(scales)
 library(tidyclust)
+library(corrr)
 library(glue)
+library(patchwork)
+library(ggforce)
 
 set.seed(1234)
 
@@ -23,24 +31,27 @@ options(scipen = 999, digits = 4)
 theme_set(theme_bw())
 ```
 
-```{r}
+Here I set up the timeframe I want to pull data for. As I show a little later, not all the variables are available for the entire timeframe.
+```{r define_weather_target}
 my_location <- "Pittsburgh, PA"
 
-weather_target <- tibble(
+year_start <- 1940
+
+year_end <- 2020
+
+date_target_year <- tibble(
   my_location = my_location,
-  decade = seq(1940, 2020, by = 10),
-  start = glue("{decade}-01-01") |> ymd(),
-  end = glue("{decade + 9}-12-31") |> ymd()
-) |>
-  mutate(
-    end = case_when(end == max(end) ~ Sys.Date() - days(1), .default = end)
-  )
+  year = seq(year_start, year_end, by = 1),
+  start = glue("{year}-01-01") |> ymd(),
+  end = start
+)
+
+weather_variables()$daily_history_vars
 ```
 
+Through iterative testing, I found that all of the variables are available starting 1950-01-01, so I use that as my starting point.
 ```{r}
 #| eval: false
-weather_variables()$daily_history_vars
-
 #try to pull ERA5 model reanalysis
 #https://open-meteo.com/en/docs/historical-weather-api
 
@@ -48,11 +59,10 @@ weather_variables()$daily_history_vars
 
 #https://archive-api.open-meteo.com/v1/archive?latitude=40.44&longitude=-79.99&start_date=1940-01-01&end_date=1940-01-31&daily=temperature_2m_mean&models=era5
 
-test_var_range_df <- weather_target |>
-  mutate(end = start)
+date_target_year <- date_target_year |>
+  filter(start >= "2018-01-01")
 
-test_var_range_df
-
+# define function to pull a sample of the data from the Open-Meteo API for each decade
 get_weather_data_test <- function(start, end) {
   filename <- glue(
     "/Users/conorotompkins/Documents/github_repos/ctompkins_quarto_blog/posts/pittsburgh_weather_pca/post_data/era5/test/test_era5_{start}.parquet"
@@ -76,25 +86,48 @@ get_weather_data_test <- function(start, end) {
   }
 }
 
-test_var_range_df |>
-  mutate(
-    data = pwalk(
-      .l = list(start, end),
-      .f = get_weather_data_test
-    )
-  )
+pwalk(
+  .l = list(date_target_year$start, date_target_year$end),
+  .f = get_weather_data_test
+)
+
+list.files("posts/pittsburgh_weather_pca/post_data/era5/test")
+
+open_dataset(
+  "posts/pittsburgh_weather_pca/post_data/era5/test"
+) |>
+  collect() |>
+  view()
 
 vars_missing <- open_dataset(
-  "posts/pittsburgh_weather_pca/post_data/era5"
+  "posts/pittsburgh_weather_pca/post_data/era5/test"
 ) |>
   collect() |>
   pivot_longer(cols = -date, values_transform = as.character)
 
 vars_missing |>
-  summarize(pct_missing = mean(is.na(value)), .by = c(date))
+  summarize(pct_missing = mean(is.na(value)), .by = c(date)) |>
+  filter(pct_missing != 0)
+```
 
-vars_missing |>
-  filter(is.na(value))
+1940-01-01 is missing data, so I will pull data starting in 1941.
+
+```{r}
+#| eval: false
+year_start <- 1940
+
+date_target_decade <- tibble(
+  my_location = my_location,
+  decade = seq(year_start, year_end, by = 10),
+  start = glue("{decade}-01-01") |> ymd(),
+  end = glue("{decade + 9}-12-31") |> ymd()
+) |>
+  mutate(
+    start = case_when(start == min(start) ~ ymd("1941-01-01"), .default = end),
+    end = case_when(end == max(end) ~ Sys.Date() - days(1), .default = end)
+  )
+
+date_target_decade
 ```
 
 ```{r}
@@ -137,16 +170,18 @@ get_weather_data <- function(location, decade, start, end) {
 
 ```{r}
 #| eval: false
-weather_target |>
-  filter(decade >= 1950) |>
-  mutate(
-    data = pwalk(
-      .l = list(my_location, decade, start, end),
-      .f = get_weather_data
-    )
-  )
+pwalk(
+  .l = list(
+    date_target_decade$my_location,
+    date_target_decade$decade,
+    date_target_decade$start,
+    date_target_decade$end
+  ),
+  .f = get_weather_data
+)
 ```
 
+Once I read the data back from parquet, I get a dataframe with the weather variables from the API. I also calculate some additional date variables that I will use later on.
 ```{r}
 weather_files <- list.files(
   "posts/pittsburgh_weather_pca/post_data/era5",
@@ -170,19 +205,10 @@ weather_data <- open_dataset(
   select(location, date, decade, year, month, yday, mday, everything())
 
 glimpse(weather_data)
-
-weather_data |>
-  count(decade)
 ```
 
 ```{r}
-#| eval: false
-test_data <- read_parquet(
-  "/Users/conorotompkins/Documents/github_repos/ctompkins_quarto_blog/posts/pittsburgh_weather_pca/post_data/ERA5/1940_test_era5_land.parquet"
-)
-```
-
-```{r}
+# each date is unique
 weather_data |>
   group_by(date) |>
   filter(n() > 1) |>
@@ -190,14 +216,12 @@ weather_data |>
   nrow() ==
   0
 
-weather_data <- weather_data |> distinct() |> drop_na() # the most recent observations are NA because of the era5 model choice. expected.
-
 weather_data |>
-  group_by(date) |>
-  filter(n() > 1) |>
-  ungroup() |>
-  nrow() ==
-  0
+  filter(if_any(everything(), is.na)) |>
+  distinct(date)
+
+weather_data <- weather_data |>
+  filter(date < "2026-09-25") # the most recent observations are NA because of the era5 model choice. expected.
 
 weather_data |>
   summarize(start = min(date), end = max(date))
@@ -210,14 +234,16 @@ weather_data |>
 weather_data |>
   rowwise() |>
   summarize(pct_na = mean(is.na(pick(everything())))) |>
-  summarize(sum(pct_na > 0))
+  summarize(sum(pct_na > 0)) |>
+  pull() ==
+  0
 
 weather_data |>
   select(date) |>
   mutate(check = (date - lag(date)) == 1) |>
   filter(date > "1950-01-01") |>
-  summarize(check = mean(check)) |>
-  pull(check) ==
+  summarize(seq_check = mean(check)) |>
+  pull(seq_check) ==
   1
 ```
 
@@ -240,6 +266,7 @@ drop_bad_cols <- function(x) {
 }
 ```
 
+Set up historical/recent cutoff
 ```{r}
 year_cutoff <- 1990
 
@@ -250,10 +277,56 @@ weather_data_hist <- weather_data |>
 
 weather_data_recent <- weather_data |>
   filter(year >= year_cutoff)
+```
 
-pca_inputs <- weather_data_hist |>
+Some variables are highly correlated with other variables. While PCA will decorrelate and create orthagonal components, there will still be redundancy in the components because of the highly correlated input variables. In this code, I examine potentially redundant variables and remove them from the dataframe.
+```{r}
+weather_vars <- weather_data_hist |>
+  select(daily_temperature_2m_mean:daily_soil_temperature_28_to_100cm_mean)
+
+weather_vars_cor <- weather_vars |>
+  correlate() |>
+  rearrange() |>
+  shave()
+
+cor_long <- weather_vars_cor |>
+  pivot_longer(cols = -term) |>
+  drop_na(value)
+
+cor_long |>
+  ggplot(aes(value)) +
+  geom_histogram() +
+  geom_vline(xintercept = 0, color = "red") +
+  coord_cartesian(xlim = c(-1, 1)) +
+  labs(
+    title = "Correlation histogram - with redundant variables",
+    x = "Correlation",
+    y = "Variables"
+  )
+
+cor_long |>
+  summarize(mean_cor = mean(abs(value)), .by = term) |>
+  #arrange(desc(mean_cor)) |>
+  arrange(term) |>
+  print(n = Inf)
+
+rplot(weather_vars_cor) +
+  scale_color_viridis_c() +
+  theme(axis.text.x = element_text(angle = 60, vjust = .5))
+
+weather_vars |>
+  correlate() |>
+  mutate(term = str_replace_all(term, "_", " ") |> str_wrap(width = 10)) |>
+  network_plot(min_cor = .5)
+```
+
+
+```{r}
+pca_inputs <- weather_data |>
   select(
     daily_temperature_2m_mean,
+    daily_dew_point_2m_mean,
+    daily_relative_humidity_2m_mean,
     daily_sunshine_duration,
     daily_rain_sum,
     daily_snowfall_sum,
@@ -266,12 +339,36 @@ pca_inputs <- weather_data_hist |>
     daily_relative_humidity_2m_mean,
     daily_pressure_msl_mean,
     daily_vapour_pressure_deficit_max,
-    daily_soil_moisture_0_to_100cm_mean
+    daily_soil_moisture_0_to_7cm_mean,
+    daily_soil_moisture_28_to_100cm_mean,
+    daily_soil_temperature_0_to_7cm_mean,
+    daily_soil_temperature_28_to_100cm_mean
   ) |>
   select(where(is.numeric)) |>
   drop_bad_cols()
 
 glimpse(pca_inputs)
+
+pca_inputs |>
+  correlate() |>
+  rplot() +
+  theme(axis.text.x = element_text(angle = 60, vjust = .75))
+
+pca_inputs |>
+  correlate() |>
+  rearrange() |>
+  shave() |>
+  pivot_longer(cols = -term) |>
+  drop_na(value) |>
+  ggplot(aes(value)) +
+  geom_histogram() +
+  geom_vline(xintercept = 0, color = "red") +
+  coord_cartesian(xlim = c(-1, 1)) +
+  labs(
+    title = "Correlation histogram - redundant variables removed",
+    x = "Correlation",
+    y = "Variables"
+  )
 
 pca_fit <- prcomp(pca_inputs, scale = TRUE)
 ```
@@ -290,27 +387,12 @@ pca_values |>
   ) +
   theme(panel.grid.minor = element_blank())
 
-weather_data_hist_pca <- pca_fit |>
-  augment(weather_data_hist) |>
+weather_data_pca <- pca_fit |>
+  augment(weather_data) |>
   rename_with(~ str_replace(.x, "^.fittedPC", "pc")) |>
   select(all_of(names(weather_data_hist)), pc1:pc5)
 
-glimpse(weather_data_hist_pca)
-
-weather_data_recent_pca <- bind_cols(
-  weather_data_recent,
-  predict(
-    pca_fit,
-    weather_data_recent |>
-      select(all_of(names(pca_inputs)))
-  )
-) |>
-  rename_with(~ str_replace(.x, "^PC", "pc")) |>
-  select(all_of(names(weather_data_hist)), pc1:pc5)
-
-all(names(weather_data_hist_pca) == names(weather_data_recent_pca))
-
-pca_combined <- bind_rows(weather_data_hist_pca, weather_data_recent_pca)
+glimpse(weather_data_pca)
 ```
 
 ```{r}
@@ -349,11 +431,11 @@ pca_rot_df <- bind_rows(pca_rot_df_pos, pca_rot_df_neg) |>
 print(pca_rot_df, n = Inf)
 
 pc_labels <- list(
-  pc1 = "PC1: Sunny/dry (+) vs. cloudy/wet (-)",
-  pc2 = "PC2: Warm & rainy (+) vs. high pressure (-)",
-  pc3 = "PC3: Windy (+) vs. humid (-)",
-  pc4 = "PC4: Snowy (+) vs. rainy (-)",
-  pc5 = "PC5: Wet soil (+) vs. windy (-)"
+  pc1 = "PC1: Warm, sunny & dry (+) vs. cloudy & wet soil (-)",
+  pc2 = "PC2: Warm, humid & rainy (+) vs. sunny/high pressure (-)",
+  pc3 = "PC3: Humid/high pressure (+) vs. windy (-)",
+  pc4 = "PC4: Wet soil & rainy (+) vs. snowy (-)",
+  pc5 = "PC5: Wet soil & snow (+) vs. windy (-)"
 )
 
 pc_labels_df <- enframe(pc_labels, name = "pc", value = "pc_label") |>
@@ -443,7 +525,7 @@ pca_rot |>
 ```
 
 ```{r}
-pca_combined |>
+weather_data_pca |>
   select(date, pc1:pc5) |>
   pivot_longer(cols = starts_with("pc"), names_to = "pc") |>
   left_join(pc_labels_df) |>
@@ -457,7 +539,7 @@ pc_column_line_plot <- function(x) {
     filter(pc == x) |>
     pull(column)
 
-  pca_combined |>
+  weather_data_pca |>
     select(year, month, all_of(pc_cols)) |>
     pivot_longer(cols = all_of(pc_cols)) |>
     mutate(name = str_replace_all(name, "_", " ") |> str_wrap(16)) |>
@@ -489,19 +571,19 @@ pca_scatter <- function(pca_df, x, y) {
     guides(color = guide_legend(override.aes = list(alpha = 1))) +
     coord_fixed() +
     labs(
-      x = pc_label(x) |> str_wrap(50),
-      subtitle = pc_label(y) |> str_wrap(50),
+      x = pc_label(x) |> str_wrap(70),
+      subtitle = pc_label(y) |> str_wrap(70),
       color = "Month"
     )
 }
 
-pca_scatter(weather_data_hist_pca, "pc1", "pc2")
+pca_scatter(weather_data_pca, "pc1", "pc2")
 
-pca_scatter(weather_data_hist_pca, "pc1", "pc3")
+pca_scatter(weather_data_pca, "pc1", "pc3")
 
-pca_scatter(weather_data_hist_pca, "pc2", "pc3")
+pca_scatter(weather_data_pca, "pc2", "pc3")
 
-weather_data_hist_pca |>
+weather_data_pca |>
   select(month, pc1:pc5) |>
   pivot_longer(-c(month, pc1)) |>
   mutate(name = fct_inorder(name)) |>
@@ -513,62 +595,12 @@ weather_data_hist_pca |>
 ```
 
 ```{r}
-weather_data_hist |>
-  ggplot(aes(daily_wind_direction_10m_dominant)) +
-  geom_histogram()
+weather_data_hist_pca <- weather_data_pca |>
+  filter(date < year_cutoff) |>
+  select(date, month, decade, yday, year, starts_with("pc"))
 
-weather_data_hist |>
-  ggplot(aes(daily_wind_direction_10m_dominant)) +
-  geom_histogram() +
-  scale_x_continuous(limits = c(0, 360)) +
-  coord_polar()
-
-weather_data_hist |>
-  ggplot(aes(
-    daily_wind_direction_10m_dominant,
-    color = decade,
-    group = year(date)
-  )) +
-  geom_density() +
-  coord_polar() +
-  scale_x_continuous(limits = c(0, 360)) +
-  scale_color_viridis_d() +
-  facet_wrap(vars(month))
-
-# break daily_wind_direction_10m_dominant into two columns
-# how north is the wind. 1 is entirely north, -1 is entirely south
-# how east is the wind. 1 is entirely east, -1 is entirely west
-
-# daily_shortwave_radiation_sum
-weather_data_hist |>
-  ggplot(aes(date, daily_shortwave_radiation_sum)) +
-  geom_smooth()
-
-weather_data_hist |>
-  ggplot(aes(yday, daily_shortwave_radiation_sum)) +
-  geom_smooth() +
-  coord_polar()
-
-weather_data_hist |>
-  ggplot(aes(
-    yday,
-    daily_shortwave_radiation_sum,
-    color = decade,
-    group = decade
-  )) +
-  geom_smooth(se = FALSE) +
-  facet_wrap(vars(month), scales = "free_x")
-
-# daily wind gusts
-
-weather_data_hist |>
-  ggplot(aes(date, daily_wind_gusts_10m_max)) +
-  geom_smooth() +
-  facet_wrap(vars(month))
-```
-
-```{r}
-weather_data_hist_pca_time <- weather_data_hist_pca |>
+weather_data_recent_pca <- weather_data_pca |>
+  filter(date >= year_cutoff) |>
   select(date, month, decade, yday, year, starts_with("pc"))
 
 quantile_df <- function(x, probs = c(0.25, 0.5, 0.75)) {
@@ -578,7 +610,7 @@ quantile_df <- function(x, probs = c(0.25, 0.5, 0.75)) {
   )
 }
 
-historical_range <- weather_data_hist_pca_time |>
+historical_range <- weather_data_hist_pca |>
   select(date, yday, pc1:pc5) |>
   pivot_longer(cols = starts_with("pc"), names_to = "pc") |>
   reframe(quantile_df(value), .by = c(yday, pc)) |>
@@ -588,10 +620,7 @@ historical_range <- weather_data_hist_pca_time |>
 ```
 
 ```{r}
-weather_pca_long <- bind_rows(
-  weather_data_hist_pca_time,
-  weather_data_recent_pca
-) |>
+weather_pca_long <- weather_data_pca |>
   select(yday, year, decade, pc1:pc5) |>
   pivot_longer(cols = starts_with("pc"), names_to = "pc") |>
   left_join(pc_labels_df, by = "pc")
@@ -632,19 +661,6 @@ weather_pca_long |>
 ```
 
 ### Clustering
-
-Approach: fit various clustering algorithms on the historical data and visually inspect the dendrograms to find the best linkage method. Fit that method on the historical data, project the PCA fit (also trained on historical data) onto the recent data, then predict cluster assignments for the recent data.
-
-This produced results that initially looked alarming: cluster composition for several months (summer in particular) shifted dramatically between the historical and recent periods, which seemed disproportionate to the underlying change in the data. Digging into this revealed that the shift is a predictable consequence of using *hard* clustering rather than evidence of an abrupt change in Pittsburgh's weather.
-
-The PC scores themselves move only slightly between the historical and recent periods — means shift by a few hundredths to a few tenths of a standard deviation, nothing dramatic. But once those continuous scores are discretized into hard cluster labels, a small, steady drift can look like a large, sudden change if it happens to cross a decision boundary that a lot of points sit near. That's exactly what happened here: the "summer dry" and "summer wet" clusters are nearly identical on PC1 and are separated mainly by PC2, and enough summer days sit close to that PC2 boundary that a small shift flips a large share of them from one label to the other.
-
-For `ward.D2` specifically, the out-of-sample prediction rule compounds this: `tidyclust` doesn't assign new points by nearest centroid. It assigns each new point to whichever cluster produces the smallest increase in within-cluster sum of squares (Ward's merge criterion) if that point were added — a rule that depends on each training cluster's size and spread, not just distance to its centroid. A naive nearest-centroid classifier only agreed with this rule 70-87% of the time on this data, so the assignment of borderline points can differ noticeably from what a simpler distance-based intuition would suggest.
-
-Neither of these is a bug, and neither is specific to `ward.D2` — it's a generic property of hard clustering. Any method that outputs a discrete label (k-means, other linkage methods, etc.) will show the same behavior: a small, continuous drift that crosses a region of high point density near a decision boundary will register as an abrupt change in cluster membership, even when the underlying continuous measurements changed gradually. Choosing a different linkage method does not fix this, because the discretization itself, not the specific linkage rule, is what manufactures the appearance of a sudden shift.
-
-The practical implication is that hard cluster labels alone aren't a reliable way to characterize *how* Pittsburgh's weather has changed over time — they're good for describing discrete regimes at a point in time, but a sudden-looking change in cluster share should be corroborated against the underlying continuous PC trends (shown above) before being read as a real discontinuity. A natural follow-up, left for a later post, is to track a continuous measure — such as distance to the decision boundary, or soft/fuzzy cluster membership — alongside the hard labels, so that gradual drift and boundary-crossing artifacts can be told apart.
-
 ```{r}
 # test multiple clustering algorithms
 
@@ -677,12 +693,12 @@ fit_cluster <- function(x) {
   x |>
     fit(
       ~ pc1 + pc2 + pc3 + pc4 + pc5,
-      data = weather_data_hist_pca_time |>
-        select(month, pc1:pc5) |>
-        group_by(month) |>
-        slice_sample(prop = .1) |> #hclust is slow with large data, so sample
+      data = weather_data_pca |>
+        select(year, month, pc1:pc5) |>
+        group_by(year, month) |>
+        slice_sample(prop = .3) |> #hclust is slow with large data, so sample
         ungroup() |>
-        select(-month)
+        select(-c(year, month))
     )
 }
 
@@ -715,17 +731,6 @@ library(patchwork)
 
 method_tbl <- tibble(method = methods, cluster_fit = fitted_clusters)
 
-method_tbl |>
-  filter(method == "ward.D2") |>
-  pull(cluster_fit) |>
-  pluck(1) |>
-  pluck("fit") |>
-  as.dendrogram() |>
-  as_tbl_graph() |>
-  filter(height > 10) |>
-  ggraph(layout = "dendrogram", height = height) +
-  geom_edge_elbow()
-
 get_dendrogram <- function(x) {
   x |>
     pluck("fit") |>
@@ -733,7 +738,7 @@ get_dendrogram <- function(x) {
 }
 
 plot_dendrogram <- function(x, method, height_cut = 0) {
-  cluster_method <- x |>
+  x |>
     as_tbl_graph() |>
     filter(height > height_cut) |>
     ggraph(layout = "dendrogram", height = height) +
@@ -752,68 +757,168 @@ method_tbl <- method_tbl |>
 method_tbl
 
 compare_methods_plot <- method_tbl |>
-  #filter(method != "single") |>
   pull(plot) |>
+  compact() |>
   wrap_plots(ncol = 3)
 
 compare_methods_plot
+
+method_tbl |>
+  filter(method == "ward.D2") |>
+  pull(plot)
 ```
 
 ```{r}
-glimpse(weather_data_hist_pca_time)
+# Prune a dendrogram to the height at which it splits into `num_clusters`
+# branches, returning a tbl_graph with one leaf per cluster (labeled with
+# its cluster id and member count).
+cut_dendrogram <- function(x, num_clusters) {
+  hc <- x |> pluck("fit")
+  dend <- x |> get_dendrogram()
 
-hc_spec <- hier_clust(
-  num_clusters = 4,
-  linkage_method = "ward.D2"
-)
+  # Cut midway between the heights of the (num_clusters - 1)th and
+  # num_clusters-th highest merges, which splits the tree into
+  # exactly num_clusters branches
+  h_sorted <- sort(hc$height, decreasing = TRUE)
+  h_cut <- mean(h_sorted[(num_clusters - 1):num_clusters])
 
-hc_fit <- hc_spec |>
-  fit(
-    ~ pc1 + pc2 + pc3 + pc4 + pc5,
-    data = weather_data_hist_pca_time |>
-      # group_by(year, month) |>
-      # slice_sample(prop = .5) |>
-      # ungroup() |>
-      select(pc1:pc5)
+  cut_result <- cut(dend, h = h_cut)
+
+  cluster_assign <- tibble(
+    label = hc$labels,
+    cluster = factor(cutree(hc, k = num_clusters))
   )
 
-hc_fit |>
-  summary()
+  cluster_sizes <- cluster_assign |>
+    count(cluster, name = "cluster_size")
 
-hc_fit$fit |> plot(labels = FALSE)
+  # Each lower subtree should be cluster-homogeneous at this cut height;
+  # identify which cluster it represents
+  branch_cluster <- map_chr(cut_result$lower, function(subtree) {
+    ids <- unique(cluster_assign$cluster[match(
+      labels(subtree),
+      cluster_assign$label
+    )])
+    if (length(ids) > 1) {
+      warning(
+        "A branch spans multiple clusters; cut height may not cleanly separate clusters."
+      )
+    }
+    as.character(ids[1])
+  })
+
+  branch_tbl <- tibble(
+    label = str_c("Branch ", seq_along(cut_result$lower)),
+    cluster = factor(branch_cluster, levels = levels(cluster_assign$cluster))
+  ) |>
+    left_join(cluster_sizes, by = "cluster")
+
+  cut_result$upper |>
+    as_tbl_graph() |>
+    activate(nodes) |>
+    left_join(branch_tbl, by = "label")
+}
+
+plot_cut_dendrogram <- function(
+  x,
+  num_clusters,
+  method = NULL,
+  size_by_members = TRUE
+) {
+  g <- cut_dendrogram(x, num_clusters)
+
+  p <- g |>
+    ggraph(layout = "dendrogram", height = height) +
+    geom_edge_elbow() +
+    labs(title = method, color = "Cluster") +
+    theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+
+  if (size_by_members) {
+    p <- p +
+      geom_node_point(aes(
+        color = cluster,
+        size = cluster_size,
+        filter = leaf
+      )) +
+      labs(size = "Cluster size")
+  } else {
+    p <- p +
+      geom_node_point(aes(color = cluster, filter = leaf), size = 4)
+  }
+
+  p
+}
+
+plot_cut_dendrogram <- possibly(plot_cut_dendrogram)
+
+hc_fit <- hier_clust(
+  num_clusters = 4,
+  linkage_method = "ward.D2"
+) |>
+  fit(
+    ~ pc1 + pc2 + pc3 + pc4 + pc5,
+    data = weather_data_pca |>
+      select(year, month, pc1:pc5) |>
+      group_by(year, month) |>
+      slice_sample(prop = .2) |> #hclust is slow with large data, so sample
+      ungroup() |>
+      select(-c(year, month))
+  )
 ```
 
-
 ```{r}
-cluster_assignments <- weather_data_hist_pca_time |>
-  bind_cols(extract_cluster_assignment(hc_fit))
+cluster_assignments <- bind_cols(
+  weather_data_pca,
+  predict(hc_fit, weather_data_pca)
+) |>
+  rename(.cluster = .pred_cluster)
 
 cluster_assignments |>
   count(.cluster)
 
 cluster_assignments |>
+  filter(yday <= 365) |>
+  ggplot(aes(x = yday, y = year, fill = .cluster)) +
+  geom_tile() +
+  scale_x_continuous(expand = expansion(mult = 0)) +
+  scale_y_reverse(expand = expansion(mult = 0))
+
+cluster_assignments |>
   ggplot(aes(pc1, pc2)) +
-  geom_point(aes(color = .cluster), alpha = .1) +
+  geom_mark_hull(
+    aes(fill = .cluster, color = .cluster),
+    concavity = 3,
+    alpha = .4
+  ) +
   geom_label(
     data = extract_centroids(hc_fit),
     aes(label = .cluster, fill = .cluster)
   ) +
   labs(
-    x = pc_label("pc1") |> str_wrap(50),
-    subtitle = pc_label("pc2") |> str_wrap(50)
+    subtitle = pc_label("pc2") |> str_wrap(70),
+    x = pc_label("pc1") |> str_wrap(70),
+    y = "PC2",
+    color = "Cluster",
+    fill = "Cluster"
   )
+```
 
-cluster_assignments |>
-  ggplot(aes(x = yday, y = year, fill = .cluster)) +
-  geom_tile() +
-  scale_y_reverse()
-
+```{r}
 seasons <- c(
-  "Winter/Spring/Fall wet",
-  "Summer dry",
-  "Winter/Spring/Fall dry",
-  "Summer wet"
+  "Winter dry",
+  "Winter wet",
+  "Spring/Fall",
+  "Summer"
 )
+
+cluster_pal <- c(
+  "lightblue",
+  "blue",
+  "lightgreen",
+  "red"
+)
+
+show_col(cluster_pal)
 
 cluster_labels <- tibble(
   .cluster = c(str_c("Cluster", 1:4, sep = "_") |> factor()),
@@ -825,42 +930,60 @@ cluster_labels <- tibble(
 
 cluster_assignments <- left_join(cluster_assignments, cluster_labels)
 
-levels(cluster_assignments$.cluster)
+cluster_centroids <- extract_centroids(hc_fit) |>
+  left_join(cluster_labels)
 
-levels(cluster_assignments$.cluster_label)
+cluster_scatter <- cluster_assignments |>
+  ggplot(aes(pc1, pc2)) +
+  geom_mark_hull(
+    aes(fill = .cluster_label, color = .cluster_label),
+    concavity = 3,
+    alpha = .05
+  ) +
+  geom_point(aes(color = .cluster_label), alpha = .1) +
+  geom_label(
+    data = cluster_centroids,
+    aes(label = .cluster_label, fill = .cluster_label)
+  ) +
+  scale_fill_manual(values = cluster_pal) +
+  scale_color_manual(values = cluster_pal) +
+  labs(
+    subtitle = pc_label("pc2") |> str_wrap(70),
+    x = pc_label("pc1") |> str_wrap(70),
+    y = "PC2",
+    color = "Cluster",
+    fill = "Cluster"
+  )
 
-cluster_pal_test <- scales::hue_pal()(4)
+cluster_scatter
 
-show_col(cluster_pal_test)
-
-cluster_pal_test
-
-cluster_labels
-
-cluster_pal <- c(
-  "#00BFC4",
-  "#C77CFF",
-  "#F8766D",
-  "#7CAE00"
-)
-
-cluster_pal <- c("darkblue", "darkred", "lightblue", "red")
-
-show_col(cluster_pal)
-
-cluster_assignments |>
+cluster_timeline <- cluster_assignments |>
+  filter(yday <= 365) |>
   ggplot(aes(x = yday, y = year, fill = .cluster_label)) +
   geom_tile() +
-  scale_x_continuous(expand = expansion(0)) +
-  scale_y_reverse(expand = expansion(0)) +
-  scale_fill_manual(values = cluster_pal)
+  scale_fill_manual(values = cluster_pal) +
+  scale_x_continuous(expand = expansion(mult = 0)) +
+  scale_y_reverse(expand = expansion(mult = 0)) +
+  guides(fill = "none")
+
+cluster_tree <- hc_fit |>
+  plot_cut_dendrogram(num_clusters = 4, method = "ward.D2") +
+  scale_size_continuous(range = c(3, 7)) +
+  scale_color_manual(values = cluster_pal) +
+  guides(color = "none")
+
+cluster_plots <- (cluster_scatter +
+  cluster_tree) /
+  cluster_timeline +
+  plot_layout(guides = "collect")
+
+cluster_plots
 ```
 
 ```{r}
 cluster_summary <- cluster_assignments |>
+  filter(year <= 2025) |>
   summarize(
-    avg_start = mean(min(yday)),
-    avg_end = mean(max(yday)),
     days = n(),
     .by = c(.cluster, year)
   ) |>
@@ -871,23 +994,28 @@ cluster_summary |>
   geom_area() +
   scale_fill_manual(values = cluster_pal) +
   scale_x_continuous(expand = expansion(mult = 0)) +
-  scale_y_continuous(expand = expansion(mult = 0))
+  scale_y_continuous(expand = expansion(mult = 0)) +
+  labs(x = "Year", y = "Days", fill = "Cluster")
 
 cluster_summary |>
   pivot_longer(cols = -c(.cluster, .cluster_label, year)) |>
-  ggplot(aes(x = year, y = value, color = .cluster_label)) +
-  geom_line() +
+  ggplot(aes(
+    x = year,
+    y = value,
+    color = .cluster_label,
+    fill = .cluster_label
+  )) +
+  geom_smooth(alpha = .3) +
+  geom_point(alpha = .5) +
   facet_wrap(vars(name), scales = "free_y", ncol = 1) +
-  scale_color_manual(values = cluster_pal)
+  scale_color_manual(values = cluster_pal) +
+  scale_fill_manual(values = cluster_pal)
 ```
 
 ```{r}
-cluster_centroids <- extract_centroids(hc_fit) |>
-  left_join(cluster_labels)
-
 cluster_assignments |>
   ggplot(aes(pc1, pc2)) +
-  geom_point(aes(color = .cluster_label), alpha = .1) +
+  geom_point(aes(color = .cluster_label), alpha = .05) +
   geom_label(
     data = cluster_centroids,
     aes(label = .cluster_label, fill = .cluster_label)
@@ -901,7 +1029,7 @@ cluster_assignments |>
 
 cluster_assignments |>
   ggplot(aes(pc1, pc3)) +
-  geom_point(aes(color = .cluster_label), alpha = .1) +
+  geom_point(aes(color = .cluster_label), alpha = .05) +
   geom_label(
     data = cluster_centroids,
     aes(label = .cluster_label, fill = .cluster_label)
@@ -912,7 +1040,7 @@ cluster_assignments |>
 
 cluster_assignments |>
   ggplot(aes(pc1, pc4)) +
-  geom_point(aes(color = .cluster_label), alpha = .1) +
+  geom_point(aes(color = .cluster_label), alpha = .05) +
   geom_label(
     data = cluster_centroids,
     aes(label = .cluster_label, fill = .cluster_label)
@@ -921,6 +1049,79 @@ cluster_assignments |>
   scale_fill_manual(values = cluster_pal) +
   labs(x = pc_label("pc1"), y = pc_label("pc4"))
 ```
+
+Smooothed timeline
+
+```{r}
+library(slider)
+
+test_df <- tibble(
+  x = 1:20,
+  y = sample(x = c("a", "b"), size = 20, replace = TRUE)
+)
+
+find_mode <- function(x) {
+  u <- unique(x)
+  tab <- tabulate(match(x, u))
+  u[which.max(tab)] # which.max always returns a single index
+}
+
+test_df |>
+  count(y) |>
+  filter(n == max(n)) |>
+  pull(y)
+
+test_df |>
+  summarize(x = find_mode(y))
+
+find_mode(test_df$y)
+
+cluster_assignments |>
+  filter(between(row_number(), 80, 110)) |>
+  pull(.cluster_label) |>
+  find_mode()
+
+
+smoothed_timeline <- cluster_assignments |>
+  select(year, yday, .cluster_label) |>
+  mutate(
+    smoothed_cluster = slide_chr(
+      .x = .cluster_label,
+      .f = find_mode,
+      .before = 14,
+      .after = 14,
+      .complete = TRUE
+    )
+  ) |>
+  drop_na(smoothed_cluster) |>
+  mutate(smoothed_cluster = factor(smoothed_cluster, levels = seasons))
+
+levels(smoothed_timeline$smoothed_cluster)
+
+smoothed_timeline |>
+  ggplot(aes(x = yday, y = year, fill = smoothed_cluster)) +
+  geom_tile() +
+  scale_fill_manual(values = cluster_pal) +
+  scale_x_continuous(expand = expansion(mult = 0)) +
+  scale_y_reverse(expand = expansion(mult = 0)) +
+  labs(x = "Day of year", y = "Year", fill = "Smoothed cluster")
+```
+
+## Blog post 2
+
+I train the PCA and clustering on a historical dataset, and then predict the PCA and clusters onto recent data. This makes the PCA and clusters in the context of the historical data.
+
+Approach: fit various clustering algorithms on the historical data and visually inspect the dendrograms to find the best linkage method. Fit that method on the historical data, project the PCA fit (also trained on historical data) onto the recent data, then predict cluster assignments for the recent data.
+
+This produced results that initially looked alarming: cluster composition for several months (summer in particular) shifted dramatically between the historical and recent periods, which seemed disproportionate to the underlying change in the data. Digging into this revealed that the shift is a predictable consequence of using *hard* clustering rather than evidence of an abrupt change in Pittsburgh's weather.
+
+The PC scores themselves move only slightly between the historical and recent periods — means shift by a few hundredths to a few tenths of a standard deviation, nothing dramatic. But once those continuous scores are discretized into hard cluster labels, a small, steady drift can look like a large, sudden change if it happens to cross a decision boundary that a lot of points sit near. That's exactly what happened here: the "summer dry" and "summer wet" clusters are nearly identical on PC1 and are separated mainly by PC2, and enough summer days sit close to that PC2 boundary that a small shift flips a large share of them from one label to the other.
+
+For `ward.D2` specifically, the out-of-sample prediction rule compounds this: `tidyclust` doesn't assign new points by nearest centroid. It assigns each new point to whichever cluster produces the smallest increase in within-cluster sum of squares (Ward's merge criterion) if that point were added — a rule that depends on each training cluster's size and spread, not just distance to its centroid. A naive nearest-centroid classifier only agreed with this rule 70-87% of the time on this data, so the assignment of borderline points can differ noticeably from what a simpler distance-based intuition would suggest.
+
+Neither of these is a bug, and neither is specific to `ward.D2` — it's a generic property of hard clustering. Any method that outputs a discrete label (k-means, other linkage methods, etc.) will show the same behavior: a small, continuous drift that crosses a region of high point density near a decision boundary will register as an abrupt change in cluster membership, even when the underlying continuous measurements changed gradually. Choosing a different linkage method does not fix this, because the discretization itself, not the specific linkage rule, is what manufactures the appearance of a sudden shift.
+
+The practical implication is that hard cluster labels alone aren't a reliable way to characterize *how* Pittsburgh's weather has changed over time — they're good for describing discrete regimes at a point in time, but a sudden-looking change in cluster share should be corroborated against the underlying continuous PC trends (shown above) before being read as a real discontinuity. A natural follow-up, left for a later post, is to track a continuous measure — such as distance to the decision boundary, or soft/fuzzy cluster membership — alongside the hard labels, so that gradual drift and boundary-crossing artifacts can be told apart.
 
 ### Predict clusters onto recent data
 ```{r}
@@ -1011,11 +1212,12 @@ cluster_summary |>
   labs(x = "Year", y = "Day of year")
 ```
 
-## Blog post 2
+## Blog post 3
+
 
 outlier detection
 mean shift
 
-## Blog post 3
+## Blog post 4
 
 forecasting. are PCs more forecastable than individual weather variables? are their statistical properties (in time series context) different?
