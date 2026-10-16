@@ -7,11 +7,14 @@ format:
 execute:
   warning: false
 lightbox: true
+fig-width: 7
 ---
+
+# Intro
 
 In this post I will explore the long-term weather history of Pittsburgh. I use the Open-Meteo free weather API to pull weather variables.
 
-My approach is to select a repesentative sample of the weather variables to reduce redundancy while conserving signal, apply PCA to the remaining variables, feed those into a clustering algorithm, and examine the results.
+My approach is to select a representative sample of the weather variables to reduce redundancy while conserving signal, apply PCA to the remaining variables, and examine the results.
 
 ```{r setup}
 #| include: false
@@ -35,6 +38,8 @@ options(scipen = 999, digits = 4)
 
 theme_set(theme_bw())
 ```
+
+# Pull data
 
 These are the weather variables available from the API. I use the "ERA5" model, which uses reanalysis to infer the weather data for older periods of time.
 
@@ -209,6 +214,7 @@ glimpse(weather_data)
 I run some data quality checks to make sure the data is ready for analysis.
 
 ```{r}
+#| output: false
 # each date is unique
 weather_data |>
   group_by(date) |>
@@ -262,13 +268,15 @@ drop_bad_cols <- function(x) {
     distinct(column_name) |>
     pull(column_name)
 
+    if(length(bad_cols) > 1){
   print(str_c("dropping ", str_c(bad_cols, collapse = ", ")))
+        }
 
   x <- select(x, -all_of(bad_cols))
 }
 ```
 
-Set up historical/recent cutoff
+I use 1990 as a historical/recent cutoff for later analysis.
 
 ```{r}
 year_cutoff <- 1990
@@ -280,7 +288,11 @@ weather_data_recent <- weather_data |>
   filter(year >= year_cutoff)
 ```
 
-Some variables are highly correlated with other variables. While PCA will decorrelate and create orthagonal components, there will still be redundancy in the components because of the highly correlated input variables. In this code, I examine potentially redundant variables and remove them from the dataframe.
+# Exploration
+
+## Variable correlation
+
+Some variables are highly correlated with other variables. While PCA will de-correlate the inputs and create orthagonal components, there will still be redundancy in the components because of the highly correlated input variables. In this code, I examine potentially redundant variables and remove them from the dataframe.
 
 ```{r}
 weather_vars <- weather_data |>
@@ -299,32 +311,34 @@ cor_long |>
   ggplot(aes(value)) +
   geom_histogram() +
   geom_vline(xintercept = 0, color = "red") +
-  coord_cartesian(xlim = c(-1, 1)) +
+  coord_cartesian(xlim = c(-1, 1), ylim = c(0, 40)) +
   labs(
     title = "Correlation histogram - with redundant variables",
     x = "Correlation",
     y = "Variables"
   )
+```
 
+```{r}
 cor_long |>
   summarize(mean_cor = mean(abs(value)), .by = term) |>
-  #arrange(desc(mean_cor)) |>
   arrange(term) |>
   print(n = Inf)
+```
 
+```{r}
+#| fig-width: 10
+#| fig-height: 10
 rplot(weather_vars_cor) +
   scale_color_viridis_c() +
   theme(axis.text.x = element_text(angle = 60, vjust = .5))
-
-weather_vars |>
-  correlate() |>
-  mutate(term = str_replace_all(term, "_", " ") |> str_wrap(width = 10)) |>
-  network_plot(min_cor = .5)
 ```
 
 Here I select specific variables that are representative of the full set.
 
 ```{r}
+#| fig-width: 10
+#| fig-height: 10
 pca_inputs <- weather_data |>
   select(
     daily_temperature_2m_mean,
@@ -350,14 +364,14 @@ pca_inputs <- weather_data |>
   select(where(is.numeric)) |>
   drop_bad_cols()
 
-glimpse(pca_inputs)
-
 pca_inputs |>
   correlate() |>
   rplot() +
   scale_color_viridis_c() +
   theme(axis.text.x = element_text(angle = 60, vjust = .75))
+```
 
+```{r}
 pca_inputs |>
   correlate() |>
   rearrange() |>
@@ -367,7 +381,7 @@ pca_inputs |>
   ggplot(aes(value)) +
   geom_histogram() +
   geom_vline(xintercept = 0, color = "red") +
-  coord_cartesian(xlim = c(-1, 1)) +
+coord_cartesian(xlim = c(-1, 1), ylim = c(0, 40)) +
   labs(
     title = "Correlation histogram - redundant variables removed",
     x = "Correlation",
@@ -376,6 +390,8 @@ pca_inputs |>
 ```
 
 As expected, the extent of correlation between the subsetted variables is much lower.
+
+## Principal component analysis (PCA)
 
 Here I fit PCA to the weather data. The first 4 components explain most of the variance, so I will focus on those.
 
@@ -434,7 +450,7 @@ pca_rot_df_neg <- pca_rot |>
   ungroup()
 
 pca_rot_df <- bind_rows(pca_rot_df_pos, pca_rot_df_neg) |>
-  arrange(pc, desc(abs(pc_value)))
+  arrange(pc, desc(pc_value))
 
 print(pca_rot_df, n = Inf)
 
@@ -449,13 +465,10 @@ pc_labels_df <- enframe(pc_labels, name = "pc", value = "pc_label") |>
   mutate(pc_label = map_chr(pc_label, 1)) |>
   mutate(pc_label = str_wrap(pc_label, 40))
 
-pc_labels$pc1
-
 pc_label <- function(x) {
   pluck(pc_labels, x)
 }
 
-pc_label("pc1")
 ```
 
 These scatter plots show the rotation values of the weather variables that are most integral to each principal component.
@@ -484,32 +497,15 @@ graph_pca_rot <- function(pca_df, x, y) {
   pca_df <- pca_df |>
     select(column, all_of(c(x, y)))
 
-  # pca_points <- semi_join(pca_df, pca_points, by = "column") |>
-  #   mutate(text = str_replace_all(column, "_", " ") |> str_wrap(20)) |>
-  #   left_join(pca_points, by = "column")
-
-  # print(pca_points)
-
-  # print(pca_df)
-
   pca_df |>
     mutate(text = str_replace_all(column, "_", " ") |> str_wrap(20)) |>
     ggplot(aes(.data[[x]], .data[[y]])) +
     geom_segment(xend = 0, yend = 0, arrow = arrow_style) +
-    # geom_label(
-    #   aes(label = text),
-    #   size = 3
-    # ) +
     geom_label_repel(
       data = pca_points,
       aes(label = text, fill = pc),
       size = 3
     ) +
-    # geom_label_repel(
-    #   data = pca_points_y,
-    #   aes(label = text, fill = pc),
-    #   size = 3
-    # ) +
     scale_x_continuous(expand = expansion(mult = .4)) +
     scale_y_continuous(expand = expansion(mult = .4)) +
     labs(
@@ -559,7 +555,6 @@ weather_pca_long <- weather_data_pca |>
   left_join(pc_labels_df, by = "pc")
 
 weather_pca_long |>
-  #filter(yday <= 365) |>
   ggplot(aes(yday, value, color = decade)) +
   geom_smooth(se = FALSE) +
   scale_color_viridis_d() +
@@ -571,7 +566,7 @@ weather_pca_long |>
 Then I show the time series of the weather variables for each component.
 
 ```{r}
-pc_column_line_plot <- function(x) {
+pc_column_line_plot <- function(x, title_text = "") {
   pc_cols <- pca_rot_df |>
     filter(pc == x) |>
     pull(column)
@@ -585,39 +580,19 @@ pc_column_line_plot <- function(x) {
     geom_smooth(color = "black", lwd = 2) +
     geom_vline(xintercept = year_cutoff) +
     facet_wrap(vars(name), scales = "free") +
-    labs(title = pc_label(x), subtitle = "Black line represents overall trend")
+    labs(title = title_text, subtitle = pc_label(x), caption = "Black line represents overall trend", x = "Year", y = "Value")
 }
 
-pc_column_line_plot("pc1")
+pc_column_line_plot("pc1", title_text = "Summary text here")
 
-pc_column_line_plot("pc2")
+pc_column_line_plot("pc2", title_text = "Summary text here")
 
-pc_column_line_plot("pc3")
+pc_column_line_plot("pc3", title_text = "Summary text here")
 
-pc_column_line_plot("pc4")
+pc_column_line_plot("pc4", title_text = "Summary text here")
 ```
 
 These scatter plots show the first component vs. principal components 2-4. There are not distinct non-overalapping groupings, and the months represent gradients of a continuous signal, not discrete categories. This reinforces that weather in Pittsburgh is highly variable and is not representable by distinct clusters.
-
-```{r}
-weather_data_pca |>
-  select(month, pc1:pc4) |>
-  pivot_longer(-c(month, pc1), names_to = "pc") |>
-  left_join(pc_labels_df) |>
-  mutate(pc_label = fct_inorder(pc_label)) |>
-  ggplot(aes(pc1, value, color = month)) +
-  geom_point(alpha = .1, size = .5) +
-  facet_wrap(vars(pc_label), scales = "free_y", ncol = 1) +
-  guides(color = guide_legend(override.aes = list(alpha = 1))) +
-  labs(
-    title = "PC1 vs PCs 2:4",
-    x = pc_label("pc1"),
-    y = "Other PC value",
-    color = "Month"
-  )
-```
-
-The sharp non-linear curve downward along PC4 shows that very snowy days are very distinct compared to other weather patterns.
 
 ```{r}
 pca_scatter <- function(pca_df, x, y, color_var) {
@@ -626,7 +601,6 @@ pca_scatter <- function(pca_df, x, y, color_var) {
     geom_vline(xintercept = 0) +
     geom_hline(yintercept = 0) +
     geom_point(size = 1.5, alpha = .1) +
-    facet_wrap(vars(decade)) +
     guides(color = guide_legend(override.aes = list(alpha = 1))) +
     labs(
       x = pc_label(x) |> str_wrap(70),
@@ -642,6 +616,8 @@ pca_scatter(weather_data_pca, "pc1", "pc3", "month")
 
 pca_scatter(weather_data_pca, "pc1", "pc4", "month")
 ```
+
+The sharp non-linear curve downward along PC4 shows that very snowy days are very distinct compared to other weather patterns.
 
 This shows the components by decade, with the historical range annotated in grey.
 
