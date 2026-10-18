@@ -8,11 +8,12 @@ execute:
   warning: false
 lightbox: true
 fig-width: 7
+fig-height: 7
 ---
 
 # Intro
 
-In this post I will explore the long-term weather history of Pittsburgh. I use the Open-Meteo free weather API to pull weather variables.
+In this post I will explore the long-term weather history of Pittsburgh. I use [{openmeteo}](https://github.com/tpisel/openmeteo) to access the [Open-Meteo free weather API](https://open-meteo.com/en/docs/historical-weather-api) to pull weather variables. My intent for this post is to analyze the patterns within the data and practice exploratory data analysis.
 
 My approach is to select a representative sample of the weather variables to reduce redundancy while conserving signal, apply PCA to the remaining variables, and examine the results.
 
@@ -41,13 +42,13 @@ theme_set(theme_bw())
 
 # Pull data
 
-These are the weather variables available from the API. I use the "ERA5" model, which uses reanalysis to infer the weather data for older periods of time.
+These are the weather variables available from the API. I use the ["ERA5" model](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels?tab=overview), which uses [reanalysis](https://open-meteo.com/en/docs/historical-weather-api#data_sources) to infer the weather data for older periods of time.
 
 ```{r show_weather_vars}
 weather_variables()$daily_history_vars
 ```
 
-There is a download limit on the API, so I write a function to download the results and save it to parquet. Since it takes me multiple days to download data for the full timeline, I expected to hit the API limit. The fuction checks if the file for that decade has already been downloaded, and skips those decades. I ran into some issues with missing data, so I ended up downloading a sample of the data to check for missingness before fetching the complete dataset.
+There is a download limit on the API, so I wrote a function to download the results and save it to parquet. Since it takes me multiple days to download data for the full time period, I expected to hit the API limit. The fuction checks if the file for that decade has already been downloaded, and skips those decades. I ran into some issues with missing data, so I ended up downloading a sample of the data to check for missingness before fetching the complete dataset.
 
 ```{r test_missing_data}
 #| eval: false
@@ -101,9 +102,11 @@ pwalk(
   .l = list(date_target_year$start, date_target_year$end),
   .f = get_weather_data_test
 )
+```
 
+```{r}
 vars_missing <- open_dataset(
-  "posts/pittsburgh_weather_pca/post_data/era5/test"
+  "/Users/conorotompkins/Documents/github_repos/ctompkins_quarto_blog/posts/pittsburgh_weather_pca/post_data/era5/test"
 ) |>
   collect() |>
   pivot_longer(cols = -date, values_transform = as.character)
@@ -112,7 +115,6 @@ vars_missing |>
   summarize(pct_missing = mean(is.na(value)), .by = c(date)) |>
   filter(pct_missing != 0)
 ```
-
 1940-01-01 is missing data, so I will pull data starting in 1941. I split the API calls by decade to work with the API limit.
 
 ```{r setup_decade}
@@ -268,9 +270,9 @@ drop_bad_cols <- function(x) {
     distinct(column_name) |>
     pull(column_name)
 
-    if(length(bad_cols) > 1){
-  print(str_c("dropping ", str_c(bad_cols, collapse = ", ")))
-        }
+  if (length(bad_cols) > 1) {
+    print(str_c("dropping ", str_c(bad_cols, collapse = ", ")))
+  }
 
   x <- select(x, -all_of(bad_cols))
 }
@@ -292,11 +294,14 @@ weather_data_recent <- weather_data |>
 
 ## Variable correlation
 
-Some variables are highly correlated with other variables. While PCA will de-correlate the inputs and create orthagonal components, there will still be redundancy in the components because of the highly correlated input variables. In this code, I examine potentially redundant variables and remove them from the dataframe.
+Some variables are highly correlated with other variables. While PCA will de-correlate the inputs and create orthogonal components, there will still be redundancy in the components because of the highly correlated input variables. In this code, I examine potentially redundant variables and remove them from the dataframe.
 
 ```{r}
 weather_vars <- weather_data |>
-  select(daily_temperature_2m_mean:daily_soil_temperature_28_to_100cm_mean)
+  select(
+    daily_temperature_2m_mean:daily_soil_temperature_28_to_100cm_mean,
+    -c(daily_sunrise, daily_sunset)
+  )
 
 weather_vars_cor <- weather_vars |>
   correlate() |>
@@ -309,9 +314,9 @@ cor_long <- weather_vars_cor |>
 
 cor_long |>
   ggplot(aes(value)) +
-  geom_histogram() +
+  geom_histogram(bins = 50) +
   geom_vline(xintercept = 0, color = "red") +
-  coord_cartesian(xlim = c(-1, 1), ylim = c(0, 40)) +
+  coord_cartesian(xlim = c(-1, 1), ylim = c(0, 30)) +
   labs(
     title = "Correlation histogram - with redundant variables",
     x = "Correlation",
@@ -331,10 +336,11 @@ cor_long |>
 #| fig-height: 10
 rplot(weather_vars_cor) +
   scale_color_viridis_c() +
-  theme(axis.text.x = element_text(angle = 60, vjust = .5))
+  labs(title = "Correlation matrix", color = "Correlation") +
+  theme(axis.text.x = element_text(angle = 90, vjust = .5))
 ```
 
-Here I select specific variables that are representative of the full set.
+Here I select specific variables that are representative of the full set and rerun the correlation plots.
 
 ```{r}
 #| fig-width: 10
@@ -366,9 +372,14 @@ pca_inputs <- weather_data |>
 
 pca_inputs |>
   correlate() |>
+  shave() |>
   rplot() +
   scale_color_viridis_c() +
-  theme(axis.text.x = element_text(angle = 60, vjust = .75))
+  labs(
+    title = "Correlation matrix - redundant variables removed",
+    color = "Correlation"
+  ) +
+  theme(axis.text.x = element_text(angle = 90, vjust = .5))
 ```
 
 ```{r}
@@ -379,9 +390,9 @@ pca_inputs |>
   pivot_longer(cols = -term) |>
   drop_na(value) |>
   ggplot(aes(value)) +
-  geom_histogram() +
+  geom_histogram(bins = 50) +
   geom_vline(xintercept = 0, color = "red") +
-coord_cartesian(xlim = c(-1, 1), ylim = c(0, 40)) +
+  coord_cartesian(xlim = c(-1, 1), ylim = c(0, 30)) +
   labs(
     title = "Correlation histogram - redundant variables removed",
     x = "Correlation",
@@ -389,13 +400,14 @@ coord_cartesian(xlim = c(-1, 1), ylim = c(0, 40)) +
   )
 ```
 
-As expected, the extent of correlation between the subsetted variables is much lower.
+As expected, removing the redundant variables reduced the extent of correlation between the subsetted variables.
 
 ## Principal component analysis (PCA)
 
-Here I fit PCA to the weather data. The first 4 components explain most of the variance, so I will focus on those.
+Next I fit PCA to the weather data. The first 4 components explain most of the variance, so I will focus on those.
 
 ```{r}
+#| fig-height: 4
 pca_fit <- prcomp(pca_inputs, scale = TRUE)
 
 pca_values <- pca_fit |>
@@ -404,10 +416,16 @@ pca_values <- pca_fit |>
 pca_values |>
   ggplot(aes(PC, percent)) +
   geom_line() +
+  geom_vline(xintercept = 4, lty = 2) +
   scale_x_continuous(breaks = 1:nrow(pca_values)) +
   scale_y_continuous(
     labels = percent_format(),
     expand = expansion(mult = c(0, 0.01))
+  ) +
+  labs(
+    title = "First 4 components explain most of the variance",
+    x = "Component",
+    y = "Variance"
   ) +
   theme(panel.grid.minor = element_blank())
 
@@ -418,7 +436,6 @@ weather_data_pca <- pca_fit |>
 ```
 
 Next, I examine the variables that make up each component and assign labels that explain each component.
-
 ```{r}
 # define arrow style for plotting
 arrow_style <- arrow(
@@ -428,7 +445,7 @@ arrow_style <- arrow(
   length = grid::unit(8, "pt")
 )
 
-# plot rotation matrix
+# get rotation matrix
 pca_rot <- pca_fit |>
   tidy(matrix = "rotation") |>
   pivot_wider(names_from = "PC", names_prefix = "PC", values_from = "value") |>
@@ -450,13 +467,14 @@ pca_rot_df_neg <- pca_rot |>
   ungroup()
 
 pca_rot_df <- bind_rows(pca_rot_df_pos, pca_rot_df_neg) |>
+  select(pc, column, pc_value) |>
   arrange(pc, desc(pc_value))
 
 print(pca_rot_df, n = Inf)
 
 pc_labels <- list(
   pc1 = "PC1: Warm, sunny & dry (+) vs. cloudy & wet soil (-)",
-  pc2 = "PC2: Warm, humid & rainy (+) vs. sunny/high pressure (-)",
+  pc2 = "PC2: Humid & rainy (+) vs. sunny/high pressure (-)",
   pc3 = "PC3: Humid/high pressure (+) vs. windy (-)",
   pc4 = "PC4: Wet soil & rainy (+) vs. snowy (-)"
 )
@@ -468,12 +486,12 @@ pc_labels_df <- enframe(pc_labels, name = "pc", value = "pc_label") |>
 pc_label <- function(x) {
   pluck(pc_labels, x)
 }
-
 ```
 
 These scatter plots show the rotation values of the weather variables that are most integral to each principal component.
 
 ```{r}
+#| fig-width: 10
 graph_pca_rot <- function(pca_df, x, y) {
   pca_points_x <- pca_rot_df |>
     filter(pc == x)
@@ -537,17 +555,17 @@ weather_data_pca |>
   geom_smooth() +
   geom_smooth(method = "lm", color = "black", se = FALSE) +
   geom_vline(xintercept = str_c(year_cutoff, "-01-01") |> ymd()) +
-  facet_wrap(vars(str_wrap(pc_label, 40)), scales = "free_y") +
+  facet_wrap(vars(str_wrap(pc_label, 40))) +
   labs(
     title = "Pittsburgh has gotten warmer and rainier over the past 80 years",
     subtitle = "Principle components time series",
     x = "Date",
-    y = "PC value"
+    y = "PC value",
+    caption = "Black line shows linear regression line"
   )
 ```
 
 This polar chart shows the cyclicality of the components by decade. The circular axis is the day of the year (starting at day 1), and the axis going away from the center is the value of the principle component.
-
 ```{r}
 weather_pca_long <- weather_data_pca |>
   select(yday, year, decade, pc1:pc4) |>
@@ -560,12 +578,19 @@ weather_pca_long |>
   scale_color_viridis_d() +
   coord_polar() +
   facet_wrap(vars(str_wrap(pc_label, 20)), scales = "free_y") +
-  labs(x = "Day of year", y = "PC value", color = "Decade")
+  labs(
+    title = "Seasonal cycle of PCs by decade",
+    x = "Day of year",
+    y = "PC value",
+    color = "Decade"
+  ) +
+  theme(legend.position = "bottom", legend.direction = "horizontal")
 ```
+Component 4 has changed the most across the time series. The soil held much more moisture in the early decades.
 
-Then I show the time series of the weather variables for each component.
-
+Then I show the time series of the weather variables for each component, broken out by month.
 ```{r}
+#| fig-height: 10
 pc_column_line_plot <- function(x, title_text = "") {
   pc_cols <- pca_rot_df |>
     filter(pc == x) |>
@@ -577,24 +602,40 @@ pc_column_line_plot <- function(x, title_text = "") {
     mutate(name = str_replace_all(name, "_", " ") |> str_wrap(20)) |>
     ggplot(aes(x = year, y = value)) +
     geom_smooth(aes(color = month, group = month), se = FALSE, lwd = .75) +
-    geom_smooth(color = "black", lwd = 2) +
-    geom_vline(xintercept = year_cutoff) +
+    geom_smooth(method = "lm", color = "black", lwd = 2) +
     facet_wrap(vars(name), scales = "free") +
-    labs(title = title_text, subtitle = pc_label(x), caption = "Black line represents overall trend", x = "Year", y = "Value")
+    labs(
+      title = title_text,
+      subtitle = pc_label(x),
+      caption = "Black line represents overall trend",
+      x = "Year",
+      y = "Value",
+      color = "Month"
+    ) +
+    theme(legend.position = "bottom", legend.direction = "horizontal")
 }
 
-pc_column_line_plot("pc1", title_text = "Summary text here")
+pc_column_line_plot(
+  "pc1",
+  title_text = "Drier soil, particularly in summer months"
+)
 
-pc_column_line_plot("pc2", title_text = "Summary text here")
+pc_column_line_plot(
+  "pc2",
+  title_text = "More total rain, high variance in hours of rain per day"
+)
 
-pc_column_line_plot("pc3", title_text = "Summary text here")
+pc_column_line_plot("pc3", title_text = "Drier air and stronger gusts of wind")
 
-pc_column_line_plot("pc4", title_text = "Summary text here")
+pc_column_line_plot(
+  "pc4",
+  title_text = "VPD increase means air holds less moisture"
+)
 ```
 
 These scatter plots show the first component vs. principal components 2-4. There are not distinct non-overalapping groupings, and the months represent gradients of a continuous signal, not discrete categories. This reinforces that weather in Pittsburgh is highly variable and is not representable by distinct clusters.
 
-```{r}
+```{r pca_scatter}
 pca_scatter <- function(pca_df, x, y, color_var) {
   pca_df |>
     ggplot(aes(.data[[x]], .data[[y]], color = .data[[color_var]])) +
@@ -621,7 +662,7 @@ The sharp non-linear curve downward along PC4 shows that very snowy days are ver
 
 This shows the components by decade, with the historical range annotated in grey.
 
-```{r}
+```{r historical-line-chart}
 weather_data_hist_pca <- weather_data_pca |>
   filter(year < year_cutoff) |>
   select(date, month, decade, yday, year, starts_with("pc"))
@@ -664,30 +705,10 @@ weather_pca_recent_long |>
   labs(
     title = "Decadal PC value vs. historical range (25-75 percentile)",
     x = "Day of year",
-    y = "PCA value",
+    y = "PC value",
     color = "Decade"
-  )
-```
-
-### Analyze distributions
-
-```{r}
-hist_dist <- weather_data_hist_pca |>
-  pivot_longer(cols = starts_with("pc"), names_to = "pc") |>
-  left_join(pc_labels_df)
-
-weather_pca_recent_long |>
-  mutate(era = ifelse(year >= year_cutoff, "recent", "historical")) |>
-  ggplot(aes(value, fill = decade)) +
-  geom_density(
-    data = hist_dist,
-    aes(x = value),
-    inherit.aes = FALSE,
-    fill = "black"
   ) +
-  geom_density(alpha = .5) +
-  facet_wrap(vars(pc_label), scales = "free", ncol = 1) +
-  scale_fill_viridis_d()
+  theme(legend.position = "bottom", legend.direction = "horizontal")
 ```
 
-###
+In the 2020s, the soil moisture in fall and winter has fallen below the historical range.
