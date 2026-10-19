@@ -20,7 +20,7 @@ editor_options:
   chunk_output_type: console
 ---
 
-538's [Soccer Power Index (SPI)](https://projects.fivethirtyeight.com/soccer-predictions/) rates the quality of soccer teams from a variety of leagues around the world. In this post I'll use `gganimate` to animate team SPI over the past 3 seasons.
+538's [Soccer Power Index (SPI)](https://projects.fivethirtyeight.com/soccer-predictions/) *(note: 538's live portal now redirects to ABC News; for active Premier League & global club ratings and match probabilities see [Football Charts](https://www.football-charts.com/rankings))* rates the quality of soccer teams from a variety of leagues around the world. In this post I'll use `gganimate` to animate team SPI over the past 3 seasons.
 
 The SPI data is available on 538's [GitHub repo](https://github.com/fivethirtyeight/data/tree/master/soccer-spi).
 
