@@ -12,9 +12,10 @@ fig-height: 7
 image: featured.png
 draft: false
 author: Conor Tompkins
-tags: [Pittsburgh, Weather]
-categories: [Pittsburgh, Weather]
+tags: [Pittsburgh, Weather, R]
+categories: [Pittsburgh, Weather, R]
 date: 2026-10-18
+freeze: true
 ---
 
 # Intro
@@ -121,6 +122,7 @@ vars_missing |>
   summarize(pct_missing = mean(is.na(value)), .by = c(date)) |>
   filter(pct_missing != 0)
 ```
+
 1940-01-01 is missing data, so I will pull data starting in 1941. I split the API calls by decade to work with the API limit.
 
 ```{r setup_decade}
@@ -442,6 +444,7 @@ weather_data_pca <- pca_fit |>
 ```
 
 Next, I examine the variables that make up each component and assign labels that explain each component.
+
 ```{r pc_labels}
 # define arrow style for plotting
 arrow_style <- arrow(
@@ -572,6 +575,7 @@ weather_data_pca |>
 ```
 
 This polar chart shows the cyclicality of the components by decade. The circular axis is the day of the year (starting at day 1), and the axis going away from the center is the value of the principle component.
+
 ```{r weather_pca_polar}
 weather_pca_long <- weather_data_pca |>
   select(yday, year, decade, pc1:pc4) |>
@@ -592,9 +596,11 @@ weather_pca_long |>
   ) +
   theme(legend.position = "bottom", legend.direction = "horizontal")
 ```
+
 Component 4 has changed the most across the time series. The soil held much more moisture in the early decades.
 
 Next, I plot the time series of the weather variables for each component, broken out by month.
+
 ```{r pc_column_line_plot}
 #| fig-height: 10
 pc_column_line_plot <- function(x, title_text = "") {
