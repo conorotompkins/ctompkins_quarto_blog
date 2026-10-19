@@ -2,6 +2,7 @@
   {
     "listing": "/index.html",
     "items": [
+      "/posts/pittsburgh_weather_pca/index.html",
       "/posts/us_gas_price_forecast/index.html",
       "/posts/us-labor-participation/index.html",
       "/posts/ebird-habitat-clustering/index.html",
