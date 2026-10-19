@@ -1281,7 +1281,7 @@ $ daily_soil_temperature_28_to_100cm_mean &lt;dbl&gt; 5.7, 5.5, 5.4, 5.3, 5.0, 4
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp("https:\/\/ctompkins\.netlify\.app\/");
+        var filterRegex = new RegExp("https:\/\/ctompkins\.netlify\.app");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
